@@ -23,14 +23,14 @@
 
 MTS_NAMESPACE_BEGIN
 
-/**
-		* A sun and skylight luminaire. In its local coordinate system, the sun
-		* is "above" on positive Y direction. So when configuring, keep in mind
-		* that south = x, east = y and up = z. All times in decimal form (6.25
-		* = 6:15 AM) and all angles in radians.
-		*
-		* The model behind it is described by Preetham et al. (2002).
-		*/
+/*
+ * A sun and skylight luminaire. In its local coordinate system, the sun
+ * is "above" on positive Y direction. So when configuring, keep in mind
+ * that south = x, east = y and up = z. All times in decimal form (6.25
+ * = 6:15 AM) and all angles in radians.
+ *
+ * The model behind it is described by Preetham et al. (2002).
+ */
 class SkyLuminaire : public Luminaire {
 public:
 	/**
@@ -136,6 +136,7 @@ public:
 
 		Float turb2 = m_turbidity * m_turbidity;
 
+		/* calculate zenith chromaticity */
 		Float chi = (4.0/9.0 - m_turbidity / 120.0) * (M_PI - 2 * m_thetaS);
 
 		/* calculate zenith luminance */
@@ -145,7 +146,6 @@ public:
 		//if (m_zenithL < 0.0)
 		//	m_zenithL = -m_ZenithL
 
-	// calculate zenith chromaticity
 		m_zenithX =
 		(+0.00165*theta3 - 0.00374*theta2 + 0.00208*m_thetaS + 0)       * turb2 +
 		(-0.02902*theta3 + 0.06377*theta2 - 0.03202*m_thetaS + 0.00394) * m_turbidity  +
@@ -410,10 +410,11 @@ public:
 
 private:
 	/**
-	 * All angles in radians, theta angles measured from normal
+	 * Calculates the anlgle between two spherical cooridnates. All
+	 * angles in radians, theta angles measured from up/zenith direction.
 	 */
 	inline Float getAngleBetween(const Float thetav, const Float phiv,
-		const Float theta, const Float phi) const {
+			const Float theta, const Float phi) const {
 		const Float cospsi = sin(thetav) * sin(theta) * cos(phi - phiv)
 			+ cos(thetav) * cos(theta);
 
@@ -451,6 +452,7 @@ private:
 	void getSkySpectralRadiance(const Float theta, const Float phi, Spectrum &dstSpect) const {
 		/* add bottom half of hemisphere with horizon colour */
 		const Float theta_fin = std::min(theta, (M_PI * 0.5f) - 0.001f);
+		/* get angle between sun (zenith is 0, 0) and point (theta, phi) */
 		const Float gamma = getAngleBetween(theta, phi, m_thetaS, m_phiS);
 		/* Compute xyY values */
 		const Float x = perezFunction(m_perezX, theta_fin, gamma, m_zenithX);
@@ -479,7 +481,11 @@ protected:
 	Float m_zenithL;
 	Float m_zenithX;
 	Float m_zenithY;
-	/* distribution coefficients for luminance distribution function */
+	/* The distribution coefficints are called A, B, C, D and E by
+	 * Preedham. Since they exist for x, y and Y (here called L)
+	 * we save the precalculated version of it
+	 *
+	 * distribution coefficients for luminance distribution function */
 	Float m_perezL[5];
 	/* distribution coefficients for x distribution function */
 	Float m_perezX[5];
