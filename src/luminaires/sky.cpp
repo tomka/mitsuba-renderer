@@ -137,15 +137,6 @@ public:
 		Float turb2 = m_turbidity * m_turbidity;
 
 		/* calculate zenith chromaticity */
-		Float chi = (4.0/9.0 - m_turbidity / 120.0) * (M_PI - 2 * m_thetaS);
-
-		/* calculate zenith luminance */
-		m_zenithL = (4.0453 * m_turbidity - 4.9710) * tan(chi)
-		- 0.2155 * m_turbidity + 2.4192;
-
-		//if (m_zenithL < 0.0)
-		//	m_zenithL = -m_ZenithL
-
 		m_zenithX =
 		(+0.00165*theta3 - 0.00374*theta2 + 0.00208*m_thetaS + 0)       * turb2 +
 		(-0.02902*theta3 + 0.06377*theta2 - 0.03202*m_thetaS + 0.00394) * m_turbidity  +
@@ -155,6 +146,15 @@ public:
 		(+0.00275*theta3 - 0.00610*theta2 + 0.00316*m_thetaS  + 0)       * turb2 +
 		(-0.04214*theta3 + 0.08970*theta2 - 0.04153*m_thetaS  + 0.00515) * m_turbidity  +
 		(+0.15346*theta3 - 0.26756*theta2 + 0.06669*m_thetaS  + 0.26688);
+
+		/* calculate zenith luminance */
+		Float chi = (4.0/9.0 - m_turbidity / 120.0) * (M_PI - 2 * m_thetaS);
+
+		m_zenithL = (4.0453 * m_turbidity - 4.9710) * tan(chi)
+			- 0.2155 * m_turbidity + 2.4192;
+
+		//if (m_zenithL < 0.0)
+		//	m_zenithL = -m_ZenithL
 
 		m_perezL[0] =  ( 0.17872 * m_turbidity  - 1.46303) * m_aConst;
 		m_perezL[1] =  (-0.35540 * m_turbidity  + 0.42749) * m_bConst;
@@ -435,15 +435,19 @@ private:
 	 *
 	 * From IES Lighting Handbook pg 361
 	 */
-	inline float perezFunction(const Float *lam, Float theta, Float gamma,
-		Float lvz) const {
-		const float den = ((1 + lam[0]*exp(lam[1]))
-			* (1 + lam[2] * exp(lam[3] * m_thetaS)
-			+ lam[4] * cos(m_thetaS) * cos(m_thetaS)));
-		const float num = ((1 + lam[0] * exp(lam[1] / cos(theta)))
+	inline Float getDistribution(const Float *lam, const Float theta,
+			const Float gamma) const {
+		const Float cosGamma = cos(gamma);
+		const Float num = ( (1 + lam[0] * exp(lam[1] / cos(theta)))
 			* (1 + lam[2] * exp(lam[3] * gamma)
-			+ lam[4] * cos(gamma) * cos(gamma)));
-		return lvz * (num / den);
+			+ lam[4] * cosGamma * cosGamma));
+
+		const Float cosTheta = cos(m_thetaS);
+		const Float den = ( (1 + lam[0] * exp(lam[1] /* / cos 0 */))
+			* (1 + lam[2] * exp(lam[3] * m_thetaS)
+			+ lam[4] * cosTheta * cosTheta));
+
+		return (num / den);
 	}
 
 	/**
@@ -454,16 +458,22 @@ private:
 		const Float theta_fin = std::min(theta, (M_PI * 0.5f) - 0.001f);
 		/* get angle between sun (zenith is 0, 0) and point (theta, phi) */
 		const Float gamma = getAngleBetween(theta, phi, m_thetaS, m_phiS);
-		/* Compute xyY values */
-		const Float x = perezFunction(m_perezX, theta_fin, gamma, m_zenithX);
-		const Float y = perezFunction(m_perezY, theta_fin, gamma, m_zenithY);
-		Float Y = perezFunction(m_perezL, theta_fin, gamma, m_zenithL);
+std::cerr << "Gamma: " << gamma << std::endl;
+		/* Compute xyY values by calculating the distribution for the point
+		 * point of interest and multiplying it with the the components
+		 * zenith value. */
+		const Float x = m_zenithX * getDistribution(m_perezX, theta_fin, gamma);
+		const Float y = m_zenithY * getDistribution(m_perezY, theta_fin, gamma);
+		Float Y = m_zenithL *  getDistribution(m_perezL, theta_fin, gamma);
 		/* Apply an exponential exposure function */
-		Y = 1.0 - exp(-m_exposure * Y);
+		//Y = 1.0 - exp(-m_exposure * Y);
 		/* Convert xyY to XYZ */
 		const Float yFrac = Y / y;
 		const Float X = yFrac * x;
-		const Float Z = yFrac * (1 - x - y);
+		/* It seems the following is necassary to stay always above zero */
+		const Float z = std::max(0.0f, 1.0f - x - y);
+		const Float Z = yFrac * z;
+
 		/* create spectrum from XYZ values */
 		dstSpect.fromXYZ(X, Y, Z);
 	}
