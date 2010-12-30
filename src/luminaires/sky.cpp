@@ -21,6 +21,12 @@
 
 #define SAMPLE_UNIFORMLY 1
 
+/* Define this to automatically set the viewing angles phi to zero if
+ * its theta is zero. This means that there is only one possible
+ * viewing zenith angle. Some implementitions do this, but it is
+ * unclear why one should use it. */
+// #define ENFORCE_SINGLE_ZENITH_ANGLE
+
 MTS_NAMESPACE_BEGIN
 
 /*
@@ -153,9 +159,6 @@ public:
 		m_zenithL = (4.0453 * m_turbidity - 4.9710) * tan(chi)
 			- 0.2155 * m_turbidity + 2.4192;
 
-		//if (m_zenithL < 0.0)
-		//	m_zenithL = -m_ZenithL
-
 		m_perezL[0] =  ( 0.17872 * m_turbidity  - 1.46303) * m_aConst;
 		m_perezL[1] =  (-0.35540 * m_turbidity  + 0.42749) * m_bConst;
 		m_perezL[2] =  (-0.02266 * m_turbidity  + 5.32505) * m_cConst;
@@ -244,14 +247,16 @@ public:
 
 		const Point2 dSpherical = toSphericalCoordinates(d);
 		const Float theta = dSpherical.x;
-		const Float phi = dSpherical.y;
 
-		// const Float theta = acos(d.y);  //dSpherical.x;
-		// Float phi;
-		// if (fabs(theta) < 1e-5)
-		//     phi = 0.0f;
-		// else
-		//     phi = atan2(d.z, d.x); //dSpherical.y;
+#ifndef ENFORCE_SINGLE_ZENITH_ANGLE
+		const Float phi = dSpherical.y;
+#else
+		Float phi;
+		if (fabs(theta) < 1e-5)
+			phi = 0.0f;
+		else
+			phi = dSpherical.y;
+#endif
 
 		Spectrum L;
 		getSkySpectralRadiance(theta, phi, L);
@@ -458,15 +463,15 @@ private:
 		const Float theta_fin = std::min(theta, (M_PI * 0.5f) - 0.001f);
 		/* get angle between sun (zenith is 0, 0) and point (theta, phi) */
 		const Float gamma = getAngleBetween(theta, phi, m_thetaS, m_phiS);
-std::cerr << "Gamma: " << gamma << std::endl;
 		/* Compute xyY values by calculating the distribution for the point
 		 * point of interest and multiplying it with the the components
 		 * zenith value. */
 		const Float x = m_zenithX * getDistribution(m_perezX, theta_fin, gamma);
 		const Float y = m_zenithY * getDistribution(m_perezY, theta_fin, gamma);
-		Float Y = m_zenithL *  getDistribution(m_perezL, theta_fin, gamma);
+		Float Y = m_zenithL * getDistribution(m_perezL, theta_fin, gamma);
+
 		/* Apply an exponential exposure function */
-		//Y = 1.0 - exp(-m_exposure * Y);
+		Y = 1.0 - exp(-m_exposure * Y);
 		/* Convert xyY to XYZ */
 		const Float yFrac = Y / y;
 		const Float X = yFrac * x;
@@ -474,8 +479,11 @@ std::cerr << "Gamma: " << gamma << std::endl;
 		const Float z = std::max(0.0f, 1.0f - x - y);
 		const Float Z = yFrac * z;
 
-		/* create spectrum from XYZ values */
+		/* Create spectrum from XYZ values */
 		dstSpect.fromXYZ(X, Y, Z);
+		/* The produced spectrum contains out-of-gamut colors.
+		 * It is common to clamp resulting values to zero. */
+		dstSpect.clampNegative();
 	}
 
 	MTS_DECLARE_CLASS()
