@@ -468,10 +468,10 @@ private:
 		 * zenith value. */
 		const Float x = m_zenithX * getDistribution(m_perezX, theta_fin, gamma);
 		const Float y = m_zenithY * getDistribution(m_perezY, theta_fin, gamma);
-		Float Y = m_zenithL * getDistribution(m_perezL, theta_fin, gamma);
+		const Float Y = m_zenithL * getDistribution(m_perezL, theta_fin, gamma);
 
 		/* Apply an exponential exposure function */
-		Y = 1.0 - exp(-m_exposure * Y);
+		// Y = 1.0 - exp(-m_exposure * Y);
 		/* Convert xyY to XYZ */
 		const Float yFrac = Y / y;
 		const Float X = yFrac * x;
