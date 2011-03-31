@@ -24,6 +24,7 @@
 #include <mitsuba/render/bsdf.h>
 #include <mitsuba/render/subsurface.h>
 #include <mitsuba/render/medium.h>
+#include <boost/lexical_cast.hpp>
 #include <set>
 
 MTS_NAMESPACE_BEGIN
@@ -232,19 +233,19 @@ public:
 	void parse(OBJTriangle &t, int i, const std::string &str) {
 		std::vector<std::string> tokens = tokenize(str, "/");
 		if (tokens.size() == 1) {
-			t.p[i] = atoi(tokens[0].c_str())-1;
+			t.p[i] = boost::lexical_cast<int>(tokens[0].c_str())-1;
 		} else if (tokens.size() == 2) {
 			if (str.find("//") == std::string::npos) {
-				t.p[i]  = atoi(tokens[0].c_str())-1;
-				t.uv[i] = atoi(tokens[1].c_str())-1;
+				t.p[i]  = boost::lexical_cast<int>(tokens[0].c_str())-1;
+				t.uv[i] = boost::lexical_cast<int>(tokens[1].c_str())-1;
 			} else {
-				t.p[i] = atoi(tokens[0].c_str())-1;
-				t.n[i] = atoi(tokens[1].c_str())-1;
+				t.p[i] = boost::lexical_cast<int>(tokens[0].c_str())-1;
+				t.n[i] = boost::lexical_cast<int>(tokens[1].c_str())-1;
 			}
 		} else if (tokens.size() == 3) {
-			t.p[i] = atoi(tokens[0].c_str())-1;
-			t.uv[i] = atoi(tokens[1].c_str())-1;
-			t.n[i] = atoi(tokens[2].c_str())-1;
+			t.p[i] = boost::lexical_cast<int>(tokens[0].c_str())-1;
+			t.uv[i] = boost::lexical_cast<int>(tokens[1].c_str())-1;
+			t.n[i] = boost::lexical_cast<int>(tokens[2].c_str())-1;
 		} else {
 			Log(EError, "Invalid OBJ face format!");
 		}
