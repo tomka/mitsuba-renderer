@@ -290,8 +290,10 @@ public:
             Log(EError, "Encountered an error while loading height span map: Expected dimensions");
         }
 
-        // in version 1 and 2 we need to skip 3 lines, 7 in version 3
-        int skips = (version == 1) ? 3 : 7;
+        /* in version 1 and 2 we need to skip 3 lines, 7 in version 3
+         *  until the bounding box is found
+         */
+        int skips = (version == 3) ? 7 : 3;
 		while (skips != 0 && is.good() && !is.eof() && fetch_line(is, line))
             --skips;
 
