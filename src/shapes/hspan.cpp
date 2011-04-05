@@ -299,18 +299,40 @@ public:
 
         // complain if skipping went wrong
         if (skips > 0) {
-            Log(EError, "Encountered an error while loading height span map: Expected more date");
+            Log(EError, "Encountered an error while loading height span map: Expected more data");
         }
 
         /* next a bounding box can be specified, but this
          * is not used or implemented yet. The bounding box is
          * always recalculated:
-         *
-         * Vector o =
-         * Vector x =
-         * Vector y =
-         * Vector z =
-        */
+         */
+        int bbCount = 4;
+        std::vector<std::string> bbEntries(4);
+        do {
+            --bbCount;
+            bbEntries[3 - bbCount] = line;
+        } while (bbCount != 0 && is.good() && !is.eof() && fetch_line(is, line));
+
+        // complain if we got not all bounding box entries
+        if (bbCount > 0) {
+            Log(EError, "Expected more bounding box data");
+        }
+        // read in bounding box data
+        Vector o = parseLineWithVector(bbEntries[0]);
+        Vector x = parseLineWithVector(bbEntries[1]) - o;
+        Vector y = parseLineWithVector(bbEntries[2]) - o;
+        Vector z = parseLineWithVector(bbEntries[3]) - o;
+        /* use bounding box as matrix transformation:
+         * translation and scaling
+         */
+        Matrix4x4 trafo(
+            x.x, y.x, z.x, o.x,
+            x.y, y.y, z.y, o.y,
+            x.z, y.z, z.z, o.z,
+            0, 0, 0, 1
+        );
+
+        m_fileToObject = Transform(trafo);
 
         // do version specific parsing
         if (version == 1)
@@ -320,6 +342,50 @@ public:
         else
             readDataV3(is);
 	}
+
+    Vector parseLineWithVector(const std::string& line) const
+    {
+        // create zero vector (0,0,0,1) as default
+        Vector v(0.0, 0.0, 0.0);
+        // tokenize the string, seperate it by ":" into "tokens"
+        separator sep1(":");
+        // tokenize the line
+        tokenizer tokens(line, sep1);
+        // access the tokens through a vector
+        std::vector<std::string> vec1;
+        vec1.assign(tokens.begin(),tokens.end());
+        // check if we have more or less than two tokens
+        if (vec1.size() != 2) {
+            // complain about not having found seperator and return default vector
+            Log(EWarn, "Error in parsing line with vector: no \":\" found");
+            return v;
+        }
+        // set weightspace and tokenize into "nums"
+        separator sep2(" \t(,)");
+        tokenizer numsTokens(vec1[1], sep2);
+        // access the tokens through a vector
+        std::vector<std::string> nums;
+        nums.assign(numsTokens.begin(),numsTokens.end());
+        // make sure we have three new tokens
+        if (nums.size() != 3) {
+            // no, we don't, complain about it and return default vector
+            Log(EWarn, "Error in parsing line with vector: no 3 numbers found");
+            return v;
+        }
+        // try to read every token as number component, if not possible use default
+        for (int i = 0; i < 3; ++i) {
+            try {
+                v[i] = boost::lexical_cast<double>(nums[i]);
+            } catch(boost::bad_lexical_cast &) {
+                std::stringstream str;
+                str << "Error in parsing line with vector: number " << i << " invalid";
+                Log(EWarn, str.str().c_str());
+                continue;
+            }
+        }
+        // return vector
+        return v;
+    }
 
     void readDataV1(fs::ifstream& is) {
             Log(EError,  "Hspan 1 format not yet implemented!");
@@ -757,11 +823,10 @@ public:
                         int key;        
                         Vertex vertex;
  
-
                         if (m_recenter)
-                            vertex.p = objectToWorld((pts[j] + translate) * scale);
+                            vertex.p = objectToWorld( m_fileToObject( (pts[j] + translate) * scale ) );
                         else
-                            vertex.p = objectToWorld(pts[j]);
+                            vertex.p = objectToWorld( m_fileToObject( pts[j] ) );
 
                         vertex.n = Normal(0.0f);
 					    vertex.uv = Point2(0.0f);
@@ -1084,6 +1149,10 @@ private:
     int m_width, m_height;
     // the actual map, saved in a linear collection.
 	std::vector<HeightSpanType> m_heightSpans;
+    /* the transformation used to convert file data
+     * to actuel 3d space data.
+     */
+     Transform m_fileToObject;
 };
 
 MTS_IMPLEMENT_CLASS_S(HeightSpanMap, false, Shape)
