@@ -215,10 +215,17 @@ public:
 		for (int lambda=0; lambda<SPECTRUM_SAMPLES; lambda++)
 			m_minMFP = std::min(m_minMFP, m_mfp[lambda]);
 
-		/* Average reflectance due to mismatched indices of refraction
-		   at the boundary - [Groenhuis et al. 1983]*/
-		m_Fdr = -1.440f / (m_eta * m_eta) + 0.710f / m_eta 
-			+ 0.668f + 0.0636f * m_eta;
+        if (m_eta > 1) {
+            /* Average reflectance due to mismatched indices of refraction
+               at the boundary - [Groenhuis et al. 1983]*/
+            m_Fdr = -1.440f / (m_eta * m_eta) + 0.710f / m_eta
+                + 0.668f + 0.0636f * m_eta;
+        } else {
+            /* Average reflectance due to mismatched indices of refraction
+               at the boundary - [Egan et al. 1973]*/
+            m_Fdr = -0.4399f + 0.7099f / m_eta - 0.3319f / (m_eta * m_eta)
+                + 0.0636f / (m_eta * m_eta * m_eta);
+        }
 
 		/* Reduced albedo */
 		m_alphaPrime = m_sigmaSPrime / m_sigmaTPrime;
