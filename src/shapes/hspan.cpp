@@ -53,7 +53,7 @@ public:
         float dx, dy;
         //
         float u, v;
-        // Flags to state in which direction e neighbor exists.
+        // Flags to state in which direction a neighbor exists.
         unsigned char flags, user_flags;
         // indices of adjacent spans
         short neighbor_slab_indices[4];
