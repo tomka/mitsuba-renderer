@@ -789,6 +789,8 @@ public:
 		size_t numMerged = 0;
 		Vector translate(0.0f);
 		Float scale = 0.0f;
+        // index mapping for inverse directions
+        static int idx_trans[4] = { 2, 3, 0, 1 };
 
 		if (m_recenter) {
 			AABB aabb;
@@ -827,13 +829,22 @@ public:
                     move(hsi1, l1);
                     HeightSpanIterator hsi2 = hsi;
                     move(hsi2, l2);
+                    // do an inverse reference test
+                    const HeightSample& hs1 = getSample(hsi1);
+                    const HeightSample& hs2 = getSample(hsi2);
+                    if (!hs1.get_flag( idx_trans[l1] ) || !hs2.get_flag( idx_trans[l2])
+                            || (hs1.get_nbr_slab_idx( idx_trans[l1] ) != hsi.k)
+                            || (hs2.get_nbr_slab_idx( idx_trans[l2] ) != hsi.k)) {
+                        Log(EWarn, "Ignoring triangle because of missing inverse connection information");
+                        continue;
+                    }
                     // calculate the actual positions (still in object space)
                     std::vector<Point> pts(3);
                     pts[0] = getSurfaceSample(hsi);
                     pts[1] = getSurfaceSample(hsi1);
                     pts[2] = getSurfaceSample(hsi2);
                     Normal n = cross(pts[2] - pts[0], pts[1] - pts[0]);
-                    
+
                     // create triangle
                     Triangle tri;
 
