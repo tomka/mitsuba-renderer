@@ -472,12 +472,12 @@ public:
             HeightSpanType& hs = at(x,y);
             // iterate over its elements
             for (int i=0; i<nrOfElements; ++i) {
-                double h1, h2;
+                float h1, h2;
 			    int dists[4], indices[4];
                 try {
                     int offset = 10 * i;
-                    h1 = boost::lexical_cast<double>(vec[offset + 2]);
-                    h2 = boost::lexical_cast<double>(vec[offset + 3]);
+                    h1 = boost::lexical_cast<float>(vec[offset + 2]);
+                    h2 = boost::lexical_cast<float>(vec[offset + 3]);
 
                     /* Read in the distances and indices to/of the adjacent spans.
                      * Make sure we get all four directions complete. If this is not
@@ -488,12 +488,11 @@ public:
                         dists[j] = boost::lexical_cast<int>(vec[offset + 4 + 2*j]);
                         indices[j] = boost::lexical_cast<int>(vec[offset + 5 + 2*j]);
                     }
-
                     /* Everything seems alright, create the new element and put
                      * it into the collection of height span elements of the current
                      * cell.
                      */
-                    hs.push_back( HeightSample((float)h1, (float)h2) );
+                    hs.push_back( HeightSample(h1, h2) );
                     // iterate over neighbor directions
                     for (j = 0; j < 4; ++j) {
                         // index mapping from data format to internal structure
