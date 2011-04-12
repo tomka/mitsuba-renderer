@@ -156,6 +156,25 @@ public:
         short get_distance(int i) const {
             return neighbor_distances[i];
         }
+
+        std::string toString() {
+            std::stringstream ss;
+            ss << "Height sample:" << std::endl
+               << "\ttype: " << type << std::endl
+               << "\th: " << h << std::endl
+               << "\tdh: " << dh << std::endl
+               << "\tdx: " << dx << " dy: " << dy <<  std::endl
+               << "\tu: " << u << " v: " << v << std::endl
+               << "\tflag_0: " << get_flag(0) << " flag_1: " << get_flag(1)
+               << " flag_2: " << get_flag(2) << " flag_3: " << get_flag(3) << std::endl
+               << "\tnsl_0: " << neighbor_slab_indices[0] << " nsl_1: " << neighbor_slab_indices[1]
+               << " nsl_2: " << neighbor_slab_indices[2] << " nsl_2: " << neighbor_slab_indices[3] << std::endl
+               << "\tnd_0: " << neighbor_distances[1] << " nd_1: " << neighbor_distances[1]
+               << " nd_2: " << neighbor_distances[2] << " nd_3: " << neighbor_distances[3] << std::endl
+               << "\tvertex-idx: " << vertex_index << " sec. vertex-idx: " << secondary_vertex_index << std::endl;
+
+            return ss.str();
+        }
     };
 
     /**
