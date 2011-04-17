@@ -37,26 +37,30 @@ public:
 		p = Point(stream);
 		E = Spectrum(stream);
 		area = stream->readFloat();
+		n = Normal(stream);
 	}
 
 	/**
 	 * \param p The sample point on the surface
 	 * \param E The irradiance value at this point
 	 * \param area The surface area associated with that sample
+	 * \param n The normal of location of the incident light
 	 */
-	inline IrradianceSample(const Point &p, const Spectrum &E, Float area) 
-		: p(p), E(E), area(area) { }
+	inline IrradianceSample(const Point &p, const Spectrum &E, Float area, Normal& n)
+		: p(p), E(E), area(area), n(n) { }
 
 	/// Serialize an irradiance sample to a binary data stream
 	inline void serialize(Stream *stream) const {
 		p.serialize(stream);
 		E.serialize(stream);
 		stream->writeFloat(area);
+        n.serialize(stream);
 	}
 
 	Point p;
 	Spectrum E;
 	Float area;
+    Normal n;
 };
 
 

@@ -95,7 +95,8 @@ public:
 				sRec.p,
 				integrator->E(m_scene.get(), sRec.p, sRec.n, time, 
 					camera->getMedium(), m_independentSampler,
-					m_irrSamples, m_irrIndirect), 1/pdf
+					m_irrSamples, m_irrIndirect), 1/pdf,
+                sRec.n
 			));
 		}
 	}
