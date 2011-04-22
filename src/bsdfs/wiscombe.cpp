@@ -16,6 +16,7 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <mitsuba/core/plugin.h>
 #include <mitsuba/render/bsdf.h>
 #include <mitsuba/render/consttexture.h>
 #include <mitsuba/core/properties.h>
@@ -71,6 +72,9 @@ public:
 		m_combinedType = m_type[0] = EDiffuseReflection;
 		m_usesRayDifferentials = false;
 
+        m_sampler = static_cast<Sampler *> (PluginManager::getInstance()->
+            createObject(Sampler::m_theClass, Properties("independent"))); 
+
         // spectral optial depth
         m_tau = m_sigmaT * m_depth;
 
@@ -96,8 +100,12 @@ public:
     }
 
 	Spectrum getDiffuseReflectance(const Intersection &its) const {
-        Float u0 = dot(its.wi, its.shFrame.n);
-        return reflectance(u0);
+        Normal n = its.shFrame.n;
+        // for, now just sample diffuse Reflectance
+        Vector wo = squareToHemispherePSA(Point2(0,0));
+        Float mu0 = dot(wo, n);
+        Float muPrime = dot(its.wi, n);
+		return reflectance(mu0, muPrime);
 	}
 
 	Spectrum f(const BSDFQueryRecord &bRec) const {
@@ -105,16 +113,29 @@ public:
 			|| bRec.wi.z <= 0 || bRec.wo.z <= 0)
 			return Spectrum(0.0f);
 
-        Float u0 = dot(bRec.wo, bRec.its.shFrame.n);
-        return reflectance(u0);
+        Normal n = bRec.its.shFrame.n;
+        Float mu0 = dot(bRec.wo, n);
+        Float muPrime = dot(bRec.wi, n);
+		return reflectance(mu0, muPrime);
 	}
 
     /**
      * Calculate the reflectane for a specific value for u0.
      * With u0 = cos( incident beam ).
      */
-    Spectrum reflectance(Float u0) const {
-        return ( (m_wStar) / (one + m_P) ) * ( (one - m_xi * u0 * m_bStar) / (one + m_xi * u0) );
+    Spectrum reflectance(Float mu0, Float muPrime) const {
+        Float b = 1.07 * mu0 - 0.84;
+        Float fBar = (3 / (3 - b)) * (1 + b * (muPrime - 1));
+        Spectrum R = albedo(mu0) * fBar;
+        return R;
+    }
+
+    /**
+     * Calculate the albedo for a specific value for u0.
+     * With u0 = cos( incident beam ).
+     */
+    Spectrum albedo(Float mu0) const {
+        return ( (m_wStar) / (one + m_P) ) * ( (one - m_xi * mu0 * m_bStar) / (one + m_xi * mu0) );
     }
 
 	Float pdf(const BSDFQueryRecord &bRec) const {
@@ -130,8 +151,10 @@ public:
 		bRec.sampledComponent = 0;
 		bRec.sampledType = EDiffuseReflection;
 
-        Float u0 = dot(bRec.wo, bRec.its.shFrame.n);
-		return reflectance(u0);
+        Normal n = bRec.its.shFrame.n;
+        Float mu0 = dot(bRec.wo, n);
+        Float muPrime = dot(bRec.wi, n);
+		return reflectance(mu0, muPrime);
 	}
 
 	Spectrum sample(BSDFQueryRecord &bRec, Float &pdf) const {
@@ -142,8 +165,10 @@ public:
 		bRec.sampledType = EDiffuseReflection;
 		pdf = Frame::cosTheta(bRec.wo) * INV_PI;
 
-        Float u0 = dot(bRec.wo, bRec.its.shFrame.n);
-		return reflectance(u0);
+        Normal n = bRec.its.shFrame.n;
+        Float mu0 = dot(bRec.wo, n);
+        Float muPrime = dot(bRec.wi, n);
+		return reflectance(mu0, muPrime);
 	}
 		
 	void addChild(const std::string &name, ConfigurableObject *child) {
@@ -199,6 +224,8 @@ private:
 
     // needed now and then
     const Spectrum one;
+    // a sampler
+    ref<Sampler> m_sampler;
 };
 
 // ================ Hardware shader implementation ================ 
