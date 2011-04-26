@@ -245,6 +245,7 @@ public:
 		m_maxDepth = props.getInteger("maxDepth", 40);
 		m_extraDipoles = props.getInteger("extraDipoles", 0);
         m_slabThickness = props.getFloat("slabThickness", 1.0f);
+        m_useMartelliD = props.getBoolean("useMartelliDC", true);
 
         if (m_extraDipoles == 0) {
             Log(EInfo, "Using standard dipole model");
@@ -268,6 +269,7 @@ public:
 		m_octreeIndex = stream->readInt();
 		m_irrSamples = stream->readInt();
 		m_irrIndirect = stream->readBool();
+        m_useMartelliD = stream->readBool();
 		m_ready = false;
 		m_octreeResID = -1;
 		configure();
@@ -293,6 +295,7 @@ public:
 		stream->writeInt(m_octreeIndex);
 		stream->writeInt(m_irrSamples);
 		stream->writeBool(m_irrIndirect);
+        stream->writeBool(m_useMartelliD);
 	}
 
 	Spectrum Lo(const Scene *scene, Sampler *sampler,
@@ -372,8 +375,17 @@ public:
 		/* Effective transport extinction coefficient */
 		m_sigmaTr = (m_sigmaA * m_sigmaTPrime * 3.0f).sqrt();
 
-		/* Diffusion coefficient */
-		m_D = Spectrum(1.0f) / (m_sigmaTPrime * 3.0f);
+		/* Diffusion coefficient
+         * According to Martelli et al.'s paper "Accuracy of the Diffusion
+         * Equation to Describe Photon Migration through an Infininite
+         * Medium" from 2000, the diffusion coefficient should be calculated
+         * slightly different. In practice this seems only required when
+         * sigmaA / sigmaSPrime > 0.01.
+         */
+        if (m_useMartelliD)
+		    m_D = Spectrum(1.0f) / (m_sigmaSPrime * 3.0f + m_sigmaA);
+        else
+		    m_D = Spectrum(1.0f) / (m_sigmaTPrime * 3.0f);
 
         /* Fluence vanishing point */
         Spectrum zb = 2 * m_A * m_D;
@@ -477,6 +489,8 @@ private:
 	Float m_Fdr, m_Fdt, m_A, m_minDelta, m_g;
 	Spectrum m_mfp, m_sigmaTr, m_alphaPrime;
 	Spectrum m_sigmaSPrime, m_sigmaTPrime, m_D, m_ssFactor;
+    /* True if alternate diffusion constant calculation should be used */
+    bool m_useMartelliD;
     /* Lists for the dipole distances */
     std::vector<Spectrum> m_zr, m_zv;
 	ref<IrradianceOctree> m_octree;
