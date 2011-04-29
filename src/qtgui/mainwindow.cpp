@@ -504,6 +504,7 @@ void MainWindow::on_actionShowKDTree_triggered() {
 		ui->glView->resetPreview();
 }
 
+<<<<<<< HEAD
 void MainWindow::on_actionSceneDescription_triggered() {
 	int currentIndex = ui->tabBar->currentIndex();
 	if (currentIndex == -1)
@@ -524,6 +525,20 @@ void MainWindow::on_actionSceneDescription_triggered() {
 
 void MainWindow::onSceneInformationClose(int reason) {
 	m_currentChild = NULL;
+}
+
+void MainWindow::on_actionShowNormals_triggered() {
+	int currentIndex = ui->tabBar->currentIndex();
+	if (currentIndex == -1)
+		return;
+	SceneContext *currentContext = m_context[currentIndex];
+	bool checked = ui->actionShowNormals->isChecked();
+	currentContext->showNormals = checked;
+	if (currentContext->previewMethod != EOpenGL &&
+		currentContext->previewMethod != EOpenGLSinglePass)
+		ui->glView->setPreviewMethod(EOpenGL);
+	else
+		ui->glView->resetPreview();
 }
 
 void MainWindow::changeEvent(QEvent *e) {
@@ -730,7 +745,12 @@ void MainWindow::updateUI() {
 	ui->actionAdjustSize->setEnabled(hasTab);
 	ui->actionShowKDTree->setEnabled(hasTab);
 	ui->actionShowKDTree->setChecked(hasTab && context->showKDTree);
+<<<<<<< HEAD
 	ui->actionSceneDescription->setEnabled(hasTab);
+=======
+	ui->actionShowNormals->setEnabled(hasTab);
+	ui->actionShowNormals->setChecked(hasTab && context->showNormals);
+>>>>>>> 09c82c2... Add possibility to show normals in GUI
 #if !defined(__OSX__)
 	ui->actionPreviewSettings->setEnabled(!fallback && hasTab);
 #else
@@ -1766,8 +1786,12 @@ SceneContext::SceneContext(SceneContext *ctx) {
 	diffuseSources = ctx->diffuseSources;
 	showKDTree = ctx->showKDTree;
 	shownKDTreeLevel = ctx->shownKDTreeLevel;
+<<<<<<< HEAD
 	selectedShape = ctx->selectedShape;
 	selectionMode = ctx->selectionMode;
+=======
+	showNormals = ctx->showNormals;
+>>>>>>> 09c82c2... Add possibility to show normals in GUI
 }
 
 SceneContext::~SceneContext() {

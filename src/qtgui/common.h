@@ -193,6 +193,7 @@ struct SceneContext {
 	int shownKDTreeLevel;
 	ESelectionMode selectionMode;
 	const Shape *selectedShape;
+	bool showNormals;
 
 	/* Preview state */
 	std::deque<VPL> vpls;

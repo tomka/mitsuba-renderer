@@ -508,6 +508,32 @@ void PreviewThread::oglRenderVPL(PreviewQueueEntry &target, const VPL &vpl) {
 		m_shaderManager->unbind();
 	}
 	m_renderer->endDrawingMeshes();
+
+    if (m_context->showNormals) {
+        Float scale = 0.1f;
+        Spectrum normalColor;
+        normalColor.fromLinearRGB(0.8f, 0.2f, 0.0f);
+        m_renderer->setColor(normalColor);
+        for (size_t j=0; j<meshes.size(); j++) {
+            const TriMesh *mesh = meshes[j];
+            if (mesh->hasVertexNormals()) {
+                const Point *vertices = mesh->getVertexPositions();
+                const Normal *normals = mesh->getVertexNormals();
+                for (size_t i=0; i<mesh->getVertexCount(); ++i) {
+                        m_renderer->drawLine( vertices[i], vertices[i] + scale * normals[i] );
+                }
+            }
+        }
+    }
+
+	if (m_context->showKDTree) {
+		oglRenderKDTree(m_context->scene->getKDTree());
+		const std::vector<Shape *> shapes = m_context->scene->getShapes();
+		for (size_t j=0; j<shapes.size(); ++j) 
+			if (shapes[j]->getKDTree())
+				oglRenderKDTree(shapes[j]->getKDTree());
+	}
+
 	m_shaderManager->drawBackground(clipToWorld, camPos,
 		m_backgroundScaleFactor);
 	m_framebuffer->releaseTarget();

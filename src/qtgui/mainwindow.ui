@@ -151,6 +151,7 @@
      </property>
      <addaction name="actionShowKDTree"/>
      <addaction name="actionSceneDescription"/>
+     <addaction name="actionShowNormals"/>
     </widget>
     <addaction name="actionUpdateCheck"/>
     <addaction name="actionStartServer"/>
@@ -461,6 +462,14 @@
   <action name="actionSceneDescription">
    <property name="text">
     <string>Scene Information ..</string>
+   </property>
+  </action>
+  <action name="actionShowNormals">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show normals</string>
    </property>
   </action>
  </widget>
