@@ -463,6 +463,20 @@ extern MTS_EXPORT_CORE Float fresnel(Float cosThetaI, Float etaExt,
 extern MTS_EXPORT_CORE Spectrum fresnelConductor(Float cosTheta, 
 		const Spectrum &eta, const Spectrum &k);
 
+/**
+ * Calculate the normalized direction of a ray reflected at a mirroring surface.
+ * The inputs must be normalizez. Implemenation based on GLSL specification.
+ */
+extern MTS_EXPORT Vector reflect(const Vector& wi, const Normal& n);
+
+/**
+ * Calculate the normalized direction of a ray refracted at a boundary
+ * with relative index of refraction eta. The inputs must be normalized.
+ * Implemenation based on GLSL specification.
+ */
+extern MTS_EXPORT Vector refract(const Vector& wi, const Normal& n, Float eta);
+ 
+
 /*! @} */
 
 MTS_NAMESPACE_END

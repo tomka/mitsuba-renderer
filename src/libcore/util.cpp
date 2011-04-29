@@ -724,7 +724,20 @@ Float fresnel(Float cosThetaI, Float etaExt, Float etaInt) {
 		cosThetaT, etaI, etaT);
 }
 
-Float radicalInverse(int b, size_t i) {
+Vector reflect(const Vector& wi, const Normal& n) {
+    return wi - 2.0f * dot(wi, n) * n;
+}
+
+Vector refract(const Vector& wi, const Normal& n, Float eta) {
+    Float c = dot(n, wi);
+    Float k = 1.0f - eta * eta * (1.0f - c * c);
+    if (k < 0.0f)
+        return Vector(0.0f, 0.0f, 0.0f);
+    else
+        return eta * wi - (eta * c + sqrtf(k)) * n;
+}
+
+Float radicalInverse(int b, int i) {
 	Float invB = (Float) 1 / (Float) b;
 	Float x = 0.0f, f = invB;
 	
