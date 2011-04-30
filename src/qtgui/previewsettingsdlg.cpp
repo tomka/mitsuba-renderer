@@ -111,6 +111,8 @@ void PreviewSettingsDialog::on_resetButton_clicked() {
 	ui->sRGBCheckBox->setCheckState(Qt::Checked);
 	ui->diffuseSourcesBox->setCheckState(Qt::Checked);
 	ui->diffuseReceiversBox->setCheckState(Qt::Unchecked);
+
+    ui->normalScalingSpinBox->setValue(1.0);
 }
 
 void PreviewSettingsDialog::on_keySlider_valueChanged(int value) {
@@ -210,6 +212,26 @@ void PreviewSettingsDialog::on_shadowResolutionCombo_activated(int index) {
 			return;
 	}
 	emit shadowMapResolutionChanged(res);
+}
+
+void PreviewSettingsDialog::on_normalScalingSlider_valueChanged(int value) {
+	if (m_ignoreEvent)
+		return;
+	m_ignoreEvent = true;
+	ui->normalScalingSpinBox->setValue(value / 10.0f);
+	m_ignoreEvent = false;
+
+    emit normalScalingChanged(value / 10.0f);
+}
+
+void PreviewSettingsDialog::on_normalScalingSpinBox_valueChanged(double value) {
+	if (m_ignoreEvent)
+		return;
+	m_ignoreEvent = true;
+	ui->normalScalingSlider->setValue(value * 10);
+	m_ignoreEvent = false;
+
+    emit normalScalingChanged((Float)value);
 }
 
 PreviewSettingsDialog::~PreviewSettingsDialog() {

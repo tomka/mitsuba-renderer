@@ -194,6 +194,7 @@ struct SceneContext {
 	ESelectionMode selectionMode;
 	const Shape *selectedShape;
 	bool showNormals;
+    Float normalScaling;
 
 	/* Preview state */
 	std::deque<VPL> vpls;

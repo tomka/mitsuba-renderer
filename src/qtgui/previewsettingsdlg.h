@@ -28,6 +28,7 @@ signals:
 	void reinhardBurnChanged(Float burn);
 	void diffuseReceiversChanged(bool);
 	void diffuseSourcesChanged(bool);
+    void normalScalingChanged(Float scaling);
 
 protected slots:
 	void on_pathLengthSlider_valueChanged(int value);
@@ -43,6 +44,8 @@ protected slots:
 	void on_previewMethodCombo_activated(int index);
 	void on_toneMappingMethodCombo_activated(int index);
 	void on_keySlider_valueChanged(int value);
+	void on_normalScalingSlider_valueChanged(int value);
+	void on_normalScalingSpinBox_valueChanged(double value);
 
 protected:
     void changeEvent(QEvent *e);

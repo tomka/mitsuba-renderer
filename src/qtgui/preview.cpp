@@ -510,7 +510,7 @@ void PreviewThread::oglRenderVPL(PreviewQueueEntry &target, const VPL &vpl) {
 	m_renderer->endDrawingMeshes();
 
     if (m_context->showNormals) {
-        Float scale = 0.1f;
+        Float scale = m_context->normalScaling;
         Spectrum normalColor;
         normalColor.fromLinearRGB(0.8f, 0.2f, 0.0f);
         m_renderer->setColor(normalColor);

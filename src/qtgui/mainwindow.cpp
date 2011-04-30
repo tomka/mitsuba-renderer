@@ -490,6 +490,19 @@ void MainWindow::on_actionUpdateCheck_triggered() {
 	checkForUpdates(true);
 }
 
+void MainWindow::setNormalScaling(Float scaling) {
+	int currentIndex = ui->tabBar->currentIndex();
+	if (currentIndex == -1)
+		return;
+	SceneContext *currentContext = m_context[currentIndex];
+	currentContext->normalScaling = scaling;
+	if (currentContext->previewMethod != EOpenGL &&
+		currentContext->previewMethod != EOpenGLSinglePass)
+		ui->glView->setPreviewMethod(EOpenGL);
+	else
+		ui->glView->resetPreview();
+}
+
 void MainWindow::on_actionShowKDTree_triggered() {
 	int currentIndex = ui->tabBar->currentIndex();
 	if (currentIndex == -1)
@@ -745,12 +758,9 @@ void MainWindow::updateUI() {
 	ui->actionAdjustSize->setEnabled(hasTab);
 	ui->actionShowKDTree->setEnabled(hasTab);
 	ui->actionShowKDTree->setChecked(hasTab && context->showKDTree);
-<<<<<<< HEAD
 	ui->actionSceneDescription->setEnabled(hasTab);
-=======
 	ui->actionShowNormals->setEnabled(hasTab);
 	ui->actionShowNormals->setChecked(hasTab && context->showNormals);
->>>>>>> 09c82c2... Add possibility to show normals in GUI
 #if !defined(__OSX__)
 	ui->actionPreviewSettings->setEnabled(!fallback && hasTab);
 #else
@@ -1010,6 +1020,7 @@ void MainWindow::on_actionPreviewSettings_triggered() {
 	connect(&d, SIGNAL(toneMappingMethodChanged(EToneMappingMethod)), ui->glView, SLOT(setToneMappingMethod(EToneMappingMethod)));
 	connect(&d, SIGNAL(diffuseReceiversChanged(bool)), ui->glView, SLOT(setDiffuseReceivers(bool)));
 	connect(&d, SIGNAL(diffuseSourcesChanged(bool)), ui->glView, SLOT(setDiffuseSources(bool)));
+	connect(&d, SIGNAL(normalScalingChanged(Float)), this, SLOT(setNormalScaling(Float)));
 	d.setMaximumSize(d.minimumSize());
 	d.exec();
 	QSettings settings("mitsuba-renderer.org", "qtgui");
@@ -1039,6 +1050,7 @@ void MainWindow::on_actionPreviewSettings_triggered() {
 		connect(m_previewSettings, SIGNAL(close()), this, SLOT(onPreviewSettingsClose()));
 		connect(m_previewSettings, SIGNAL(diffuseReceiversChanged(bool)), ui->glView, SLOT(setDiffuseReceivers(bool)));
 		connect(m_previewSettings, SIGNAL(diffuseSourcesChanged(bool)), ui->glView, SLOT(setDiffuseSources(bool)));
+		connect(m_previewSettings, SIGNAL(normalScalingChanged(Float)), this, SLOT(setNormalScaling(Float)));
 	}
 	SceneContext *ctx = NULL;
 	if (ui->tabBar->currentIndex() != -1)
@@ -1786,12 +1798,10 @@ SceneContext::SceneContext(SceneContext *ctx) {
 	diffuseSources = ctx->diffuseSources;
 	showKDTree = ctx->showKDTree;
 	shownKDTreeLevel = ctx->shownKDTreeLevel;
-<<<<<<< HEAD
 	selectedShape = ctx->selectedShape;
 	selectionMode = ctx->selectionMode;
-=======
 	showNormals = ctx->showNormals;
->>>>>>> 09c82c2... Add possibility to show normals in GUI
+    normalScaling = ctx->normalScaling;
 }
 
 SceneContext::~SceneContext() {

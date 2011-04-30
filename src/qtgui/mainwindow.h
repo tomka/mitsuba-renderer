@@ -155,6 +155,7 @@ private slots:
 	void onRenderSettingsClose(int reason);
 	void onImportDialogClose(int reason);
 	void onSceneInformationClose(int reason);
+	void setNormalScaling(Float scaling);
 
 private:
     Ui::MainWindow *ui;
