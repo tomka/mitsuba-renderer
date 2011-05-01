@@ -233,7 +233,7 @@ public:
 		   the use of face normals, which will result in a faceted
 		   appearance.
 		*/
-		m_faceNormals = props.getBoolean("faceNormals", true);
+		m_faceNormals = props.getBoolean("faceNormals", false);
 
 		/* Re-center & scale all contents to move them into the
 		   AABB [-1, -1, -1]x[1, 1, 1]? */
