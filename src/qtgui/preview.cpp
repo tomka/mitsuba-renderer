@@ -512,15 +512,35 @@ void PreviewThread::oglRenderVPL(PreviewQueueEntry &target, const VPL &vpl) {
     if (m_context->showNormals) {
         Float scale = m_context->normalScaling;
         Spectrum normalColor;
-        normalColor.fromLinearRGB(0.8f, 0.2f, 0.0f);
-        m_renderer->setColor(normalColor);
+        Normal n(0.0f);
+
         for (size_t j=0; j<meshes.size(); j++) {
             const TriMesh *mesh = meshes[j];
             if (mesh->hasVertexNormals()) {
+                normalColor.fromLinearRGB(0.8f, 0.2f, 0.0f);
+                m_renderer->setColor(normalColor);
                 const Point *vertices = mesh->getVertexPositions();
                 const Normal *normals = mesh->getVertexNormals();
                 for (size_t i=0; i<mesh->getVertexCount(); ++i) {
                         m_renderer->drawLine( vertices[i], vertices[i] + scale * normals[i] );
+                }
+            } else {
+                normalColor.fromLinearRGB(0.0f, 0.8f, 0.2f);
+                m_renderer->setColor(normalColor);
+                const Triangle *triangles = mesh->getTriangles();
+                const Point *vertices = mesh->getVertexPositions();
+                for (size_t i=0; i<mesh->getTriangleCount(); ++i) {
+                    const Triangle &tri = triangles[i];
+                    for (int j=0; j<3; ++j) {
+                        const Point &v0 = vertices[tri.idx[j]];
+                        const Point &v1 = vertices[tri.idx[(j+1)%3]];
+                        const Point &v2 = vertices[tri.idx[(j+2)%3]];
+                        Vector sideA(v1-v0), sideB(v2-v0);
+                        if (i==0)
+                            n = Normal(normalize(cross(sideA, sideB)));
+                        const Point &center = (v0 + v1 + v2) / 3.0f;
+                        m_renderer->drawLine( center, center + scale * n );
+                    }
                 }
             }
         }
