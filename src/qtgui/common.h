@@ -24,6 +24,7 @@
 #include <mitsuba/render/scene.h>
 #include <mitsuba/render/vpl.h>
 #include <mitsuba/core/bitmap.h>
+#include "model/snowproperties.h"
 
 using namespace mitsuba;
 
@@ -203,6 +204,9 @@ struct SceneContext {
 	SceneContext() : scene(NULL), sceneResID(-1), 
 		renderJob(NULL), selectionMode(ENothing),
 		selectedShape(NULL) { }
+
+    /* Snow properties */
+    SnowProperties snow;
 
 	/// Detect the path length
 	int detectPathLength() const;
