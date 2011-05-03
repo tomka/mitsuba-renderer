@@ -257,6 +257,37 @@ void Scene::configure() {
 	m_integrator->setParent(NULL); 
 }
 
+void Scene::addSubsurface(Subsurface *subsurface) {
+    // add to network objects if not already present
+    if (std::find(m_netObjects.begin(), m_netObjects.end(), 
+            subsurface) == m_netObjects.end()) {
+        m_netObjects.push_back(static_cast<NetworkedObject *>(subsurface));
+    }
+    // add to subsurface integrator list if not already present
+    if (std::find(m_ssIntegrators.begin(), m_ssIntegrators.end(), 
+            subsurface) == m_ssIntegrators.end()) {
+        m_ssIntegrators.push_back(subsurface);
+        subsurface->incRef();
+    }
+}
+
+void Scene::removeSubsurface(Subsurface *subsurface) {
+    // remove from network objects if present
+    std::vector<NetworkedObject *>::iterator it_nw
+        = std::find(m_netObjects.begin(), m_netObjects.end(), subsurface);
+    if (it_nw != m_netObjects.end()) {
+        m_netObjects.erase(it_nw);
+    }
+
+    // remove from subsurface integrator list if present
+    std::vector<Subsurface *>::iterator it_ss
+        = std::find(m_ssIntegrators.begin(), m_ssIntegrators.end(), subsurface);
+    if (it_ss != m_ssIntegrators.end()) {
+        m_ssIntegrators.erase(it_ss);
+        subsurface->decRef();
+    }
+}
+
 void Scene::initialize() {
 	if (!m_kdtree->isBuilt()) {
 		/* Expand all geometry */

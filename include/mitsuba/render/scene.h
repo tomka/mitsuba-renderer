@@ -127,6 +127,18 @@ public:
 	   and addition of all child ConfigurableObjects.) */
 	void configure();
 
+    /**
+     *  Add a subsurface integrator from the scene. This won't add
+     *  the subsurface integrator to any shapes.
+     */
+    void addSubsurface(Subsurface *subsurface);
+
+    /**
+     *  Remove a subsurface integrator from the scene. This won't remove
+     *  the subsurface integrator from the the accosiated shapes.
+     */
+    void removeSubsurface(Subsurface *subsurface);
+
 	//! @}
 	// =============================================================
 
@@ -549,6 +561,7 @@ protected:
 
 	/// Add a shape to the scene
 	void addShape(Shape *shape);
+
 private:
 	ref<ShapeKDTree> m_kdtree;
 	ref<Camera> m_camera;
