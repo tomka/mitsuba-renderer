@@ -38,10 +38,15 @@ Seen from the back side, this material will appear completely black.
 </bsdf>
 \endverbatim
 */
-class HanrahanKruegar : public BSDF {
+class HanrahanKrueger : public BSDF {
 public:
-	HanrahanKruegar(const Properties &props) 
+	HanrahanKrueger(const Properties &props) 
 		: BSDF(props) {
+
+        Spectrum defaultSigmaS, defaultSigmaA;
+
+        defaultSigmaA.fromLinearRGB(0.0014f, 0.0025f, 0.0142f);
+        defaultSigmaS.fromLinearRGB(0.7f, 1.22f, 1.9f);
 
         if (props.hasProperty("densityMultiplier"))
             m_sizeMultiplier = props.getFloat("densityMultiplier");
@@ -63,7 +68,7 @@ public:
         configure();
 	}
 
-	HanrahanKruegar(Stream *stream, InstanceManager *manager) 
+	HanrahanKrueger(Stream *stream, InstanceManager *manager) 
 		: BSDF(stream, manager) {
 		m_componentCount = 1;
 		m_type = new unsigned int[m_componentCount];
@@ -72,13 +77,20 @@ public:
         configure();
 	}
 
-	virtual ~HanrahanKruegar() {
+	virtual ~HanrahanKrueger() {
 		delete[] m_type;
 	}
 
     void configure() {
         /* Calculate extinction coefficient */
         m_sigmaT = m_sigmaA + m_sigmaS;
+        m_invSigmaTMin = 1.0f / m_sigmaT.min();
+        m_sigmaTExpSq = Spectrum(m_sigmaT);
+        m_sigmaTExpSq.exp();
+        m_sigmaTExpSq.pow(2);
+        m_invSigmaT = Spectrum(m_sigmaT);
+        m_invSigmaT.pow(-1.0f);
+
         /* Calculate albedo */
         m_albedo = (m_sigmaS/m_sigmaT).max();
 
@@ -91,7 +103,7 @@ public:
      *  be in the range (-1, 1).  Negative values of g correspond to more
      *  back-scattering and positive values correspond to more forward scattering.
      */
-    Float hgPhaseFunction(Vector v1, Vector v2, Float g) {
+    Float hgPhaseFunction(const Vector& v1, const Vector& v2, Float g) const {
 	    Float costheta = dot(-v1, v2);
         Float num = 1.0 - g*g;
         Float den = std::pow(1.0 + g*g - 2.0 * g * costheta, 1.5);
@@ -100,15 +112,17 @@ public:
     }
 
 	Spectrum getDiffuseReflectance(const Intersection &its) const {
-		return m_reflectance->getValue(its);
+		//return m_reflectance->getValue(its);
+        return Spectrum(0.0f);
 	}
 
 	Spectrum f(const BSDFQueryRecord &bRec) const {
-//		if (!(bRec.typeMask & m_combinedType)
-//			|| bRec.wi.z <= 0 || bRec.wo.z <= 0)
-//			return Spectrum(0.0f);
-//
-//		return m_reflectance->getValue(bRec.its) * INV_PI;
+		if (!(bRec.typeMask & m_combinedType)
+			|| bRec.wi.z <= 0 || bRec.wo.z <= 0)
+			return Spectrum(0.0f);
+        Normal n = bRec.its.shFrame.n;
+
+        return radiance(bRec.wo, bRec.wi, bRec.its.p, n) * INV_PI;
 	}
 
 	Float pdf(const BSDFQueryRecord &bRec) const {
@@ -117,43 +131,58 @@ public:
 		return Frame::cosTheta(bRec.wo) * INV_PI;
 	}
 
-	Spectrum sample(BSDFQueryRecord &bRec) const {
-		bRec.wo = squareToHemispherePSA(bRec.sample);
-		bRec.sampledComponent = 0;
-		bRec.sampledType = EDiffuseReflection;
-
-        Vector n = bRec.its.shFrame.n;
-        Float cos_wo = dot(bRec.wo, n);
-        Float cos_wi = dot(bRec.wi, n);
+    Spectrum radiance(const Vector& wo, const Vector& wi, const Point xo, const Normal& n) const {
+        Float cos_wo = dot(wo, n);
+        Float cos_wi = dot(wi, n);
         /* Calculate Fresnel trensmission T = 1- R */
         Float Ft1 = 1 - fresnel(cos_wo, 1.0, m_eta);
         Float Ft2 = 1 - fresnel(cos_wi, 1.0, m_eta);
         Float F = Ft1 * Ft2;
         /* Query phase function */
-        Float p = hgPhaseFunction(bRec.wo, bRec.wi, m_g);
+        Float p = hgPhaseFunction(normalize(wi), normalize(wo), m_g);
         /* Calculate combined transmission coefficient */
-        G = std::abs(cos_wo) / std::abs(cos_wi);
-        Spectrum sigmaTc = sigmaT + G * sigmaT;
+        Float G = std::abs(cos_wo) / std::abs(cos_wi);
+        Spectrum sigmaTc = m_sigmaT + m_sigmaT * G;
         /* Calculate siPrime and soPrime */
-        Float soPrime = std::log( m_random.nextFloat() ) / m_sigmaT;
+        ref<Random> random = new Random();
+        Float ran = std::log( random->nextFloat() );
+        Float soPrimeMin =  m_invSigmaTMin * ran;
+        Spectrum negSoPrimeExp = m_invSigmaT * (-1) * ran;
+        negSoPrimeExp.exp();
         Float var1 = 1 - (1 / (m_eta * m_eta));
-        Float ver2 = 1 - (cos_wi * cos_wi);
-        Float siPrime = si * cos_wi / sqrt(var1 * var2);
+        Float var2 = 1 - (cos_wi * cos_wi);
+        /* Get refrected out-vector */
+        Vector to = refract(-wo, n, m_eta) ;
+        /* Get sample point on refracted ray */
+        Point3 xsamp = xo + to * soPrimeMin;
+        Float si = (xo - xsamp).length();
+        Float siPrime = si * abs(cos_wi) / sqrt(var1 * var2);
 
         Spectrum Lo = (m_sigmaS * F * p / sigmaTc)
-            * exp(-siPrime * m_sigmaT) * exp(-soPrime * m_sigmaT);
+            * m_sigmaTExpSq * exp(siPrime * (-1)) * negSoPrimeExp * m_sigmaT;
 
         return Lo;
+    }
+
+	Spectrum sample(BSDFQueryRecord &bRec) const {
+		bRec.wo = squareToHemispherePSA(bRec.sample);
+		bRec.sampledComponent = 0;
+		bRec.sampledType = EDiffuseReflection;
+        Vector n = bRec.its.shFrame.n;
+
+        return radiance(bRec.wo, bRec.wi, bRec.its.p, n);
 	}
 
 	Spectrum sample(BSDFQueryRecord &bRec, Float &pdf) const {
 //		if (!(bRec.typeMask & m_combinedType) || bRec.wi.z <= 0)
 //			return Spectrum(0.0f);
-//		bRec.wo = squareToHemispherePSA(bRec.sample);
-//		bRec.sampledComponent = 0;
-//		bRec.sampledType = EDiffuseReflection;
-//		pdf = Frame::cosTheta(bRec.wo) * INV_PI;
-//		return m_reflectance->getValue(bRec.its) * INV_PI;
+		bRec.wo = squareToHemispherePSA(bRec.sample);
+		bRec.sampledComponent = 0;
+		bRec.sampledType = EDiffuseReflection;
+        pdf = Frame::cosTheta(bRec.wo) * INV_PI;
+        Vector n = bRec.its.shFrame.n;
+
+        return radiance(bRec.wo, bRec.wi, bRec.its.p, n) * INV_PI;
 	}
 		
 	void addChild(const std::string &name, ConfigurableObject *child) {
@@ -161,7 +190,7 @@ public:
 //			m_reflectance = static_cast<Texture *>(child);
 //			m_usesRayDifferentials |= m_reflectance->usesRayDifferentials();
 //		} else {
-//			BSDF::addChild(name, child);
+			BSDF::addChild(name, child);
 //		}
 	}
 
@@ -170,7 +199,6 @@ public:
         stream->writeFloat(m_sizeMultiplier);
         m_sigmaA.serialize(stream);
         m_sigmaS.serialize(stream);
-        manager->serialize(stream, m_phaseFunction.get());
 	}
 
 	std::string toString() const {
@@ -191,11 +219,14 @@ private:
     Spectrum m_sigmaS;
     Spectrum m_sigmaA;
     Spectrum m_sigmaT;
+    Spectrum m_invSigmaT;
+    Spectrum m_sigmaTExpSq;
+    Float m_invSigmaTMin; 
     Float m_sizeMultiplier;
     Float m_g;
     Float m_eta;
     Float m_albedo;
-    Random m_random;
+    ref<Random> m_random;
 };
 
 // ================ Hardware shader implementation ================ 
