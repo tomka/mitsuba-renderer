@@ -53,7 +53,7 @@ public:
         configure();
 	}
 
-	Wiscombe(Stream *stream, InstanceManager *manager) 
+	Wiscombe(Stream *stream, InstanceManager *manager)
 		: BSDF(stream, manager), one(1.0f) {
         m_g = stream->readFloat();
         m_depth = stream->readFloat();
@@ -103,9 +103,10 @@ public:
         Normal n = its.shFrame.n;
         // for, now just sample diffuse Reflectance
         Vector wo = squareToHemispherePSA(Point2(0,0));
-        Float mu0 = dot(wo, n);
-        Float muPrime = dot(its.wi, n);
-		return reflectance(mu0, muPrime);
+        Float mu0 = dot(its.wi, n);
+        Float muPrime = dot(wo, n);
+	    //return reflectance(mu0, muPrime) * mu0;
+        return Spectrum(0.0f);
 	}
 
 	Spectrum f(const BSDFQueryRecord &bRec) const {
@@ -114,9 +115,9 @@ public:
 			return Spectrum(0.0f);
 
         Normal n = bRec.its.shFrame.n;
-        Float mu0 = dot(bRec.wo, n);
-        Float muPrime = dot(bRec.wi, n);
-		return reflectance(mu0, muPrime);
+        Float mu0 = dot(bRec.wi, n);
+        Float muPrime = dot(bRec.wo, n);
+		return reflectance(mu0, muPrime) * INV_PI;
 	}
 
     /**
@@ -126,7 +127,7 @@ public:
     Spectrum reflectance(Float mu0, Float muPrime) const {
         Float b = 1.07 * mu0 - 0.84;
         Float fBar = (3 / (3 - b)) * (1 + b * (muPrime - 1));
-        Spectrum R = albedo(mu0) * fBar;
+        Spectrum R = albedo(mu0) * fBar * INV_PI;
         return R;
     }
 
@@ -151,10 +152,9 @@ public:
 		bRec.sampledComponent = 0;
 		bRec.sampledType = EDiffuseReflection;
 
-        Normal n = bRec.its.shFrame.n;
-        Float mu0 = dot(bRec.wo, n);
-        Float muPrime = dot(bRec.wi, n);
-		return reflectance(mu0, muPrime);
+        Float mu0 = Frame::cosTheta(bRec.wi);
+        Float muPrime = std::abs(Frame::cosTheta(bRec.wo));
+		return reflectance(mu0, muPrime) / mu0;
 	}
 
 	Spectrum sample(BSDFQueryRecord &bRec, Float &pdf) const {
@@ -165,9 +165,8 @@ public:
 		bRec.sampledType = EDiffuseReflection;
 		pdf = Frame::cosTheta(bRec.wo) * INV_PI;
 
-        Normal n = bRec.its.shFrame.n;
-        Float mu0 = dot(bRec.wo, n);
-        Float muPrime = dot(bRec.wi, n);
+        Float mu0 = Frame::cosTheta(bRec.wi);
+        Float muPrime = std::abs(Frame::cosTheta(bRec.wo));
 		return reflectance(mu0, muPrime);
 	}
 		
