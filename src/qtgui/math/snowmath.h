@@ -16,7 +16,7 @@ Spectrum getSigmaAofIce();
  * approximation below the surface. The reduced extinction
  * coefficient sigmaTPrime is needed for this.
  */
-inline Spectrum getDiffusionZr(Spectrum &sigmaTPrime);
+inline Spectrum getDiffusionZr(const Spectrum &sigmaTPrime);
 
 /**
  * Calculate the distance of a virtual point light of the dipole
@@ -24,7 +24,7 @@ inline Spectrum getDiffusionZr(Spectrum &sigmaTPrime);
  * part below the surface zr is needed, as well as the change of
  * scalar irradiance (due to internal reflection at the surface) A.
  */
-inline Spectrum getDiffusionZv(Spectrum &zr, Float A);
+inline Spectrum getDiffusionZv(const Spectrum &zr, Float A);
 
 /**      
  * Calculate the change in scalar irradiance (fluence) due to
@@ -42,16 +42,16 @@ inline Float getFdr(Float n);
 
 /**
  * Calculates the albodo of snow, based on the absorption coefficient
- * of ice and tha grain radis d. Make sure both are basde on the same unit.
+ * of ice and tha grain diameter d. Make sure both are basde on the same unit.
  */
-inline Spectrum getAlbedo(Spectrum &sigmaAIce, Float d);
+Spectrum getAlbedo(const Spectrum &sigmaAIce, Float d);
 
 /**
  * Calculates the single scattering albodo of snow, based on the absorption
  * coefficient of ice and tha grain radis d. Make sure both are basde on the
  * same unit. From: Bohren1983
  */
-inline Spectrum getSingleScatteringAlbedo(Spectrum &sigmaA_ice, Float d);
+inline Spectrum getSingleScatteringAlbedo(const Spectrum &sigmaA_ice, Float d);
 
 /**
  * Get number density of snow.
@@ -63,14 +63,14 @@ inline Float getNumberDensity(Float d, Float rho, Float rhoIce);
  * the absorption coefficient of ice 'absIce' and the density 'rho'
  * have the same unit base as well as the density of ice 'rhoIce'
  */
-inline Spectrum getSigmaA(Spectrum &absIce, Float rho, Float rhoIce);
+Spectrum getSigmaA(const Spectrum &absIce, Float rho, Float rhoIce);
 
 /**
  * Calculates the extinction coefficient of snow. Make sure that
  * the density 'rho' and the grain size 'd' have the same unit base
  * as well as the density of ice 'rhoIce'.
  */
-inline Spectrum getSigmaT(Float d, Float rho, Float rhoIce);
+Spectrum getSigmaT(Float d, Float rho, Float rhoIce);
 
 /**
  * Calculates the asymtopic extinction coefficient of snow. Make
@@ -78,7 +78,7 @@ inline Spectrum getSigmaT(Float d, Float rho, Float rhoIce);
  * density 'rho' and the grain size 'd' have the same unit base
  * as well as the density of ice 'rhoIce'.
  */
-inline Spectrum getAsymptoticExtCoeff(Spectrum &absCoeffIce, Float d, Float rho, Float rhoIce);
+Spectrum getAsymptoticExtCoeff(const Spectrum &absCoeffIce, Float d, Float rho, Float rhoIce);
 
 /**
  * Calculates the real extinction coefficient as stated in Bakstrom1972.
@@ -87,14 +87,14 @@ inline Spectrum getAsymptoticExtCoeff(Spectrum &absCoeffIce, Float d, Float rho,
  * scattering albedo. Examples (w - v0): 0.99 - 5.80, 0.95 - 2.63,
  * 0.90 - 1.90, 0.80 - 1.41
  */
-inline Spectrum getBarkstromExtCoeff(Spectrum &absCoeffIce, Float d, Float rho, Float rhoIce, Float v0 = 5.80);
+inline Spectrum getBarkstromExtCoeff(const Spectrum &absCoeffIce, Float d, Float rho, Float rhoIce, Float v0 = 5.80);
 
-inline Spectrum getBarkstromAbsCoeff(Spectrum &singleScatAlbedo, Spectrum &extCoeff);
+inline Spectrum getBarkstromAbsCoeff(const Spectrum &singleScatAlbedo, Spectrum &extCoeff);
 
 /**
  * Calculate the reduced scattering coefficient
  */
-inline Spectrum getReducedScatterCoeff(Spectrum &sigmaS, Float g);
+inline Spectrum getReducedScatterCoeff(const Spectrum &sigmaS, Float g);
 
 MTS_NAMESPACE_END
 

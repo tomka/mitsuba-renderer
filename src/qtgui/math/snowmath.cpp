@@ -21,11 +21,11 @@ Spectrum getSigmaAofIce() {
     return sigmaA;
 }
 
-inline Spectrum getDiffusionZr(Spectrum &sigmaTPrime) {
-    return 1 / sigmaTPrime;
+inline Spectrum getDiffusionZr(const Spectrum &sigmaTPrime) {
+    return Spectrum(1.0f) / sigmaTPrime;
 }
 
-inline Spectrum getDiffusionZv(Spectrum &zr, Float A) {
+inline Spectrum getDiffusionZv(const Spectrum &zr, Float A) {
     return zr * (1 + ((4*A) / 3));
 }
 
@@ -40,25 +40,25 @@ inline Float getFdr(Float n) {
             return -0.4399 + (0.7099 / n) - (0.3319 / (n*n)) + (0.0636 / (n*n*n));
 }
 
-inline Spectrum getAlbedo(Spectrum &sigmaAIce, Float d) {
+Spectrum getAlbedo(const Spectrum &sigmaAIce, Float d) {
         Spectrum sigmaAIceSq(sigmaAIce);
         sigmaAIceSq.sqrt();
-        return Spectrum(1.0f) - (5.96 * sigmaAIceSq * sqrt(d));
+        return Spectrum(1.0f) - (5.96f * sigmaAIceSq * sqrt(d));
 }
 
-inline Spectrum getSingleScatteringAlbedo(Spectrum &sigmaA_ice, Float d) {
-        return Spectrum(1.0f) - (0.84 * sigmaA_ice * d);
+inline Spectrum getSingleScatteringAlbedo(const Spectrum &sigmaA_ice, Float d) {
+        return Spectrum(1.0f) - (sigmaA_ice * 0.84f * d);
 }
 
 inline Float getNumberDensity(Float d, Float rho, Float rhoIce) {
         return (6.0f / (M_PI * d * d * d)) * (rho / rhoIce);
 }
 
-inline Spectrum getSigmaA(Spectrum &absIce, Float rho, Float rhoIce) {
-        return 1.26f * absIce * (rho / rhoIce);
+Spectrum getSigmaA(const Spectrum &absIce, Float rho, Float rhoIce) {
+        return absIce * 1.26f * (rho / rhoIce);
 }
 
-inline Spectrum getSigmaT(Float d, Float rho, Float rhoIce) {
+Spectrum getSigmaT(Float d, Float rho, Float rhoIce) {
         // Calculate geometrical cross-section
         Float G = M_PI * d * d * 0.25f;
         // Calculate extinction cross-section
@@ -68,22 +68,22 @@ inline Spectrum getSigmaT(Float d, Float rho, Float rhoIce) {
         return Spectrum(Cext * N);
 }
 
-inline Spectrum getAsymptoticExtCoeff(Spectrum &absCoeffIce, Float d, Float rho, Float rhoIce) {
+Spectrum getAsymptoticExtCoeff(const Spectrum &absCoeffIce, Float d, Float rho, Float rhoIce) {
         Spectrum absCoeffIceSq(absCoeffIce);
         absCoeffIceSq.sqrt();
         return 0.845f * absCoeffIceSq * (1 / sqrt(d)) * (rho/rhoIce);
 }
 
-inline Spectrum getBarkstromExtCoeff(Spectrum &absCoeffIce, Float d, Float rho, Float rhoIce, Float v0 = 5.80) {
+inline Spectrum getBarkstromExtCoeff(const Spectrum &absCoeffIce, Float d, Float rho, Float rhoIce, Float v0 = 5.80) {
     Spectrum Ks = getAsymptoticExtCoeff(absCoeffIce, d, rho, rhoIce);
     return v0 * Ks;
 }
 
-inline Spectrum getBarkstromAbsCoeff(Spectrum &singleScatAlbedo, Spectrum &extCoeff) {
+inline Spectrum getBarkstromAbsCoeff(const Spectrum &singleScatAlbedo, Spectrum &extCoeff) {
     return (Spectrum(1.0f) - singleScatAlbedo) * extCoeff;
 }
 
-inline Spectrum getReducedScatterCoeff(Spectrum &sigmaS, Float g) {
+inline Spectrum getReducedScatterCoeff(const Spectrum &sigmaS, Float g) {
     return sigmaS * (1 - g);
 }
 
