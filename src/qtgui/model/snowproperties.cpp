@@ -3,6 +3,11 @@
 
 MTS_NAMESPACE_BEGIN
 
+/* init static absorbtion coefficist of ice (in 1/m) */
+Spectrum SnowProperties::iceSigmaA = getSigmaAofIce();
+/* init density of ice (in kg / m^-3) */
+Float SnowProperties::iceDensity = 917.0f;
+
 SnowProperties::SnowProperties() {
     loadPreset(EFreshNewSnow);
 }
@@ -30,24 +35,33 @@ void SnowProperties::loadPreset(EPreset preset) {
 }
 
 void SnowProperties::loadFreshNewSnowPreset() {
-    grainsize = 50;
+    grainsize = 0.05f / 1000.0f; // mm -> m
     density = 70;
     ior = 1.32;
     g = 0.874;
+    loadCoefficients();
 }
 
 void SnowProperties::loadDryOlderSnowPreset() {
-    grainsize = 250;
+    grainsize = 0.25f / 1000.0f; // mm -> m
     density = 300;
     ior = 1.32;
     g = 0.874;
+    loadCoefficients();
 }
 
 void SnowProperties::loadWetOldSnowPreset() {
-    grainsize = 1000;
+    grainsize = 1.0f / 1000.0f; // mm -> m
     density = 450;
     ior = 1.32;
     g = 0.874;
+    loadCoefficients();
+}
+
+void SnowProperties::loadCoefficients() {
+    sigmaA = getSigmaA(iceSigmaA, density, iceDensity);
+    sigmaT = getAsymptoticExtCoeff(sigmaA, grainsize, density, iceDensity);
+    sigmaS = sigmaT - sigmaA;
 }
 
 MTS_IMPLEMENT_CLASS(SnowProperties, false, Object)
