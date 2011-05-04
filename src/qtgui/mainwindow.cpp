@@ -1756,9 +1756,9 @@ void MainWindow::onStatusMessage(const QString &status) {
 
 void MainWindow::updateStatus() {
 	if (m_statusMessage == "")
-		setWindowTitle(tr("Mitsuba renderer"));
+		setWindowTitle(tr("Copo renderer"));
 	else
-		setWindowTitle(tr("Mitsuba renderer [%1]").arg(m_statusMessage));
+		setWindowTitle(tr("Copo renderer [%1]").arg(m_statusMessage));
 }
     
 void MainWindow::on_actionStartServer_triggered() {
