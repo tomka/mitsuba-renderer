@@ -339,6 +339,8 @@ public:
 	inline Subsurface *getSubsurface() { return m_subsurface; }
 	/// Return the associated sub-surface integrator 
 	inline const Subsurface *getSubsurface() const { return m_subsurface.get(); }
+    /// Set tke subsurface integrator of this shape
+    void setSubsurface(Subsurface *subsurface);
 
 	/// Is this shape also an area luminaire?
 	inline bool isLuminaire() const { return m_luminaire.get() != NULL; }
