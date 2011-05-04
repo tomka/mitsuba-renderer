@@ -29,6 +29,8 @@ struct SnowProperties {
     Spectrum sigmaS;
     /* extinction coefficient, sum of sigmaA and sigmaS */
     Spectrum sigmaT;
+    /* single scattering albedo */
+    Spectrum singleScatteringAlbedo;
     /* absorbtion coefficient of ice */
     static Spectrum iceSigmaA;
     /* density of ice */
@@ -38,8 +40,7 @@ struct SnowProperties {
 
     SnowProperties(EPreset preset);
 
-    SnowProperties(Float _grainsize, Float _density, Float _ior,
-            Float _g, Float _sigmaA, Float _sigmaS);
+    SnowProperties(Float _grainsize, Float _density, Float _ior, Float _g);
 
     void loadPreset(EPreset preset);
 
@@ -49,7 +50,7 @@ struct SnowProperties {
 
     void loadWetOldSnowPreset();
 
-    void loadCoefficients();
+    void configure();
 };
 
 MTS_NAMESPACE_END

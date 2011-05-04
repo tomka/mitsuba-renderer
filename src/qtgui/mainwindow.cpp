@@ -37,6 +37,8 @@
 #include <mitsuba/core/plugin.h>
 #include <mitsuba/core/fresolver.h>
 #include <mitsuba/core/fstream.h>
+#include <QString>
+#include "math/snowmath.h"
 
 #if !defined(WIN32)
 #include <QX11Info>
@@ -172,6 +174,23 @@ MainWindow::MainWindow(QWidget *parent) :
 		QDesktopWidget *desktop = QApplication::desktop();
 		windowPos = QPoint((desktop->width() - width()) / 2, (desktop->height() - height())/2);
 	}
+
+    /* shape properties */
+    connect(ui->shapeSnowCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onToggleSnowMaterial(int)));
+
+    /* snow properties */
+    connect(ui->snowtypeComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowTypeChanged(int)));
+    connect(ui->grainsizeSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onGrainSizeChanged(double)));
+    connect(ui->densitySpinBox, SIGNAL(valueChanged(double)), this, SLOT(onDensityChanged(double)));
+    connect(ui->iorSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onIorChanged(double)));
+    connect(ui->asymmetrySpinBox, SIGNAL(valueChanged(double)), this, SLOT(onAsymmetryFactorChanged(double)));
+    connect(ui->snowCoeffComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(updateSnowComponents()));
+    connect(ui->wl435SpinBox, SIGNAL(valueChanged(double)), this, SLOT(on435nmCoeffChanged(double)));
+    connect(ui->wl545SpinBox, SIGNAL(valueChanged(double)), this, SLOT(on545nmCoeffChanged(double)));
+    connect(ui->wl700SpinBox, SIGNAL(valueChanged(double)), this, SLOT(on700nmCoeffChanged(double)));
+
+    /* snow render mode */
+    connect(ui->modelComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange(int)));
 
 #if defined(__OSX__)
 	ui->toolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
@@ -496,11 +515,174 @@ void MainWindow::setNormalScaling(Float scaling) {
 		return;
 	SceneContext *currentContext = m_context[currentIndex];
 	currentContext->normalScaling = scaling;
-	if (currentContext->previewMethod != EOpenGL &&
-		currentContext->previewMethod != EOpenGLSinglePass)
+    resetPreview(currentContext);
+}
+
+void MainWindow::resetPreview(SceneContext* context) {
+	if (context->previewMethod != EOpenGL &&
+		context->previewMethod != EOpenGLSinglePass)
 		ui->glView->setPreviewMethod(EOpenGL);
 	else
 		ui->glView->resetPreview();
+}
+
+void MainWindow::onSnowTypeChanged(int index) {
+	int currentIndex = ui->tabBar->currentIndex();
+	if (currentIndex == -1)
+		return;
+	SceneContext *currentContext = m_context[currentIndex];
+
+    if (index == 0)
+        currentContext->snow.loadFreshNewSnowPreset();
+    else if (index == 1)
+        currentContext->snow.loadDryOlderSnowPreset();
+    else if (index == 2)
+        currentContext->snow.loadWetOldSnowPreset();
+
+    updateSnowComponents();
+    resetPreview(currentContext);
+}
+
+void MainWindow::onGrainSizeChanged(double size) {
+	int currentIndex = ui->tabBar->currentIndex();
+	if (currentIndex == -1)
+		return;
+	SceneContext *currentContext = m_context[currentIndex];
+    currentContext->snow.grainsize = size / 1000; // mm -> m
+    // recalculate coefficients, as they depend on grain size
+    currentContext->snow.configure();
+    resetPreview(currentContext);
+    updateSnowComponents();
+}
+
+void MainWindow::onDensityChanged(double density) {
+	int currentIndex = ui->tabBar->currentIndex();
+	if (currentIndex == -1)
+		return;
+	SceneContext *currentContext = m_context[currentIndex];
+    currentContext->snow.density = density;
+    // recalculate coefficients, as they depend on density
+    currentContext->snow.configure();
+    resetPreview(currentContext);
+    updateSnowComponents();
+}
+
+void MainWindow::onIorChanged(double ior) {
+	int currentIndex = ui->tabBar->currentIndex();
+	if (currentIndex == -1)
+		return;
+	SceneContext *currentContext = m_context[currentIndex];
+    currentContext->snow.ior = ior;
+    resetPreview(currentContext);
+}
+
+void MainWindow::onAsymmetryFactorChanged(double g) {
+	int currentIndex = ui->tabBar->currentIndex();
+	if (currentIndex == -1)
+		return;
+	SceneContext *currentContext = m_context[currentIndex];
+    currentContext->snow.g = g;
+    resetPreview(currentContext);
+}
+
+void MainWindow::changeSnowCoefficient(int wlIndex, double value) {
+	int currentIndex = ui->tabBar->currentIndex();
+	if (currentIndex == -1)
+		return;
+
+	SceneContext *currentContext = m_context[currentIndex];
+    SnowProperties& snow = currentContext->snow;
+
+    int coeff = ui->snowCoeffComboBox->currentIndex();
+    if (coeff == 0) {
+        /* absorbtion coefficient of snow */
+        snow.sigmaA[wlIndex] = value;
+        snow.sigmaT = snow.sigmaA + snow.sigmaS;
+    } else if (coeff == 1) {
+        /* scattering coefficient of snow */
+        snow.sigmaS[wlIndex] = value;
+        snow.sigmaT = snow.sigmaA + snow.sigmaS;
+    } else if (coeff == 3) {
+        /* absorbtion coefficient of ice */
+        snow.iceSigmaA[wlIndex] = value;
+    }
+    resetPreview(currentContext);
+}
+
+void MainWindow::on435nmCoeffChanged(double coeff) {
+	int currentIndex = ui->tabBar->currentIndex();
+	if (currentIndex == -1)
+		return;
+    changeSnowCoefficient(2, coeff);
+    updateSnowComponents();
+}
+
+void MainWindow::on545nmCoeffChanged(double coeff) {
+	int currentIndex = ui->tabBar->currentIndex();
+	if (currentIndex == -1)
+		return;
+
+    changeSnowCoefficient(1, coeff);
+    updateSnowComponents();
+}
+
+void MainWindow::on700nmCoeffChanged(double coeff) {
+	int currentIndex = ui->tabBar->currentIndex();
+	if (currentIndex == -1)
+		return;
+
+    changeSnowCoefficient(1, coeff);
+    updateSnowComponents();
+}
+
+void MainWindow::onToggleSnowMaterial(int state) {
+	int currentIndex = ui->tabBar->currentIndex();
+	if (currentIndex == -1)
+		return;
+
+	SceneContext *currentContext = m_context[currentIndex];
+    SnowProperties &snow = currentContext->snow;
+
+    const std::vector<Shape *> shapes = currentContext->scene->getShapes();
+
+    if (shapes.size() == 0)
+        return;
+
+    Shape *currentShape = shapes[ui->shapeComboBox->currentIndex()];
+    bool hasSnow = (state != 0);
+
+    ui->glView->setScene(NULL);
+    updateSnowOnShape(currentContext, currentShape, hasSnow);
+    ui->glView->setScene(currentContext);
+    resetPreview(currentContext);
+}
+
+void MainWindow::onSnowRenderModelChange(int mode) {
+	int currentIndex = ui->tabBar->currentIndex();
+	if (currentIndex == -1)
+		return;
+	SceneContext *context = m_context[currentIndex];
+
+    if (mode == 0)
+        context->snowRenderMode = EWiscombeWarrenAlbedo;
+    else if (mode == 1)
+        context->snowRenderMode = EWiscombeWarrenBRDF;
+    else if (mode == 2)
+        context->snowRenderMode = EHanrahanKruegerBRDF;
+    else if (mode == 4)
+        context->snowRenderMode = EJensenBSSRDF;
+
+    ui->glView->setScene(NULL);
+    updateSnowOnAllShapes(context, true);
+    ui->glView->setScene(context);
+    resetPreview(context);
+}
+
+void MainWindow::updateSnowOnAllShapes(SceneContext *context, bool visible) {
+    const shapeListType meshes = context->scene->getShapes();
+    for (shapeListType::const_iterator it = meshes.begin(); it != meshes.end(); it++)
+        if (snowMaterialManager.isMadeOfSnow(*it))
+            updateSnowOnShape(context, *it, visible);
 }
 
 void MainWindow::on_actionShowKDTree_triggered() {
@@ -768,6 +950,23 @@ void MainWindow::updateUI() {
 	ui->actionPreviewSettings->setEnabled(hasTab && !isVisible && !fallback);
 #endif
 
+    if (hasScene) {
+        ui->shapeComboBox->clear();
+        /* update list of shapas */
+        const shapeListType meshes = context->scene->getShapes();
+        for (shapeListType::const_iterator it = meshes.begin(); it != meshes.end(); it++) {
+            ui->shapeComboBox->addItem( QString::fromStdString((*it)->getName()) );
+        }
+    }
+
+    ui->shapeComboBox->setEnabled(hasScene);
+    ui->shapeLabel->setEnabled(hasScene);
+    ui->shapeSnowCheckBox->setEnabled(hasScene);
+    ui->flipNormalsCheckBox->setEnabled(hasScene);
+
+    /* update snow related components */
+    updateSnowComponents();
+
 	if (isRendering) {
 		if (!m_progress->isVisible()) {
 			QGridLayout *centralLayout = static_cast<QGridLayout *>(centralWidget()->layout());
@@ -796,6 +995,72 @@ void MainWindow::updateUI() {
 	}
 	centralWidget()->updateGeometry();
 	layout()->activate();
+}
+
+void MainWindow::updateSnowComponents() {
+	int index = ui->tabBar->currentIndex();
+	bool hasTab = (index != -1);
+    SceneContext *context = hasTab ? m_context[index] : NULL;
+	bool hasScene = hasTab && context->scene != NULL;
+   
+    ui->snowtypeComboBox->setEnabled(hasScene);
+    ui->snowGeneralConfigGroup->setEnabled(hasScene);
+    ui->snowInteractionGroup->setEnabled(hasScene);
+    ui->snowInfoGroup->setEnabled(hasScene);
+
+    if (!hasScene)
+        return;
+
+    SnowProperties& snow = context->snow;
+    ui->grainsizeSpinBox->setValue(snow.grainsize * 1000);
+    ui->densitySpinBox->setValue(snow.density);
+    ui->iorSpinBox->setValue(snow.ior);
+
+    /* media interaction */
+    ui->asymmetrySpinBox->setValue(snow.g);
+
+    int coeff = ui->snowCoeffComboBox->currentIndex();
+    if (coeff == 0) {
+        /* absorbtion coefficient of snow */
+        ui->wl435SpinBox->setValue(snow.sigmaA[2]);
+        ui->wl545SpinBox->setValue(snow.sigmaA[1]);
+        ui->wl700SpinBox->setValue(snow.sigmaA[0]);
+    } else if (coeff == 1) {
+        /* scattering coefficient of snow */
+        ui->wl435SpinBox->setValue(snow.sigmaS[2]);
+        ui->wl545SpinBox->setValue(snow.sigmaS[1]);
+        ui->wl700SpinBox->setValue(snow.sigmaS[0]);
+    } else if (coeff == 2) {
+        /* absorbtion coefficient of ice */
+        ui->wl435SpinBox->setValue(snow.sigmaT[2]);
+        ui->wl545SpinBox->setValue(snow.sigmaT[1]);
+        ui->wl700SpinBox->setValue(snow.sigmaT[0]);
+    } else if (coeff == 3) {
+        /* absorbtion coefficient of ice */
+        ui->wl435SpinBox->setValue(snow.iceSigmaA[2]);
+        ui->wl545SpinBox->setValue(snow.iceSigmaA[1]);
+        ui->wl700SpinBox->setValue(snow.iceSigmaA[0]);
+    } else {
+        std::cerr << "[GUI] Encountered unknown coefficient selection" << std::endl;
+    }
+
+    bool enabled = (coeff == 0) || (coeff == 1);
+    ui->wl435SpinBox->setEnabled(enabled);
+    ui->wl545SpinBox->setEnabled(enabled);
+    ui->wl700SpinBox->setEnabled(enabled);
+
+    /* info panels */
+    Spectrum albedo = getAlbedo(snow.iceSigmaA, snow.grainsize);
+    ui->albedoLabel->setText(QString::number(albedo.average(), 'g', 2));
+    ui->ssalbedoLabel->setText(QString::number(snow.singleScatteringAlbedo.average(), 'g', 2));
+}
+
+void MainWindow::updateSnowOnShape(SceneContext* context, Shape* shape, bool hasSnow) {
+    if (hasSnow) {
+        snowMaterialManager.replaceMaterial(shape, context);
+    } else {
+        snowMaterialManager.resetMaterial(shape, context);
+    }
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event) {

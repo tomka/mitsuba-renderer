@@ -17,9 +17,10 @@ SnowProperties::SnowProperties(EPreset preset) {
 }
 
 SnowProperties::SnowProperties(Float _grainsize, Float _density,
-        Float _ior, Float _g, Float _sigmaA, Float _sigmaS)
-     :  g(_g), sigmaA(_sigmaA), sigmaS(_sigmaS)
-{ }
+        Float _ior, Float _g)
+     :  grainsize(_grainsize), density(_density), ior(_ior), g(_g) {
+    configure();
+}
 
 void SnowProperties::loadPreset(EPreset preset) {
     if (preset == EFreshNewSnow)
@@ -39,7 +40,7 @@ void SnowProperties::loadFreshNewSnowPreset() {
     density = 70;
     ior = 1.32;
     g = 0.874;
-    loadCoefficients();
+    configure();
 }
 
 void SnowProperties::loadDryOlderSnowPreset() {
@@ -47,7 +48,7 @@ void SnowProperties::loadDryOlderSnowPreset() {
     density = 300;
     ior = 1.32;
     g = 0.874;
-    loadCoefficients();
+    configure();
 }
 
 void SnowProperties::loadWetOldSnowPreset() {
@@ -55,13 +56,14 @@ void SnowProperties::loadWetOldSnowPreset() {
     density = 450;
     ior = 1.32;
     g = 0.874;
-    loadCoefficients();
+    configure();
 }
 
-void SnowProperties::loadCoefficients() {
+void SnowProperties::configure() {
     sigmaA = getSigmaA(iceSigmaA, density, iceDensity);
     sigmaT = getAsymptoticExtCoeff(sigmaA, grainsize, density, iceDensity);
     sigmaS = sigmaT - sigmaA;
+    singleScatteringAlbedo = sigmaS / sigmaT;
 }
 
 MTS_IMPLEMENT_CLASS(SnowProperties, false, Object)

@@ -42,6 +42,14 @@ enum ESelectionMode {
 	ENothing = 0,
 	EShape,
 	EScene
+
+/* Different snow rendering modes */
+enum ERenderMode {
+    EWiscombeWarrenAlbedo = 0,
+    EWiscombeWarrenBRDF,
+    EHanrahanKruegerBRDF,
+    EJensenBSSRDF,
+    EJensenMultipoleBSSRDF
 };
 
 namespace mitsuba {
@@ -207,6 +215,8 @@ struct SceneContext {
 
     /* Snow properties */
     SnowProperties snow;
+    /* Snow render mode */
+    ERenderMode snowRenderMode;
 
 	/// Detect the path length
 	int detectPathLength() const;

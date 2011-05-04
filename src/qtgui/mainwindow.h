@@ -22,6 +22,7 @@
 #include "common.h"
 #include <QtNetwork>
 #include <mitsuba/render/renderjob.h>
+#include "snowmaterialmanager.h"
 
 #define MAX_RECENT_FILES 10
 
@@ -77,6 +78,8 @@ class LogWidget;
 class MainWindow : public QMainWindow {
     Q_OBJECT
 public:
+    typedef std::vector<Shape *> shapeListType;
+public:
     MainWindow(QWidget *parent = 0);
     ~MainWindow();
 	void loadFile(QString filename);
@@ -98,6 +101,10 @@ protected:
 	void checkForUpdates(bool notifyIfNone = false);
 	void saveAs(SceneContext *ctx, const QString &targetFile);
 	QSize sizeHint() const;
+    void resetPreview(SceneContext* context);
+    void changeSnowCoefficient(int wlIndex, double value);
+    void updateSnowOnAllShapes(SceneContext *context, bool visible = true);
+    void updateSnowOnShape(SceneContext* context, Shape* shape, bool createNew);
 
 signals:
 	void updateView();
@@ -147,6 +154,7 @@ private slots:
 	void onBugReportError();
 	void onBugReportSubmitted();
 	void updateUI();
+	void updateSnowComponents();
 	void updateStatus();
 	void onPreviewSettingsClose();
 	void onOpenDialogClose(int reason);
@@ -156,6 +164,17 @@ private slots:
 	void onImportDialogClose(int reason);
 	void onSceneInformationClose(int reason);
 	void setNormalScaling(Float scaling);
+
+    void onSnowTypeChanged(int index);
+    void onGrainSizeChanged(double size);
+    void onDensityChanged(double density);
+    void onIorChanged(double ior);
+    void onAsymmetryFactorChanged(double g);
+    void on435nmCoeffChanged(double coeff);
+    void on545nmCoeffChanged(double coeff);
+    void on700nmCoeffChanged(double coeff);
+    void onToggleSnowMaterial(int state);
+    void onSnowRenderModelChange(int mode);
 
 private:
     Ui::MainWindow *ui;
@@ -188,6 +207,7 @@ private:
 	PreviewSettingsDlg *m_previewSettings;
 #endif
 	QWidget *m_currentChild;
+    SnowMaterialManager snowMaterialManager;
 };
 
 #endif // MAINWINDOW_H
