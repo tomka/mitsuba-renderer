@@ -14,5 +14,6 @@ plugins += env.SharedLibrary('composite', ['composite.cpp'])
 plugins += env.SharedLibrary('twosided', ['twosided.cpp'])
 plugins += env.SharedLibrary('irawan', ['irawan.cpp'])
 plugins += env.SharedLibrary('wiscombe', ['wiscombe.cpp'])
+plugins += env.SharedLibrary('hanrahankrueger', ['hanrahan-krueger.cpp'])
 
 Export('plugins')
