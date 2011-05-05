@@ -26,7 +26,7 @@ MTS_NAMESPACE_BEGIN
  * Computes the combined diffuse radiant exitance 
  * caused by a number of dipole sources
  */
-struct IsotropicMultipoleQuery {
+struct IsotropicDipoleQuery {
 #if !defined(MTS_SSE) || (SPECTRUM_SAMPLES != 3)
 	inline IsotropicDipoleQuery(const Spectrum &zr, const Spectrum &zv, 
 		const Spectrum &sigmaTr, Float Fdt, const Point &p) 
@@ -200,7 +200,7 @@ public:
         // compute multiple scattering term
         Spectrum Sd = query.getResult();
         // compute single scattering term
-        Spectrum S1 = Spectrum(0);
+        Spectrum S1 = Spectrum(0.0f);
 
         // compute total BSSRDF
         Spectrum S = Sd + S1;

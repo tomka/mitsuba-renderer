@@ -213,9 +213,9 @@ static int irrOctreeIndex = 0;
  * ("A Rapid Hierarhical Rendering Technique for Translucent 
  *   Materials" by Herik Wann Jensen and Juan Buhler, in SIGGRAPH 02)
  */
-class IsotropicDipole : public Subsurface {
+class IsotropicMultipole : public Subsurface {
 public:
-	IsotropicDipole(const Properties &props) 
+	IsotropicMultipole(const Properties &props) 
 		: Subsurface(props) {
 		irrOctreeMutex->lock();
 		m_octreeIndex = irrOctreeIndex++;
@@ -249,7 +249,7 @@ public:
 		m_octreeResID = -1;
 	}
 	
-	IsotropicDipole(Stream *stream, InstanceManager *manager) 
+	IsotropicMultipole(Stream *stream, InstanceManager *manager) 
 	 : Subsurface(stream, manager) {
 		m_ssFactor = Spectrum(stream);
 		m_g = stream->readFloat();
@@ -263,7 +263,7 @@ public:
 		configure();
 	}
 
-	virtual ~IsotropicDipole() {
+	virtual ~IsotropicMultipole() {
 		if (m_octreeResID != -1)
 			Scheduler::getInstance()->unregisterResource(m_octreeResID);
 	}
@@ -492,6 +492,6 @@ private:
     Float m_slabThickness;
 };
 
-MTS_IMPLEMENT_CLASS_S(IsotropicDipole, false, Subsurface)
-MTS_EXPORT_PLUGIN(IsotropicDipole, "Isotropic dipole model");
+MTS_IMPLEMENT_CLASS_S(IsotropicMultipole, false, Subsurface)
+MTS_EXPORT_PLUGIN(IsotropicMultipole, "Isotropic multipole model");
 MTS_NAMESPACE_END
