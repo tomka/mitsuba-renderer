@@ -289,7 +289,7 @@
             <number>6</number>
            </property>
            <property name="sizeConstraint">
-            <enum>QLayout::SetFixedSize</enum>
+            <enum>QLayout::SetDefaultConstraint</enum>
            </property>
            <item>
             <widget class="QLabel" name="label_2">
@@ -686,86 +686,113 @@
        <attribute name="title">
         <string>Rendering</string>
        </attribute>
-       <widget class="QWidget" name="verticalLayoutWidget">
+       <widget class="QWidget" name="widget" native="true">
         <property name="geometry">
          <rect>
           <x>10</x>
-          <y>10</y>
+          <y>0</y>
           <width>181</width>
-          <height>401</height>
+          <height>551</height>
          </rect>
         </property>
-        <layout class="QVBoxLayout" name="verticalLayout_3">
-         <property name="sizeConstraint">
-          <enum>QLayout::SetFixedSize</enum>
+        <widget class="QWidget" name="verticalLayoutWidget">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>10</y>
+           <width>181</width>
+           <height>401</height>
+          </rect>
          </property>
-         <item>
-          <layout class="QFormLayout" name="formLayout_4">
-           <item row="0" column="0">
-            <widget class="QLabel" name="modelLabel">
-             <property name="text">
-              <string>Model:</string>
-             </property>
-             <property name="buddy">
-              <cstring>modelComboBox</cstring>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="1">
-            <widget class="QComboBox" name="modelComboBox">
-             <property name="enabled">
-              <bool>true</bool>
-             </property>
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="minimumSize">
-              <size>
-               <width>100</width>
-               <height>0</height>
-              </size>
-             </property>
-             <item>
+         <layout class="QVBoxLayout" name="verticalLayout_3">
+          <property name="sizeConstraint">
+           <enum>QLayout::SetFixedSize</enum>
+          </property>
+          <item>
+           <layout class="QFormLayout" name="formLayout_4">
+            <property name="formAlignment">
+             <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+            </property>
+            <item row="0" column="0">
+             <widget class="QLabel" name="modelLabel">
               <property name="text">
-               <string>Wismcobe-Warren (Albedo)</string>
+               <string>Model:</string>
               </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>Wicombe-Warren (BRDF)</string>
+              <property name="buddy">
+               <cstring>modelComboBox</cstring>
               </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>Hanrahan-Krueger (BRDF)</string>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QComboBox" name="modelComboBox">
+              <property name="enabled">
+               <bool>true</bool>
               </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>Dipol-Diffusion (BSSRDF)</string>
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
               </property>
-             </item>
-            </widget>
-           </item>
-          </layout>
-         </item>
-         <item>
-          <spacer name="verticalSpacer">
-           <property name="orientation">
-            <enum>Qt::Vertical</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>20</width>
-             <height>40</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-        </layout>
+              <property name="minimumSize">
+               <size>
+                <width>0</width>
+                <height>0</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>130</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="sizeAdjustPolicy">
+               <enum>QComboBox::AdjustToContents</enum>
+              </property>
+              <item>
+               <property name="text">
+                <string>Wismcobe-Warren (Albedo)</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Wicombe-Warren (BRDF)</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Hanrahan-Krueger (BRDF)</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Dipol-Diffusion (BSSRDF)</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Multipol-Diffusion (BSSRDF)</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <spacer name="verticalSpacer">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>40</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </widget>
        </widget>
       </widget>
      </widget>

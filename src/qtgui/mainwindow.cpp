@@ -683,8 +683,10 @@ void MainWindow::onSnowRenderModelChange(int mode) {
         context->snowRenderMode = EWiscombeWarrenBRDF;
     else if (mode == 2)
         context->snowRenderMode = EHanrahanKruegerBRDF;
-    else if (mode == 4)
+    else if (mode == 3)
         context->snowRenderMode = EJensenBSSRDF;
+    else if (mode == 4)
+        context->snowRenderMode = EJensenMultipoleBSSRDF;
 
     ui->glView->setScene(NULL);
     updateSnowOnAllShapes(context, true);

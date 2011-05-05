@@ -213,13 +213,17 @@ struct SceneContext {
 
 	SceneContext() : scene(NULL), sceneResID(-1), 
 		renderJob(NULL), selectionMode(ENothing),
-		selectedShape(NULL), currentlySelectedShape(NULL)
+		selectedShape(NULL), currentlySelectedShape(NULL),
+        multipoleDipoles(2) 
     { }
 
     /* Snow properties */
     SnowProperties snow;
     /* Snow render mode */
     ERenderMode snowRenderMode;
+
+    /* Multipole rendering */
+    int multipoleDipoles;
 
     /* the currently selected shape */
     Shape *currentlySelectedShape;
