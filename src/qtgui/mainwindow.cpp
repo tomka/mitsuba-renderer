@@ -39,6 +39,7 @@
 #include <mitsuba/core/fstream.h>
 #include <QString>
 #include "math/snowmath.h"
+#include <QtGlobal>
 
 #if !defined(WIN32)
 #include <QX11Info>
@@ -176,6 +177,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	}
 
     /* shape properties */
+    connect(ui->shapeComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSelectedShapeChanged(int)));
     connect(ui->shapeSnowCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onToggleSnowMaterial(int)));
 
     /* snow properties */
@@ -635,20 +637,32 @@ void MainWindow::on700nmCoeffChanged(double coeff) {
     updateSnowComponents();
 }
 
+void MainWindow::onSelectedShapeChanged(int shape) {
+	int currentIndex = ui->tabBar->currentIndex();
+	if (currentIndex == -1 || ui->shapeComboBox->count() == 0) 
+		return;
+
+	SceneContext *currentContext = m_context[currentIndex];
+
+    int currentIdx = ui->shapeComboBox->currentIndex();
+    Shape *currentShape =  ui->shapeComboBox->itemData(currentIdx).value<Shape *>();
+    currentContext->currentlySelectedShape = currentShape;
+    updateShapeComponents();
+}
+
 void MainWindow::onToggleSnowMaterial(int state) {
 	int currentIndex = ui->tabBar->currentIndex();
-	if (currentIndex == -1)
+	if (currentIndex == -1 || ui->shapeComboBox->count() == 0) 
 		return;
 
 	SceneContext *currentContext = m_context[currentIndex];
     SnowProperties &snow = currentContext->snow;
 
-    const std::vector<Shape *> shapes = currentContext->scene->getShapes();
+    Shape *currentShape = currentContext->currentlySelectedShape;
 
-    if (shapes.size() == 0)
+    if (!currentShape)
         return;
 
-    Shape *currentShape = shapes[ui->shapeComboBox->currentIndex()];
     bool hasSnow = (state != 0);
 
     ui->glView->setScene(NULL);
@@ -675,6 +689,7 @@ void MainWindow::onSnowRenderModelChange(int mode) {
     ui->glView->setScene(NULL);
     updateSnowOnAllShapes(context, true);
     ui->glView->setScene(context);
+    updateUI();
     resetPreview(context);
 }
 
@@ -950,19 +965,8 @@ void MainWindow::updateUI() {
 	ui->actionPreviewSettings->setEnabled(hasTab && !isVisible && !fallback);
 #endif
 
-    if (hasScene) {
-        ui->shapeComboBox->clear();
-        /* update list of shapas */
-        const shapeListType meshes = context->scene->getShapes();
-        for (shapeListType::const_iterator it = meshes.begin(); it != meshes.end(); it++) {
-            ui->shapeComboBox->addItem( QString::fromStdString((*it)->getName()) );
-        }
-    }
-
-    ui->shapeComboBox->setEnabled(hasScene);
-    ui->shapeLabel->setEnabled(hasScene);
-    ui->shapeSnowCheckBox->setEnabled(hasScene);
-    ui->flipNormalsCheckBox->setEnabled(hasScene);
+    /* update shape related settings */
+    updateShapeComponents();
 
     /* update snow related components */
     updateSnowComponents();
@@ -995,6 +999,58 @@ void MainWindow::updateUI() {
 	}
 	centralWidget()->updateGeometry();
 	layout()->activate();
+}
+
+void MainWindow::updateShapeComponents() {
+	int index = ui->tabBar->currentIndex();
+	bool hasTab = (index != -1);
+    SceneContext *context = hasTab ? m_context[index] : NULL;
+	bool hasScene = hasTab && context->scene != NULL;
+
+    if (hasScene) {
+        // block all signals of involved components
+        ui->shapeComboBox->blockSignals(true);
+        ui->shapeSnowCheckBox->blockSignals(true);
+
+        ui->shapeComboBox->clear();
+        /* update list of shapas */
+        const shapeListType meshes = context->scene->getShapes();
+        for (shapeListType::const_iterator it = meshes.begin(); it != meshes.end(); it++) {
+            Shape *shape = *it;
+            ui->shapeComboBox->addItem( QString::fromStdString(shape->getName()), qVariantFromValue(shape) );
+        }
+
+        /* try to select currently selected shape in combo box */
+        Shape *currentShape = context->currentlySelectedShape;
+        if (!currentShape && meshes.size() > 0)
+                currentShape = meshes[0];
+
+        if (currentShape) {
+            /* find index of shape */
+            int shapeIndex = -1;
+            for (int i=0; i < ui->shapeComboBox->count(); ++i) {
+                Shape *shape =  ui->shapeComboBox->itemData(i).value<Shape *>();
+                if (shape == currentShape) {
+                    shapeIndex = i;
+                    break;
+                }
+            }
+            if (shapeIndex > -1) {
+                ui->shapeComboBox->setCurrentIndex(shapeIndex);
+                ui->shapeSnowCheckBox->setCheckState( Qt::CheckState(snowMaterialManager.isMadeOfSnow(currentShape)) );
+            } else {
+                std::cerr << "MainWindow: This should not happen" << std::endl;
+            }
+        }
+        // unblock all signals of involved components
+        ui->shapeComboBox->blockSignals(false);
+        ui->shapeSnowCheckBox->blockSignals(false);
+    }
+
+    ui->shapeComboBox->setEnabled(hasScene);
+    ui->shapeLabel->setEnabled(hasScene);
+    ui->shapeSnowCheckBox->setEnabled(hasScene);
+    ui->flipNormalsCheckBox->setEnabled(hasScene);
 }
 
 void MainWindow::updateSnowComponents() {
@@ -2067,6 +2123,9 @@ SceneContext::SceneContext(SceneContext *ctx) {
 	selectionMode = ctx->selectionMode;
 	showNormals = ctx->showNormals;
     normalScaling = ctx->normalScaling;
+    snow = ctx->snow;
+    snowRenderMode = ctx->snowRenderMode;
+    currentlySelectedShape = NULL;
 }
 
 SceneContext::~SceneContext() {

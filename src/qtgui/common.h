@@ -52,6 +52,8 @@ enum ERenderMode {
     EJensenMultipoleBSSRDF
 };
 
+Q_DECLARE_METATYPE( Shape * );
+
 namespace mitsuba {
 	class RemoteWorker;
 };
@@ -211,12 +213,16 @@ struct SceneContext {
 
 	SceneContext() : scene(NULL), sceneResID(-1), 
 		renderJob(NULL), selectionMode(ENothing),
-		selectedShape(NULL) { }
+		selectedShape(NULL), currentlySelectedShape(NULL)
+    { }
 
     /* Snow properties */
     SnowProperties snow;
     /* Snow render mode */
     ERenderMode snowRenderMode;
+
+    /* the currently selected shape */
+    Shape *currentlySelectedShape;
 
 	/// Detect the path length
 	int detectPathLength() const;

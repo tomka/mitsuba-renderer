@@ -72,6 +72,18 @@ protected:
 	virtual ~QRenderListener() { }
 };
 
+/**
+ * A small event eater class for QT.
+ */
+class EventEater : public QObject {
+    Q_OBJECT
+
+protected:
+    bool eventFilter(QObject *obj, QEvent *event) {
+        return true;
+    }
+};
+
 class PreviewSettingsDialog;
 class LogWidget;
 
@@ -155,6 +167,7 @@ private slots:
 	void onBugReportSubmitted();
 	void updateUI();
 	void updateSnowComponents();
+    void updateShapeComponents();
 	void updateStatus();
 	void onPreviewSettingsClose();
 	void onOpenDialogClose(int reason);
@@ -173,6 +186,7 @@ private slots:
     void on435nmCoeffChanged(double coeff);
     void on545nmCoeffChanged(double coeff);
     void on700nmCoeffChanged(double coeff);
+    void onSelectedShapeChanged(int shape);
     void onToggleSnowMaterial(int state);
     void onSnowRenderModelChange(int mode);
 
