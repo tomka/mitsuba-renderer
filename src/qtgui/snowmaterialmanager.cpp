@@ -33,40 +33,38 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
         PluginManager *pluginManager = PluginManager::getInstance();
         ERenderMode mode = context->snowRenderMode;
         SnowProperties &snow = context->snow;
+        Properties properties;
+        properties.setFloat("g", snow.g);
+        properties.setSpectrum("sigmaA", snow.sigmaA);
+        properties.setSpectrum("sigmaS", snow.sigmaS);
+        properties.setSpectrum("sigmaT", snow.sigmaT);
+        properties.setFloat("eta", snow.ior); // ToDo: eta is actually the relative IOR (no prob w/ air)
         if (mode == EWiscombeWarrenAlbedo) {
-            Properties properties("wiscombe");
-            properties.setFloat("g", snow.g);
+            properties.setPluginName("wiscombe");
             properties.setFloat("depth", 2.0f); // ToDo: Make dynamic
             properties.setSpectrum("singleScatteringAlbedo", snow.singleScatteringAlbedo);
-            properties.setSpectrum("sigmaT", snow.sigmaT);
             bsdf = static_cast<BSDF *> (pluginManager->createObject(
                 BSDF::m_theClass, properties));
         } else if (mode == EWiscombeWarrenBRDF) {
-            Properties properties("wiscombe");
-            properties.setFloat("g", snow.g);
+            properties.setPluginName("wiscombe");
             properties.setFloat("depth", 2.0f); // ToDo: Make dynamic
             properties.setSpectrum("singleScatteringAlbedo", snow.singleScatteringAlbedo);
-            properties.setSpectrum("sigmaT", snow.sigmaT);
             bsdf = static_cast<BSDF *> (pluginManager->createObject(
                 BSDF::m_theClass, properties));
         } else if (mode == EHanrahanKruegerBRDF) {
-            Properties properties("hanrahankrueger");
-            properties.setFloat("g", snow.g);
-            properties.setFloat("eta", snow.ior); // ToDo: eta is actually the relative IOR (no prob w/ air)
-            properties.setSpectrum("sigmaA", snow.sigmaA);
-            properties.setSpectrum("sigmaS", snow.sigmaS);
+            properties.setPluginName("hanrahankrueger");
             bsdf = static_cast<BSDF *> (pluginManager->createObject(
                 BSDF::m_theClass, properties));
         } else if (mode == EJensenBSSRDF) {
-            Properties properties("dipole");
-            properties.setFloat("g", snow.g);
-            properties.setFloat("eta", snow.ior); // ToDo: eta is actually the relative IOR (no prob w/ air)
-            properties.setSpectrum("sigmaA", snow.sigmaA);
-            properties.setSpectrum("sigmaS", snow.sigmaS);
+            properties.setPluginName("dipole");
             subsurface = static_cast<Subsurface *> (pluginManager->createObject(
                 Subsurface::m_theClass, properties));
         } else if (mode == EJensenMultipoleBSSRDF) {
-
+            properties.setPluginName("multipole");
+            properties.setFloat("slabThickness", 0.1); // ToDo: Make dynamic
+            properties.setInteger("extraDipoles", context->multipoleDipoles);
+            subsurface = static_cast<Subsurface *> (pluginManager->createObject(
+                Subsurface::m_theClass, properties));
         }
 
         if (bsdf)
