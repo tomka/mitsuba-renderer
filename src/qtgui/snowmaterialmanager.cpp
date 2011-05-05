@@ -58,7 +58,7 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
             bsdf = static_cast<BSDF *> (pluginManager->createObject(
                 BSDF::m_theClass, properties));
         } else if (mode == EJensenBSSRDF) {
-            Properties properties("dipoler");
+            Properties properties("dipole");
             properties.setFloat("g", snow.g);
             properties.setFloat("eta", snow.ior); // ToDo: eta is actually the relative IOR (no prob w/ air)
             properties.setSpectrum("sigmaA", snow.sigmaA);
