@@ -1039,7 +1039,7 @@ void MainWindow::updateShapeComponents() {
             }
             if (shapeIndex > -1) {
                 ui->shapeComboBox->setCurrentIndex(shapeIndex);
-                ui->shapeSnowCheckBox->setCheckState( Qt::CheckState(snowMaterialManager.isMadeOfSnow(currentShape)) );
+                ui->shapeSnowCheckBox->setChecked(snowMaterialManager.isMadeOfSnow(currentShape));
             } else {
                 std::cerr << "MainWindow: This should not happen" << std::endl;
             }
