@@ -89,6 +89,11 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
             }
         }
         setMadeOfSnow(shape, true);
+        std::string bsdfName = (bsdf == NULL) ? "None" : bsdf->getClass()->getName();
+        std::string subsurfaceName = (subsurface == NULL) ? "None" : subsurface->getClass()->getName();
+        std::cerr << "[Snow Material Manager] Replaced material of shape \"" << shape->getName() << "\"" << std::endl
+                  << "\tnew BSDF: " << bsdfName << std::endl
+                  << "\tnew Subsurface: " << subsurfaceName << std::endl;
 }
 
 void SnowMaterialManager::resetMaterial(Shape *shape, SceneContext *context) {
