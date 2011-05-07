@@ -659,15 +659,14 @@ void MainWindow::onToggleSnowMaterial(int state) {
     SnowProperties &snow = currentContext->snow;
 
     Shape *currentShape = currentContext->currentlySelectedShape;
-
     if (!currentShape)
         return;
 
     bool hasSnow = (state != 0);
 
-    ui->glView->setScene(NULL);
+	on_tabBar_currentChanged(-1);
     updateSnowOnShape(currentContext, currentShape, hasSnow);
-    ui->glView->setScene(currentContext);
+	on_tabBar_currentChanged(currentIndex);
     resetPreview(currentContext);
 }
 
@@ -688,9 +687,9 @@ void MainWindow::onSnowRenderModelChange(int mode) {
     else if (mode == 4)
         context->snowRenderMode = EJensenMultipoleBSSRDF;
 
-    ui->glView->setScene(NULL);
+	on_tabBar_currentChanged(-1);
     updateSnowOnAllShapes(context, true);
-    ui->glView->setScene(context);
+	on_tabBar_currentChanged(currentIndex);
     updateUI();
     resetPreview(context);
 }
