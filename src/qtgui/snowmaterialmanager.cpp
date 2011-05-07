@@ -115,6 +115,7 @@ void SnowMaterialManager::resetMaterial(Shape *shape, SceneContext *context) {
                 context->scene->removeSubsurface(old_ss);
         }
         setMadeOfSnow(shape, false);
+        std::cerr << "[Snow Material Manager] Reset material on shape " << shape->getName() << std::endl;
 }
 
 bool SnowMaterialManager::isMadeOfSnow(Shape * shape) {
