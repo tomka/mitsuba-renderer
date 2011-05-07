@@ -1025,7 +1025,7 @@ void MainWindow::updateShapeComponents() {
         /* try to select currently selected shape in combo box */
         Shape *currentShape = context->currentlySelectedShape;
         if (!currentShape && meshes.size() > 0)
-                currentShape = meshes[0];
+                context->currentlySelectedShape = currentShape = meshes[0];
 
         if (currentShape) {
             /* find index of shape */
