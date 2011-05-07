@@ -120,9 +120,6 @@ void Shape::addChild(const std::string &name, ConfigurableObject *child) {
 }
 
 void Shape::setSubsurface(Subsurface *subsurface) {
-    if (hasSubsurface()) {
-        m_subsurface->decRef();
-    }
     m_subsurface = subsurface;
 }
 
