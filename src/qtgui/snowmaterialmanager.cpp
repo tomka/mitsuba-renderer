@@ -67,10 +67,14 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
                 Subsurface::m_theClass, properties));
         }
 
-        if (bsdf)
+        if (bsdf) {
             bsdf->setParent(shape);
-        if (subsurface)
+            bsdf->configure();
+        }
+        if (subsurface) {
             subsurface->setParent(shape);
+            subsurface->configure();
+        }
 
         shape->setBSDF(bsdf);
         shape->setSubsurface(subsurface);
