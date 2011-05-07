@@ -74,6 +74,8 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
 
         shape->setBSDF(bsdf);
         shape->setSubsurface(subsurface);
+        // allow the shape to react to this changes
+        shape->configure();
 
         // if a subsurface material has been selected, inform the scene about it
         if (subsurface) {
