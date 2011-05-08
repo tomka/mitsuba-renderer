@@ -188,7 +188,7 @@ private slots:
     void on700nmCoeffChanged(double coeff);
     void onSelectedShapeChanged(int shape);
     void onToggleSnowMaterial(int state);
-    void onSnowRenderModelChange(int mode);
+    void onSnowRenderModelChange();
 
 private:
     Ui::MainWindow *ui;

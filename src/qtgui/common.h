@@ -42,17 +42,29 @@ enum ESelectionMode {
 	ENothing = 0,
 	EShape,
 	EScene
+}
 
-/* Different snow rendering modes */
-enum ERenderMode {
-    EWiscombeWarrenAlbedo = 0,
+/* Different surface rendering modes */
+enum ESurfaceRenderMode {
+    ENoSurface = 0,
+    EWiscombeWarrenAlbedo,
     EWiscombeWarrenBRDF,
-    EHanrahanKruegerBRDF,
-    EJensenBSSRDF,
+    EHanrahanKruegerBRDF
+};
+
+/* Different sub-surface rendering modes */
+enum ESubSurfaceRenderMode {
+    ENoSubSurface = 0,
+    EJensenDipoleBSSRDF,
     EJensenMultipoleBSSRDF
 };
 
 Q_DECLARE_METATYPE( Shape * );
+
+struct SnowRenderSettings {
+    ESubSurfaceRenderMode subsurfaceRenderMode;
+    ESurfaceRenderMode surfaceRenderMode;
+};
 
 namespace mitsuba {
 	class RemoteWorker;
@@ -219,8 +231,7 @@ struct SceneContext {
 
     /* Snow properties */
     SnowProperties snow;
-    /* Snow render mode */
-    ERenderMode snowRenderMode;
+    SnowRenderSettings snowRenderSettings;
 
     /* Multipole rendering */
     int multipoleDipoles;

@@ -192,7 +192,8 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->wl700SpinBox, SIGNAL(valueChanged(double)), this, SLOT(on700nmCoeffChanged(double)));
 
     /* snow render mode */
-    connect(ui->modelComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange(int)));
+    connect(ui->surfaceComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange()));
+    connect(ui->subsurfaceComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange()));
 
 #if defined(__OSX__)
 	ui->toolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
@@ -670,22 +671,37 @@ void MainWindow::onToggleSnowMaterial(int state) {
     resetPreview(currentContext);
 }
 
-void MainWindow::onSnowRenderModelChange(int mode) {
+void MainWindow::onSnowRenderModelChange() {
 	int currentIndex = ui->tabBar->currentIndex();
 	if (currentIndex == -1)
 		return;
 	SceneContext *context = m_context[currentIndex];
 
-    if (mode == 0)
-        context->snowRenderMode = EWiscombeWarrenAlbedo;
-    else if (mode == 1)
-        context->snowRenderMode = EWiscombeWarrenBRDF;
-    else if (mode == 2)
-        context->snowRenderMode = EHanrahanKruegerBRDF;
-    else if (mode == 3)
-        context->snowRenderMode = EJensenBSSRDF;
-    else if (mode == 4)
-        context->snowRenderMode = EJensenMultipoleBSSRDF;
+    int surfaceIdx = ui->surfaceComboBox->currentIndex();
+    int subsurfaceIdx = ui->subsurfaceComboBox->currentIndex();
+
+    // save proberties;
+    ESurfaceRenderMode surfaceRenderMode;
+    if (surfaceIdx == 0)
+        surfaceRenderMode = ENoSurface;
+    else if (surfaceIdx == 1)
+        surfaceRenderMode = EWiscombeWarrenAlbedo;
+    else if (surfaceIdx == 2)
+        surfaceRenderMode = EWiscombeWarrenBRDF;
+    else if (surfaceIdx == 3)
+        surfaceRenderMode = EHanrahanKruegerBRDF;
+
+    context->snowRenderSettings.surfaceRenderMode = surfaceRenderMode;
+
+    ESubSurfaceRenderMode subsurfaceRenderMode;
+    if (subsurfaceIdx == 0)
+        subsurfaceRenderMode = ENoSubSurface;
+    else if (subsurfaceIdx == 1)
+        subsurfaceRenderMode = EJensenDipoleBSSRDF;
+    if (subsurfaceIdx == 2)
+        subsurfaceRenderMode = EJensenMultipoleBSSRDF;
+
+    context->snowRenderSettings.subsurfaceRenderMode = subsurfaceRenderMode;
 
 	on_tabBar_currentChanged(-1);
     updateSnowOnAllShapes(context, true);
@@ -2125,7 +2141,7 @@ SceneContext::SceneContext(SceneContext *ctx) {
 	showNormals = ctx->showNormals;
     normalScaling = ctx->normalScaling;
     snow = ctx->snow;
-    snowRenderMode = ctx->snowRenderMode;
+    snowRenderSettings = ctx->snowRenderSettings;
     currentlySelectedShape = NULL;
 }
 
