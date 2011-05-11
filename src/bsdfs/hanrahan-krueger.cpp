@@ -21,6 +21,8 @@
 #include <mitsuba/core/properties.h>
 #include <mitsuba/hw/renderer.h>
 #include <mitsuba/core/random.h>
+#include <mitsuba/render/integrator.h>
+#include <mitsuba/render/scene.h>
 
 MTS_NAMESPACE_BEGIN
 
@@ -64,8 +66,6 @@ public:
 		m_componentCount = 1;
 		m_type = new unsigned int[m_componentCount];
 		m_combinedType = m_type[0] = EDiffuseReflection;
-
-        configure();
 	}
 
 	HanrahanKrueger(Stream *stream, InstanceManager *manager) 
@@ -82,19 +82,17 @@ public:
 	}
 
     void configure() {
+        /* we need the scene for intersection tests */
+        //m_scene = static_cast<Scene *>(getResource("scene"));
         /* Calculate extinction coefficient */
         m_sigmaT = m_sigmaA + m_sigmaS;
+        /* get the longest mean free path */
         m_invSigmaTMin = 1.0f / m_sigmaT.min();
-        m_sigmaTExpSq = Spectrum(m_sigmaT);
-        m_sigmaTExpSq.exp();
-        m_sigmaTExpSq.pow(2);
-        m_invSigmaT = Spectrum(m_sigmaT);
-        m_invSigmaT.pow(-1.0f);
+        m_invSigmaT = m_sigmaT.pow(-1.0f);
+        m_negSigmaT = m_sigmaT * (-1.0f);
 
         /* Calculate albedo */
         m_albedo = (m_sigmaS/m_sigmaT).max();
-
-        m_random = new Random();
     }
 
     /**
@@ -105,8 +103,9 @@ public:
      */
     Float hgPhaseFunction(const Vector& v1, const Vector& v2, Float g) const {
 	    Float costheta = dot(-v1, v2);
-        Float num = 1.0 - g*g;
-        Float den = std::pow(1.0 + g*g - 2.0 * g * costheta, 1.5);
+        Float gSq = g*g;
+        Float num = 1.0 - gSq;
+        Float den = std::pow(1.0 + gSq - 2.0 * g * costheta, 1.5);
 
     	return num / den;
     }
@@ -120,9 +119,8 @@ public:
 		if (!(bRec.typeMask & m_combinedType)
 			|| bRec.wi.z <= 0 || bRec.wo.z <= 0)
 			return Spectrum(0.0f);
-        Normal n = bRec.its.shFrame.n;
 
-        return radiance(bRec.wo, bRec.wi, bRec.its.p, n) * INV_PI;
+        return radiance(bRec) * INV_PI;
 	}
 
 	Float pdf(const BSDFQueryRecord &bRec) const {
@@ -131,58 +129,106 @@ public:
 		return Frame::cosTheta(bRec.wo) * INV_PI;
 	}
 
-    Spectrum radiance(const Vector& wo, const Vector& wi, const Point xo, const Normal& n) const {
-        Float cos_wo = dot(wo, n);
-        Float cos_wi = dot(wi, n);
-        /* Calculate Fresnel trensmission T = 1- R */
-        Float Ft1 = 1 - fresnel(cos_wo, 1.0, m_eta);
-        Float Ft2 = 1 - fresnel(cos_wi, 1.0, m_eta);
-        Float F = Ft1 * Ft2;
-        /* Query phase function */
-        Float p = hgPhaseFunction(normalize(wi), normalize(wo), m_g);
-        /* Calculate combined transmission coefficient */
-        Float G = std::abs(cos_wo) / std::abs(cos_wi);
-        Spectrum sigmaTc = m_sigmaT + m_sigmaT * G;
+    /**
+     * Computes the single-scattering radiance.
+     */
+    Spectrum radiance(const BSDFQueryRecord &bRec) const {
+        /* cosines of input and output directions */
+        const Float cos_wi = Frame::cosTheta(bRec.wi);
+        const Float cos_wo = Frame::cosTheta(bRec.wo);
+        const Float cos_wo_abs = std::abs(cos_wo);
+
+        Float oneovereta = 1.0f / m_eta;
+        Float oneoveretaSq = oneovereta * oneovereta;;
+
+        /* Using Snell's law, calculate the squared sine of the
+         * angle between the normal and the transmitted ray */
+        Float sinTheta2Sqr = oneoveretaSq * Frame::sinTheta2(bRec.wi);
+
+        if (sinTheta2Sqr > 1.0f) /* Total internal reflection! */
+            return Spectrum(1.0f);
+
+        /* Compute the cosine, but guard against numerical imprecision */
+        Float cosTheta2 = std::sqrt(std::max((Float) 0.0f, 1.0f - sinTheta2Sqr));
+        /* With cos(N, transmittedRay) on tap, calculating the 
+         * transmission direction is straightforward. */
+        Vector localTo = Vector(-oneovereta*bRec.wi.x, -oneovereta*bRec.wi.y, -cosTheta2);
+        Vector to = normalize( bRec.its.toWorld( localTo ));
+
+        /* importance sampling norminator */
+        Random* random = m_random.get();
+        if (random == NULL) {
+            random = new Random();
+            m_random.set(random);
+        }
+        Float sample = random->nextFloat();
+        if (sample < 0.001)
+            sample = 0.001;
+        const Float ran = - std::log( sample );
+        /* so' with max. maen frea path */
+        const Float soPrimeMin =  m_invSigmaTMin * ran;
+
+        /* Get sample point on refracted ray in world coordinates */
+        const Point &xi = bRec.its.p;
+        const Point3 xsamp = xi + to * soPrimeMin;
+
         /* Calculate siPrime and soPrime */
-        ref<Random> random = new Random();
-        Float ran = std::log( random->nextFloat() );
-        Float soPrimeMin =  m_invSigmaTMin * ran;
-        Spectrum negSoPrimeExp = m_invSigmaT * (-1) * ran;
-        negSoPrimeExp.exp();
-        Float var1 = 1 - (1 / (m_eta * m_eta));
-        Float var2 = 1 - (cos_wi * cos_wi);
-        /* Get refrected out-vector */
-        Vector to = refract(-wo, n, m_eta) ;
-        /* Get sample point on refracted ray */
-        Point3 xsamp = xo + to * soPrimeMin;
-        Float si = (xo - xsamp).length();
-        Float siPrime = si * abs(cos_wi) / sqrt(var1 * var2);
 
-        Spectrum Lo = (m_sigmaS * F * p / sigmaTc)
-            * m_sigmaTExpSq * exp(siPrime * (-1)) * negSoPrimeExp * m_sigmaT;
+        /* Indireclty find intersection of light with surface xo by using the
+         * triangle xi, xo, xamp with angles ai, ao, asamp. By using the
+         * height/z-difference between xi and xsamp, we can calculate
+         * si = h/(sin ao). si is the distance from sample point in surface
+         * to light entering point. If gamma is the angle between normal an wo,
+         * then ao = 90 degree - gamma. The sine of ao eqals the sine of
+         * (90 - gamma), which again is (sin 90 * cos gamma - cos 90 * sin gamma)
+         * This can be reduced to cos gamma.
+         */
+        const Float si = std::abs(xi.z - xsamp.z) / cos_wo;
 
+        /* so' over whole spectrum */
+        const Float term = 1.0f - (cos_wo_abs * cos_wo_abs);
+        const Float siPrime = si * cos_wo_abs / sqrt(1.0f - oneoveretaSq * term);
+
+        /* Calculate combined transmission coefficient */
+        const Float G = std::abs(cosTheta2) / cos_wo_abs;
+        const Spectrum sigmaTc = m_sigmaT + m_sigmaT * G;
+
+        /* Calculate Fresnel trensmission T = 1- R */
+        const Float Ft1 = 1.0f - fresnel(cos_wo, 1.0f, m_eta);
+        const Float Ft2 = 1.0f - fresnel(cos_wi, 1.0f, m_eta);
+        const Float F = Ft1 * Ft2;
+
+        /* Query phase function */
+        const Float p = hgPhaseFunction(bRec.wi, bRec.wo, m_g);
+
+        const Spectrum siTerm = (m_negSigmaT * siPrime).exp();
+        /* Actually the soTerm would be e^(-sPrime_o * sigmaT), but
+         * this could be reduced to e^(ran) since sPrime_o = -ran/sigmaT. */
+        const Spectrum soTerm = Spectrum( exp(ran) );
+
+        Spectrum Lo = (m_sigmaS * F * p / sigmaTc) * siTerm * soTerm;
         return Lo;
     }
 
 	Spectrum sample(BSDFQueryRecord &bRec) const {
+		if (!(bRec.typeMask & m_combinedType) || bRec.wi.z <= 0)
+			return Spectrum(0.0f);
 		bRec.wo = squareToHemispherePSA(bRec.sample);
 		bRec.sampledComponent = 0;
 		bRec.sampledType = EDiffuseReflection;
-        Vector n = bRec.its.shFrame.n;
 
-        return radiance(bRec.wo, bRec.wi, bRec.its.p, n);
+        return radiance(bRec);
 	}
 
 	Spectrum sample(BSDFQueryRecord &bRec, Float &pdf) const {
-//		if (!(bRec.typeMask & m_combinedType) || bRec.wi.z <= 0)
-//			return Spectrum(0.0f);
+		if (!(bRec.typeMask & m_combinedType) || bRec.wi.z <= 0)
+			return Spectrum(0.0f);
 		bRec.wo = squareToHemispherePSA(bRec.sample);
 		bRec.sampledComponent = 0;
 		bRec.sampledType = EDiffuseReflection;
         pdf = Frame::cosTheta(bRec.wo) * INV_PI;
-        Vector n = bRec.its.shFrame.n;
 
-        return radiance(bRec.wo, bRec.wi, bRec.its.p, n) * INV_PI;
+        return radiance(bRec) * INV_PI;
 	}
 		
 	void addChild(const std::string &name, ConfigurableObject *child) {
@@ -220,13 +266,14 @@ private:
     Spectrum m_sigmaA;
     Spectrum m_sigmaT;
     Spectrum m_invSigmaT;
-    Spectrum m_sigmaTExpSq;
+    Spectrum m_negSigmaT;
     Float m_invSigmaTMin; 
     Float m_sizeMultiplier;
     Float m_g;
     Float m_eta;
     Float m_albedo;
-    ref<Random> m_random;
+    mutable ThreadLocal<Random> m_random;
+    ref<Scene> m_scene;
 };
 
 // ================ Hardware shader implementation ================ 
