@@ -136,7 +136,7 @@
        <enum>QTabWidget::North</enum>
       </property>
       <property name="currentIndex">
-       <number>2</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="sceneTab">
        <property name="sizePolicy">
@@ -286,7 +286,7 @@
            <rect>
             <x>10</x>
             <y>10</y>
-            <width>161</width>
+            <width>167</width>
             <height>31</height>
            </rect>
           </property>
@@ -326,17 +326,17 @@
              </property>
              <item>
               <property name="text">
-               <string>Frischer Neuschnee</string>
+               <string>Fresh new snow</string>
               </property>
              </item>
              <item>
               <property name="text">
-               <string>Trockener älterer Schnee</string>
+               <string>Dry older snow</string>
               </property>
              </item>
              <item>
               <property name="text">
-               <string>Nasserer Altschnee</string>
+               <string>Wet old snow</string>
               </property>
              </item>
              <item>
