@@ -298,7 +298,7 @@
             <enum>QLayout::SetDefaultConstraint</enum>
            </property>
            <item>
-            <widget class="QLabel" name="label_2">
+            <widget class="QLabel" name="snowtypeLabel">
              <property name="text">
               <string>Snowtype:</string>
              </property>

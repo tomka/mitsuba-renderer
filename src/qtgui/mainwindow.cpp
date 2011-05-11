@@ -657,7 +657,6 @@ void MainWindow::onToggleSnowMaterial(int state) {
 		return;
 
 	SceneContext *currentContext = m_context[currentIndex];
-    SnowProperties &snow = currentContext->snow;
 
     Shape *currentShape = currentContext->currentlySelectedShape;
     if (!currentShape)
@@ -988,6 +987,9 @@ void MainWindow::updateUI() {
     /* update snow related components */
     updateSnowComponents();
 
+    /* update snow rendering components */
+    updateSnowRenderingComponents();
+
 	if (isRendering) {
 		if (!m_progress->isVisible()) {
 			QGridLayout *centralLayout = static_cast<QGridLayout *>(centralWidget()->layout());
@@ -1076,6 +1078,7 @@ void MainWindow::updateSnowComponents() {
     SceneContext *context = hasTab ? m_context[index] : NULL;
 	bool hasScene = hasTab && context->scene != NULL;
    
+    ui->snowtypeLabel->setEnabled(hasScene);
     ui->snowtypeComboBox->setEnabled(hasScene);
     ui->snowGeneralConfigGroup->setEnabled(hasScene);
     ui->snowInteractionGroup->setEnabled(hasScene);
@@ -1134,6 +1137,58 @@ void MainWindow::updateSnowOnShape(SceneContext* context, Shape* shape, bool has
     } else {
         snowMaterialManager.resetMaterial(shape, context);
     }
+}
+
+void MainWindow::updateSnowRenderingComponents() {
+	int index = ui->tabBar->currentIndex();
+	bool hasTab = (index != -1);
+    SceneContext *context = hasTab ? m_context[index] : NULL;
+	bool hasScene = hasTab && context->scene != NULL;
+   
+    ui->surfaceLabel->setEnabled(hasScene);
+    ui->surfaceComboBox->setEnabled(hasScene);
+    ui->subsurfaceLabel->setEnabled(hasScene);
+    ui->subsurfaceComboBox->setEnabled(hasScene);
+
+    if (!hasScene)
+        return;
+
+    // get current modes
+    ESurfaceRenderMode surfaceRenderMode
+        = context->snowRenderSettings.surfaceRenderMode;
+    ESubSurfaceRenderMode subsurfaceRenderMode
+        = context->snowRenderSettings.subsurfaceRenderMode;
+
+    int surfaceIdx = -1;
+    int subsurfaceIdx = -1;
+    // save proberties;
+    if (surfaceRenderMode == ENoSurface)
+        surfaceIdx = 0;
+    else if (surfaceRenderMode == EWiscombeWarrenAlbedo)
+        surfaceIdx = 1;
+    else if (surfaceRenderMode == EWiscombeWarrenBRDF)
+        surfaceIdx = 2;
+    else if (surfaceRenderMode == EHanrahanKruegerBRDF)
+        surfaceIdx = 3;
+
+    if (subsurfaceRenderMode == ENoSubSurface)
+        subsurfaceIdx = 0;
+    else if (subsurfaceRenderMode == EJensenDipoleBSSRDF)
+        subsurfaceIdx = 1;
+    if (subsurfaceRenderMode == EJensenMultipoleBSSRDF)
+        subsurfaceIdx = 2;
+
+    /* block signals to avoid endless loop */
+    ui->surfaceComboBox->blockSignals(true);
+    ui->subsurfaceComboBox->blockSignals(true);
+    /* set new data */
+    if (surfaceIdx != -1)
+        ui->surfaceComboBox->setCurrentIndex(surfaceIdx);
+    if (subsurfaceIdx != -1)
+        ui->subsurfaceComboBox->setCurrentIndex(subsurfaceIdx);
+    /* unblock signals */
+    ui->surfaceComboBox->blockSignals(false);
+    ui->subsurfaceComboBox->blockSignals(false);
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event) {

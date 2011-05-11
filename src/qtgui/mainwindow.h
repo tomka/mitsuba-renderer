@@ -168,6 +168,7 @@ private slots:
 	void updateUI();
 	void updateSnowComponents();
     void updateShapeComponents();
+    void updateSnowRenderingComponents();
 	void updateStatus();
 	void onPreviewSettingsClose();
 	void onOpenDialogClose(int reason);
