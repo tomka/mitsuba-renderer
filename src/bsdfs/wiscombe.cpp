@@ -100,11 +100,6 @@ public:
     }
 
 	Spectrum getDiffuseReflectance(const Intersection &its) const {
-        Normal n = its.shFrame.n;
-        // for, now just sample diffuse Reflectance
-        Vector wo = squareToHemispherePSA(Point2(0,0));
-        Float mu0 = dot(its.wi, n);
-        Float muPrime = dot(wo, n);
 	    //return reflectance(mu0, muPrime) * mu0;
         return Spectrum(0.0f);
 	}
@@ -114,9 +109,8 @@ public:
 			|| bRec.wi.z <= 0 || bRec.wo.z <= 0)
 			return Spectrum(0.0f);
 
-        Normal n = bRec.its.shFrame.n;
-        Float mu0 = dot(bRec.wi, n);
-        Float muPrime = dot(bRec.wo, n);
+        Float mu0 = Frame::cosTheta(bRec.wo);
+        Float muPrime = Frame::cosTheta(bRec.wi);
 		return reflectance(mu0, muPrime) * INV_PI;
 	}
 
@@ -152,8 +146,8 @@ public:
 		bRec.sampledComponent = 0;
 		bRec.sampledType = EDiffuseReflection;
 
-        Float mu0 = Frame::cosTheta(bRec.wi);
-        Float muPrime = std::abs(Frame::cosTheta(bRec.wo));
+        Float mu0 = Frame::cosTheta(bRec.wo);
+        Float muPrime = std::abs(Frame::cosTheta(bRec.wi));
 		return reflectance(mu0, muPrime) / mu0;
 	}
 
@@ -165,8 +159,8 @@ public:
 		bRec.sampledType = EDiffuseReflection;
 		pdf = Frame::cosTheta(bRec.wo) * INV_PI;
 
-        Float mu0 = Frame::cosTheta(bRec.wi);
-        Float muPrime = std::abs(Frame::cosTheta(bRec.wo));
+        Float mu0 = Frame::cosTheta(bRec.wo);
+        Float muPrime = std::abs(Frame::cosTheta(bRec.wi));
 		return reflectance(mu0, muPrime);
 	}
 		
