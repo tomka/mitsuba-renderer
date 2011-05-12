@@ -74,6 +74,12 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
             properties.setInteger("extraDipoles", context->multipoleDipoles);
             subsurface = static_cast<Subsurface *> (pluginManager->createObject(
                 Subsurface::m_theClass, properties));
+        } else if (subsurfaceMode == EJakobADipoleBSSRDF) {
+            properties.setPluginName("adipole");
+            properties.setString("D", getFlakeDistribution());
+            properties.setFloat("sigmaTn", 1.0f);
+            subsurface = static_cast<Subsurface *> (pluginManager->createObject(
+                Subsurface::m_theClass, properties));
         }
 
         /* initialize new materials */
@@ -106,6 +112,13 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
         std::cerr << "[Snow Material Manager] Replaced material of shape \"" << shape->getName() << "\"" << std::endl
                   << "\tnew BSDF: " << bsdfName << std::endl
                   << "\tnew Subsurface: " << subsurfaceName << std::endl;
+}
+
+std::string SnowMaterialManager::getFlakeDistribution() {
+    /* clamped cosin^20 flake distribution */
+    // return "0.01314, -0.00014, 0.00061, -0.00014, 0.01295, -0.00018, 0.00061, -0.00018, -0.07397";
+    /* sine^20 flake distribution */
+    return "1.62427, 0.00003, 0.00000, 0.00003, 1.62414, -0.00002, 0.00000, -0.00002, 2.11639";
 }
 
 void SnowMaterialManager::resetMaterial(Shape *shape, SceneContext *context) {

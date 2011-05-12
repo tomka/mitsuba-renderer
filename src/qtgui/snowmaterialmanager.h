@@ -40,6 +40,11 @@ protected:
      * Enable/Disable snow material for a specific shape.
      */
     void setMadeOfSnow(Shape *shape, bool snow);
+
+    /**
+     * Get different flake distributions for the anisotropic BSSRDF.
+     */
+    std::string getFlakeDistribution();
 };
 
 MTS_NAMESPACE_END
