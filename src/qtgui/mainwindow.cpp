@@ -699,6 +699,8 @@ void MainWindow::onSnowRenderModelChange() {
         subsurfaceRenderMode = EJensenDipoleBSSRDF;
     if (subsurfaceIdx == 2)
         subsurfaceRenderMode = EJensenMultipoleBSSRDF;
+    if (subsurfaceIdx == 3)
+        subsurfaceRenderMode = EJakobADipoleBSSRDF;
 
     context->snowRenderSettings.subsurfaceRenderMode = subsurfaceRenderMode;
 
@@ -1177,6 +1179,8 @@ void MainWindow::updateSnowRenderingComponents() {
         subsurfaceIdx = 1;
     if (subsurfaceRenderMode == EJensenMultipoleBSSRDF)
         subsurfaceIdx = 2;
+    if (subsurfaceRenderMode == EJakobADipoleBSSRDF)
+        subsurfaceIdx = 3;
 
     /* block signals to avoid endless loop */
     ui->surfaceComboBox->blockSignals(true);

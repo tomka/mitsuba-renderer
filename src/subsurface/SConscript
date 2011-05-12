@@ -4,6 +4,8 @@ plugins += env.SharedLibrary('dipole',
 	['dipole.cpp', 'irrproc.cpp', 'irrtree.cpp'])
 plugins += env.SharedLibrary('#plugins/multipole',
     ['multipole.cpp', 'irrproc.cpp', 'irrtree.cpp'])
+plugins += env.SharedLibrary('#plugins/adipole',
+     ['adipole.cpp', 'irrproc.cpp', 'irrtree.cpp'])
 
 plugins += env.SharedLibrary('marschner', 
 	['marschner.cpp'])

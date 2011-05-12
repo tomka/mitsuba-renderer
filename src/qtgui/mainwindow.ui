@@ -136,7 +136,7 @@
        <enum>QTabWidget::North</enum>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>2</number>
       </property>
       <widget class="QWidget" name="sceneTab">
        <property name="sizePolicy">
@@ -795,12 +795,17 @@
               </item>
               <item>
                <property name="text">
-                <string>Dipole-Diffusion</string>
+                <string>Isotropic Dipole</string>
                </property>
               </item>
               <item>
                <property name="text">
-                <string>Multipole-Diffusion</string>
+                <string>Isotropic Multipole</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Anisotric Dipole</string>
                </property>
               </item>
              </widget>

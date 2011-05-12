@@ -56,7 +56,8 @@ enum ESurfaceRenderMode {
 enum ESubSurfaceRenderMode {
     ENoSubSurface = 0,
     EJensenDipoleBSSRDF,
-    EJensenMultipoleBSSRDF
+    EJensenMultipoleBSSRDF,
+    EJakobADipoleBSSRDF
 };
 
 Q_DECLARE_METATYPE( Shape * );

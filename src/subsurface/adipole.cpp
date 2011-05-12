@@ -51,17 +51,18 @@ struct AnisotropicDipoleQuery {
 		Float length = toP.length();
 		toP.z = 0;
 		toP = toP / toP.length() * length;
+        Point toPP = Point(toP);
 		Spectrum dMo;
 		Float temp[3];
 
 		for (int i=0; i<SPECTRUM_SAMPLES; ++i) {
-			Vector x = toP - xr[i], xp;
+			Vector x = toPP - xr[i], xp;
 			for (int k=0; k<3; ++k)
 				for (int l=0; l<3; ++l)
 						xp[k] += P[i](k, l) * x[l];
 
 			Float dr = xp.length(); 
-			x = toP - xv[i]; xp = Vector();
+			x = toPP - xv[i]; xp = Vector();
 			for (int k=0; k<3; ++k)
 				for (int l=0; l<3; ++l)
 						xp[k] += P[i](k, l) * x[l];
@@ -292,10 +293,10 @@ public:
 		return 0.5f * temp1 * temp1 * (1.0f + temp2 * temp2);
 	}
 
-	void preprocess(const Scene *scene, int sceneResID, 
-		int cameraResID, int samplerResID) {
+	bool preprocess(const Scene *scene, RenderQueue *queue, const RenderJob *job,
+		int sceneResID, int cameraResID, int samplerResID) {
 		if (m_ready)
-			return;
+			return true;
 
 		if (!scene->getIntegrator()->getClass()
 				->derivesFrom(MTS_CLASS(SampleIntegrator))) {
@@ -331,12 +332,16 @@ public:
 		Assert(index != -1);
 
 		ref<IrradianceSamplingProcess> proc = new IrradianceSamplingProcess(
-			sampleCount, (size_t) std::ceil(sampleCount/100.0f), index);
+			sampleCount, (size_t) std::ceil(sampleCount/100.0f), index, job);
 
 		proc->bindResource("scene", sceneResID);
 		scene->bindUsedResources(proc);
+		m_proc = proc;
 		sched->schedule(proc);
 		sched->wait(proc);
+		m_proc = NULL;
+		if (proc->getReturnStatus() != ParallelProcess::ESuccess)
+			return false;
 
 		const IrradianceRecordVector &results = *proc->getSamples();
 		for (size_t i=0; i<results.size(); ++i) 
@@ -346,6 +351,7 @@ public:
 		m_octreeResID = Scheduler::getInstance()->registerResource(m_octree);
 
 		m_ready = true;
+        return true;
 	}
 
 	void wakeup(std::map<std::string, SerializableObject *> &params) {
@@ -356,12 +362,17 @@ public:
 		}
 	}
 
+	void cancel() {
+		Scheduler::getInstance()->cancel(m_proc);
+	}
+
 	MTS_DECLARE_CLASS()
 private:
 	Float m_sampleMultiplier;
 	Float m_Fdr, m_Fdt, m_A, m_minDelta;
 	Spectrum m_ssFactor;
 
+	ref<ParallelProcess> m_proc;
 	ref<IrradianceOctree> m_octree;
 	int m_octreeResID, m_octreeIndex;
 	int m_maxDepth;
