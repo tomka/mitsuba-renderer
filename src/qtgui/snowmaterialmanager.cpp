@@ -118,7 +118,7 @@ std::string SnowMaterialManager::getFlakeDistribution() {
     /* clamped cosin^20 flake distribution */
     // return "0.01314, -0.00014, 0.00061, -0.00014, 0.01295, -0.00018, 0.00061, -0.00018, -0.07397";
     /* sine^20 flake distribution */
-    return "1.62427, 0.00003, 0.00000, 0.00003, 1.62414, -0.00002, 0.00000, -0.00002, 2.11639";
+    return "1.6307, -0.00049, 0.00069, -0.00049, 1.63148, 0.00001, 0.00067, 0.00002, 2.12596";
 }
 
 void SnowMaterialManager::resetMaterial(Shape *shape, SceneContext *context) {
