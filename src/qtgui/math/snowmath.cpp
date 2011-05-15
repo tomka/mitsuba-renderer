@@ -6,6 +6,7 @@
 MTS_NAMESPACE_BEGIN
 
 Spectrum getSigmaAofIce() {
+    /*
     InterpolatedSpectrum smoothSigmaA(7);
     smoothSigmaA.appendSample(400, 0.085);
     smoothSigmaA.appendSample(450, 0.043);
@@ -14,9 +15,11 @@ Spectrum getSigmaAofIce() {
     smoothSigmaA.appendSample(600, 0.120);
     smoothSigmaA.appendSample(650, 0.276);
     smoothSigmaA.appendSample(700, 0.520);
+    */
 
     Spectrum sigmaA;
-    sigmaA.fromSmoothSpectrum(&smoothSigmaA);
+    //sigmaA.fromSmoothSpectrum(&smoothSigmaA);
+    sigmaA.fromLinearRGB(0.52, 0.069, 0.04);
 
     return sigmaA;
 }
