@@ -40,7 +40,7 @@ void SnowProperties::loadFreshNewSnowPreset() {
     grainsize = 0.05f / 1000.0f; // mm -> m
     density = 70;
     ior = 1.32;
-    g = 0.874;
+    g = 0.5;
     configure();
 }
 
@@ -49,7 +49,7 @@ void SnowProperties::loadDryOlderSnowPreset() {
     grainsize = 0.25f / 1000.0f; // mm -> m
     density = 300;
     ior = 1.32;
-    g = 0.874;
+    g = 0.5;
     configure();
 }
 
@@ -58,7 +58,7 @@ void SnowProperties::loadWetOldSnowPreset() {
     grainsize = 1.0f / 1000.0f; // mm -> m
     density = 450;
     ior = 1.32;
-    g = 0.874;
+    g = 0.5;
     configure();
 }
 
