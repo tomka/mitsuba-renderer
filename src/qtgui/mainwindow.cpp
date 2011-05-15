@@ -541,6 +541,8 @@ void MainWindow::onSnowTypeChanged(int index) {
         currentContext->snow.loadDryOlderSnowPreset();
     else if (index == 2)
         currentContext->snow.loadWetOldSnowPreset();
+    else
+        currentContext->snow.lastPreset = SnowProperties::ECustom;
 
     updateSnowComponents();
     resetPreview(currentContext);
@@ -1090,6 +1092,11 @@ void MainWindow::updateSnowComponents() {
         return;
 
     SnowProperties& snow = context->snow;
+
+    ui->snowtypeComboBox->blockSignals(true);
+    ui->snowtypeComboBox->setCurrentIndex( (int) snow.lastPreset );
+    ui->snowtypeComboBox->blockSignals(false);
+
     ui->grainsizeSpinBox->setValue(snow.grainsize * 1000);
     ui->densitySpinBox->setValue(snow.density);
     ui->iorSpinBox->setValue(snow.ior);

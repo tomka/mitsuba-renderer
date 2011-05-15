@@ -36,6 +36,7 @@ void SnowProperties::loadPreset(EPreset preset) {
 }
 
 void SnowProperties::loadFreshNewSnowPreset() {
+    lastPreset = EFreshNewSnow;
     grainsize = 0.05f / 1000.0f; // mm -> m
     density = 70;
     ior = 1.32;
@@ -44,6 +45,7 @@ void SnowProperties::loadFreshNewSnowPreset() {
 }
 
 void SnowProperties::loadDryOlderSnowPreset() {
+    lastPreset = EDryOlderSnow;
     grainsize = 0.25f / 1000.0f; // mm -> m
     density = 300;
     ior = 1.32;
@@ -52,6 +54,7 @@ void SnowProperties::loadDryOlderSnowPreset() {
 }
 
 void SnowProperties::loadWetOldSnowPreset() {
+    lastPreset = EWetOldSnow;
     grainsize = 1.0f / 1000.0f; // mm -> m
     density = 450;
     ior = 1.32;

@@ -11,8 +11,9 @@ struct SnowProperties {
     /* Some preset configurations */
     enum EPreset {
         EFreshNewSnow = 0,
-        EDryOlderSnow,
-        EWetOldSnow  
+        EDryOlderSnow = 1,
+        EWetOldSnow = 2,
+        ECustom = 3
     };
 
     /* grain diameter in m */
@@ -35,6 +36,8 @@ struct SnowProperties {
     static Spectrum iceSigmaA;
     /* density of ice */
     static Float iceDensity;
+    /* last breset associated with an instance */
+    EPreset lastPreset;
 
     SnowProperties();
 
