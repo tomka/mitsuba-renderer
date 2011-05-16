@@ -40,6 +40,7 @@
 #include <QString>
 #include "math/snowmath.h"
 #include <QtGlobal>
+#include <boost/filesystem/fstream.hpp>
 
 #if !defined(WIN32)
 #include <QX11Info>
@@ -1824,6 +1825,75 @@ void MainWindow::onExportDialogClose(int reason) {
 			temp->save(format, fs);
 		}
 	}
+}
+
+
+void MainWindow::on_actionExportShape_triggered() {
+	int currentIndex = ui->tabBar->currentIndex();
+	if (currentIndex == -1 || ui->shapeComboBox->count() == 0) 
+		return;
+
+	SceneContext *context = m_context[currentIndex];
+    Shape *shape = context->currentlySelectedShape;
+
+    if (shape == NULL) {
+        SLog(EError, "No shape selected, nothing to export");
+        return;
+    }
+
+	QFileDialog *dialog = new QFileDialog(this, tr("Export shape .."),
+		"", tr("Object file (*.obj)"));
+	dialog->setViewMode(QFileDialog::Detail);
+	dialog->setAcceptMode(QFileDialog::AcceptSave);
+
+#if defined(__OSX__)
+	dialog->setOption(QFileDialog::DontUseNativeDialog, true);
+#endif
+
+	QSettings settings("mitsuba-renderer.org", "qtgui");
+	dialog->restoreState(settings.value("fileDialogState").toByteArray());
+	dialog->setAttribute(Qt::WA_DeleteOnClose);
+	dialog->setWindowModality(Qt::WindowModal);
+	connect(dialog, SIGNAL(finished(int)), this, SLOT(onExportShapeDialogClose(int)));
+	m_currentChild = dialog;
+	// prevent a tab drawing artifact on Qt/OSX
+	m_activeWindowHack = true;
+	dialog->show();
+	qApp->processEvents();
+	m_activeWindowHack = false;
+}
+
+void MainWindow::onExportShapeDialogClose(int reason) {
+	int currentIndex = ui->tabBar->currentIndex();
+	SceneContext *ctx = m_context[currentIndex];
+
+	QSettings settings("mitsuba-renderer.org", "qtgui");
+	QFileDialog *dialog = static_cast<QFileDialog *>(sender());
+	m_currentChild = NULL;
+
+    if (reason != QDialog::Accepted)
+        return;
+
+    QString fileName = dialog->selectedFiles().value(0);
+    fs::path path(fileName.toStdString());
+    settings.setValue("fileDialogState", dialog->saveState());
+
+    if (!fileName.endsWith(".obj")) {
+        SLog(EError, "Unknown file type -- the filename must end in .obj");
+        return;
+    }
+
+    /* get shape */
+    Shape *shape = ctx->currentlySelectedShape;
+
+    if (shape == NULL) {
+        SLog(EError, "No shape selected, nothing to export");
+        return;
+    }
+
+    ref<TriMesh> mesh = shape->createTriMesh();
+    mesh->writeOBJ(path);
+    SLog(EInfo, "Obj export of shape finished");
 }
 
 void MainWindow::on_actionSave_triggered() {

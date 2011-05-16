@@ -138,6 +138,8 @@ private slots:
 	void on_actionSave_triggered();
 	void on_actionSaveAs_triggered();
 	void on_actionExportImage_triggered();
+	void on_actionExportShape_triggered();
+	void on_actionNavigationControls_triggered();
 	void on_actionReferenceManual_triggered();
 	void on_actionImport_triggered();
 	void on_actionDuplicateTab_triggered();
@@ -174,6 +176,7 @@ private slots:
 	void onOpenDialogClose(int reason);
 	void onSaveAsDialogClose(int reason);
 	void onExportDialogClose(int reason);
+	void onExportShapeDialogClose(int reason);
 	void onRenderSettingsClose(int reason);
 	void onImportDialogClose(int reason);
 	void onSceneInformationClose(int reason);
