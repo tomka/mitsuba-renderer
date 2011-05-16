@@ -23,6 +23,7 @@
 #include <mitsuba/core/random.h>
 #include <mitsuba/render/integrator.h>
 #include <mitsuba/render/scene.h>
+#include <mitsuba/hw/gpuprogram.h>
 
 MTS_NAMESPACE_BEGIN
 
@@ -61,7 +62,8 @@ public:
 		/* Asymmetry parameter of the phase function */
 		m_g = props.getFloat("g", 0);
         /* Relative index of refraction */
-		m_eta = props.getFloat("eta", 1.32);
+		m_etaInt = props.getFloat("etaInt", 1.32);
+		m_etaExt = props.getFloat("etaExt", 1.0);
 
 		m_componentCount = 1;
 		m_type = new unsigned int[m_componentCount];
@@ -92,7 +94,8 @@ public:
         m_negSigmaT = m_sigmaT * (-1.0f);
 
         /* Calculate albedo */
-        m_albedo = (m_sigmaS/m_sigmaT).max();
+        m_singleScatteringAlbedo = m_sigmaS / m_sigmaT;
+        m_albedo =m_singleScatteringAlbedo.max();
     }
 
     /**
@@ -107,7 +110,7 @@ public:
         Float num = 1.0 - gSq;
         Float den = std::pow(1.0 + gSq - 2.0 * g * costheta, 1.5);
 
-    	return num / den;
+    	return 0.5 * (num / den);
     }
 
 	Spectrum getDiffuseReflectance(const Intersection &its) const {
@@ -136,9 +139,31 @@ public:
         /* cosines of input and output directions */
         const Float cos_wi = Frame::cosTheta(bRec.wi);
         const Float cos_wo = Frame::cosTheta(bRec.wo);
+
+        /* Calculate Fresnel trensmission T = 1- R */
+        const Float eta = m_etaInt / m_etaExt;
+        const Float Ft1 = 1.0f - fresnel(cos_wo, 1.0f, eta);
+        const Float Ft2 = 1.0f - fresnel(cos_wi, 1.0f, eta);
+        const Float F = Ft1 * Ft2;
+
+        /* Query phase function */
+        const Float p = hgPhaseFunction(bRec.wi, bRec.wo, m_g);
+
+        return m_singleScatteringAlbedo * F * p / (std::abs(cos_wi) + std::abs(cos_wo));
+    }
+
+    /**
+     * Computes the single-scattering radiance with the help of a BSSRDF.
+     * ToDo: Actual Monte Carlo sampling.
+     */
+    Spectrum radianceBSSRDF(const BSDFQueryRecord &bRec) const {
+        /* cosines of input and output directions */
+        const Float cos_wi = Frame::cosTheta(bRec.wi);
+        const Float cos_wo = Frame::cosTheta(bRec.wo);
         const Float cos_wo_abs = std::abs(cos_wo);
 
-        Float oneovereta = 1.0f / m_eta;
+        Float eta = m_etaInt / m_etaExt;
+        Float oneovereta = 1.0 / eta;
         Float oneoveretaSq = oneovereta * oneovereta;;
 
         /* Using Snell's law, calculate the squared sine of the
@@ -194,8 +219,8 @@ public:
         const Spectrum sigmaTc = m_sigmaT + m_sigmaT * G;
 
         /* Calculate Fresnel trensmission T = 1- R */
-        const Float Ft1 = 1.0f - fresnel(cos_wo, 1.0f, m_eta);
-        const Float Ft2 = 1.0f - fresnel(cos_wi, 1.0f, m_eta);
+        const Float Ft1 = 1.0f - fresnel(cos_wo, 1.0f, eta);
+        const Float Ft2 = 1.0f - fresnel(cos_wi, 1.0f, eta);
         const Float F = Ft1 * Ft2;
 
         /* Query phase function */
@@ -258,7 +283,7 @@ public:
 		return oss.str();
 	}
 
-//	Shader *createShader(Renderer *renderer) const;
+	Shader *createShader(Renderer *renderer) const;
 
 	MTS_DECLARE_CLASS()
 private:
@@ -267,60 +292,94 @@ private:
     Spectrum m_sigmaT;
     Spectrum m_invSigmaT;
     Spectrum m_negSigmaT;
+    Spectrum m_singleScatteringAlbedo;
     Float m_invSigmaTMin; 
     Float m_sizeMultiplier;
     Float m_g;
-    Float m_eta;
+    Float m_etaInt, m_etaExt;
     Float m_albedo;
     mutable ThreadLocal<Random> m_random;
     ref<Scene> m_scene;
 };
 
 // ================ Hardware shader implementation ================ 
-//
-//class HanrahanKruegerShader : public Shader {
-//public:
-//	HanrahanKruegerShader(Renderer *renderer, const Texture *reflectance) 
-//		: Shader(renderer, EBSDFShader), m_reflectance(reflectance) {
-//		m_reflectanceShader = renderer->registerShaderForResource(m_reflectance.get());
-//	}
-//
-//	bool isComplete() const {
-//		return m_reflectanceShader.get() != NULL;
-//	}
-//
-//	void cleanup(Renderer *renderer) {
-//		renderer->unregisterShaderForResource(m_reflectance.get());
-//	}
-//
-//	void putDependencies(std::vector<Shader *> &deps) {
-//		deps.push_back(m_reflectanceShader.get());
-//	}
-//
-//	void generateCode(std::ostringstream &oss,
-//			const std::string &evalName,
-//			const std::vector<std::string> &depNames) const {
-//		oss << "vec3 " << evalName << "(vec2 uv, vec3 wi, vec3 wo) {" << endl
-//			<< "    if (wi.z < 0.0 || wo.z < 0.0)" << endl
-//			<< "    	return vec3(0.0);" << endl
-//			<< "    return " << depNames[0] << "(uv) * 0.31831;" << endl
-//			<< "}" << endl
-//			<< "vec3 " << evalName << "_diffuse(vec2 uv, vec3 wi, vec3 wo) {" << endl
-//			<< "    return " << evalName << "(uv, wi, wo);" << endl
-//			<< "}" << endl;
-//	}
-//
-//	MTS_DECLARE_CLASS()
-//private:
-//	ref<const Texture> m_reflectance;
-//	ref<Shader> m_reflectanceShader;
-//};
-//
-//Shader *HanrahanKrueger::createShader(Renderer *renderer) const { 
-//	return new HanrahanKruegerShader(renderer, m_reflectance.get());
-//}
-//
-//MTS_IMPLEMENT_CLASS(HanrahanKruegerShader, false, Shader)
+
+class HanrahanKruegerShader : public Shader {
+public:
+	HanrahanKruegerShader(Renderer *renderer,
+        Float etaInt, Float etaExt, Float g, Spectrum albedo) 
+		: Shader(renderer, EBSDFShader),
+          m_etaInt(etaInt), m_etaExt(etaExt), m_g(g), m_albedo(albedo) {
+	}
+
+	void generateCode(std::ostringstream &oss,
+			const std::string &evalName,
+			const std::vector<std::string> &depNames) const {
+		oss	<< "uniform float " << evalName << "_etaInt;" << endl
+			<< "uniform float " << evalName << "_etaExt;" << endl
+			<< "uniform float " << evalName << "_g;" << endl
+			<< "uniform vec3 " << evalName << "_albedo;" << endl
+            << endl
+			<< "float " << evalName << "_fresnel(vec3 wi, vec3 n, float etaExt, float etaInt) {" << endl
+			<< "    float eta = etaExt / etaInt; " << endl
+			<< "    float cosTheta1 = dot(wi, n); " << endl
+			<< "    float cosTheta2 = sqrt(1.0 - eta*eta*" << endl
+			<< "                    (1.0 - cosTheta1 * cosTheta1));" << endl
+			<< "    float Rs = (etaExt * cosTheta1 - etaInt * cosTheta2)" << endl
+			<< "             / (etaExt * cosTheta1 + etaInt * cosTheta2);" << endl
+			<< "    float Rp = (etaInt * cosTheta1 - etaExt * cosTheta2)" << endl
+			<< "             / (etaInt * cosTheta1 + etaExt * cosTheta2);" << endl
+			<< "    return (Rs * Rs + Rp * Rp) / 2.0;" << endl
+			<< "}" << endl
+			<< endl
+			<< "float " << evalName << "_phaseHG(float cosTheta, float g) {" << endl
+            << "    float gSq = g*g;" << endl
+            << "    return 0.5 * (1 - gSq) / pow(1 + gSq  - 2 * g * cosTheta, 1.5);" << endl
+            << "}" << endl
+            << endl
+		    << "vec3 " << evalName << "(vec2 uv, vec3 wi, vec3 wo) {" << endl
+			<< "    if (wi.z < 0.0 || wo.z < 0.0)" << endl
+			<< "    	return vec3(0.0);" << endl
+            << "    float cosThetaI = dot(wi, normal);" << endl
+            << "    float cosThetaO = dot(wo, normal);" << endl
+            << "    float cosTheta = dot(wo, wi);" << endl
+			<< "    float FrI = " << evalName << "_fresnel(wi, normal, " << evalName << "_etaExt, " << evalName << "_etaInt);"<< endl 
+			<< "    float FtI = 1-FrI;"<< endl
+			<< "    float FrO = " << evalName << "_fresnel(wo, normal, " << evalName << "_etaExt, " << evalName << "_etaInt);"<< endl 
+			<< "    float FtO = 1-FrO;"<< endl
+            << "    float p = " << evalName << "_phaseHG(cosTheta, " << evalName << "_g);" << endl
+			<< "    return " << evalName << "_albedo * FtI * FtO * p / (abs(cosThetaI) + abs(cosThetaO));" << endl
+			<< "}" << endl
+            << endl
+			<< "vec3 " << evalName << "_diffuse(vec2 uv, vec3 wi, vec3 wo) {" << endl
+			<< "    return " << evalName << "(uv, wi, wo);" << endl
+			<< "}" << endl;
+	}
+
+	void resolve(const GPUProgram *program, const std::string &evalName, std::vector<int> &parameterIDs) const {
+		parameterIDs.push_back(program->getParameterID(evalName + "_etaInt", false));
+		parameterIDs.push_back(program->getParameterID(evalName + "_etaExt", false));
+		parameterIDs.push_back(program->getParameterID(evalName + "_g", false));
+		parameterIDs.push_back(program->getParameterID(evalName + "_albedo", false));
+	}
+
+	void bind(GPUProgram *program, const std::vector<int> &parameterIDs, int &textureUnitOffset) const {
+		program->setParameter(parameterIDs[0], m_etaInt);
+		program->setParameter(parameterIDs[1], m_etaExt);
+		program->setParameter(parameterIDs[2], m_g);
+		program->setParameter(parameterIDs[3], m_albedo);
+	}
+	MTS_DECLARE_CLASS()
+private:
+    Float m_etaInt, m_etaExt, m_g;
+    Spectrum m_albedo;
+};
+
+Shader *HanrahanKrueger::createShader(Renderer *renderer) const { 
+	return new HanrahanKruegerShader(renderer, m_etaInt, m_etaExt, m_g, m_singleScatteringAlbedo);
+}
+
+MTS_IMPLEMENT_CLASS(HanrahanKruegerShader, false, Shader)
 MTS_IMPLEMENT_CLASS_S(HanrahanKrueger, false, BSDF)
 MTS_EXPORT_PLUGIN(HanrahanKrueger, "Hanrahan-Krueger BRDF")
 MTS_NAMESPACE_END
