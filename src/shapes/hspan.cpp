@@ -248,6 +248,10 @@ public:
 		/* Causes all normals to be flipped */
 		std::string name = props.getString("name", m_name);
 
+        /* if true, no consistency checking is done and all is added as is */
+        m_filterInconsistencies = props.getBoolean("filterInconsistencies", true);
+
+
 		BSDF *currentMaterial = NULL;
 	    bool hasNormals = false;
         bool hasTexcoords = false;
@@ -832,9 +836,9 @@ public:
                     // do an inverse reference test
                     const HeightSample& hs1 = getSample(hsi1);
                     const HeightSample& hs2 = getSample(hsi2);
-                    if (!hs1.get_flag( idx_trans[l1] ) || !hs2.get_flag( idx_trans[l2])
-                            || (hs1.get_nbr_slab_idx( idx_trans[l1] ) != hsi.k)
-                            || (hs2.get_nbr_slab_idx( idx_trans[l2] ) != hsi.k)) {
+                    if (m_filterInconsistencies && (!hs1.get_flag( idx_trans[l1] ) || !hs2.get_flag( idx_trans[l2])
+                                                    || (hs1.get_nbr_slab_idx( idx_trans[l1] ) != hsi.k)
+                                                    || (hs2.get_nbr_slab_idx( idx_trans[l2] ) != hsi.k))) {
                         Log(EWarn, "Ignoring triangle because of missing inverse connection information");
                         continue;
                     }
@@ -1171,7 +1175,7 @@ private:
     /* members */
 	std::vector<TriMesh *> m_meshes;
 	std::map<std::string, BSDF *> m_materials;
-	bool m_flipNormals, m_faceNormals, m_recenter;
+	bool m_flipNormals, m_faceNormals, m_recenter, m_filterInconsistencies;
 	std::string m_name;
 	AABB m_aabb;
     // dimensions of the map
