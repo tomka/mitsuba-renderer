@@ -17,11 +17,11 @@ Spectrum getSigmaAofIce() {
     smoothSigmaA.appendSample(700, 0.520);
     */
 
-    Spectrum sigmaA;
+    Spectrum sigmaA_ice;
     //sigmaA.fromSmoothSpectrum(&smoothSigmaA);
-    sigmaA.fromLinearRGB(0.52, 0.069, 0.04);
+    sigmaA_ice.fromLinearRGB(0.52f, 0.069f, 0.04f);
 
-    return sigmaA;
+    return sigmaA_ice;
 }
 
 inline Spectrum getDiffusionZr(const Spectrum &sigmaTPrime) {
@@ -44,8 +44,7 @@ inline Float getFdr(Float n) {
 }
 
 Spectrum getAlbedo(const Spectrum &sigmaAIce, Float d) {
-        Spectrum sigmaAIceSq(sigmaAIce);
-        sigmaAIceSq.sqrt();
+        Spectrum sigmaAIceSq = sigmaAIce.sqrt();
         return Spectrum(1.0f) - (5.96f * sigmaAIceSq * sqrt(d));
 }
 
@@ -72,8 +71,7 @@ Spectrum getSigmaT(Float d, Float rho, Float rhoIce) {
 }
 
 Spectrum getAsymptoticExtCoeff(const Spectrum &absCoeffIce, Float d, Float rho, Float rhoIce) {
-        Spectrum absCoeffIceSq(absCoeffIce);
-        absCoeffIceSq.sqrt();
+        Spectrum absCoeffIceSq = absCoeffIce.sqrt();
         return 0.845f * absCoeffIceSq * (1 / sqrt(d)) * (rho/rhoIce);
 }
 
