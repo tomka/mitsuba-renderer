@@ -54,6 +54,8 @@ struct SnowProperties {
     void loadWetOldSnowPreset();
 
     void configure();
+
+    std::string toString();
 };
 
 MTS_NAMESPACE_END

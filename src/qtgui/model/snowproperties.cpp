@@ -69,5 +69,17 @@ void SnowProperties::configure() {
     singleScatteringAlbedo = sigmaS / sigmaT;
 }
 
+std::string SnowProperties::toString() {
+		std::ostringstream oss;
+		oss << "SnowProperties[" << std::endl
+            << "  sigmaA = " << sigmaA.toString() << std::endl
+            << "  sigmaS = " << sigmaS.toString() << std::endl
+            << "  sigmaT = " << sigmaT.toString() << std::endl
+            << "  sigmaA (ice) = " << iceSigmaA.toString() << std::endl
+            << "  ss. Albedo = " << singleScatteringAlbedo.toString() << std::endl
+		    << "]";
+		return oss.str();
+}
+
 MTS_IMPLEMENT_CLASS(SnowProperties, false, Object)
 MTS_NAMESPACE_END
