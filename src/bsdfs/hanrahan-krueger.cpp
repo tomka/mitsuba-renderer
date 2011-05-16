@@ -62,8 +62,11 @@ public:
 		/* Asymmetry parameter of the phase function */
 		m_g = props.getFloat("g", 0);
         /* Relative index of refraction */
-		m_etaInt = props.getFloat("etaInt", 1.32);
 		m_etaExt = props.getFloat("etaExt", 1.0);
+		m_etaInt = props.getFloat("etaInt", 1.32);
+        /* Mutliplicative factors for different contributions */
+        m_singleScatteringFactor = props.getSpectrum("ssFactor", Spectrum(1.0f));
+        m_diffuseReflectanceFactor = props.getSpectrum("drFactor", Spectrum(1.0f));
 
 		m_componentCount = 1;
 		m_type = new unsigned int[m_componentCount];
@@ -96,6 +99,42 @@ public:
         /* Calculate albedo */
         m_singleScatteringAlbedo = m_sigmaS / m_sigmaT;
         m_albedo =m_singleScatteringAlbedo.max();
+
+        /* Reduced coefficients and reduced albedo */
+        Spectrum sigmaSPrime = m_sigmaS * (1 - m_g);
+        Spectrum sigmaTPrime = m_sigmaA + sigmaSPrime;
+        Spectrum reducedAlbedo = sigmaSPrime / sigmaTPrime;
+
+        /* relative index of refraction */
+        Float eta = m_etaInt / m_etaExt;
+
+        Float Fdr;
+        if (eta > 1) {
+            /* Average reflectance due to mismatched indices of refraction
+             * at the boundary - [Groenhuis et al. 1983] */
+            Fdr = -1.440f / (eta * eta) + 0.710f / eta + 0.668f + 0.0636f * eta;
+        } else {
+            /* Average reflectance due to mismatched indices of refraction
+             * at the boundary - [Egan et al. 1973] */
+            Fdr = -0.4399f + 0.7099f / eta - 0.3319f / (eta * eta)
+                + 0.0636f / (eta * eta * eta);
+        }
+
+        /* Average transmittance at the boundary */
+        Float Fdt = 1.0f - Fdr;
+
+        if (eta == 1.0f) {
+            Fdr = (Float) 0.0f;
+            Fdt = (Float) 1.0f;
+        }
+
+        /* Approximate dipole boundary condition term */
+        Float A = (1 + Fdr) / Fdt;
+        
+        /* Diffuse Reflectance */
+        Spectrum var1 = - ((Spectrum(1.0f) - reducedAlbedo) * 3.0f).sqrt();
+        m_diffuseReflectance = (reducedAlbedo / 2.0) * (Spectrum(1.0f) + ((4.0/3.0) * A * var1).exp()) * var1.exp();
+        m_diffuseReflectance *= m_diffuseReflectanceFactor;
     }
 
     /**
@@ -114,8 +153,8 @@ public:
     }
 
 	Spectrum getDiffuseReflectance(const Intersection &its) const {
-		//return m_reflectance->getValue(its);
-        return Spectrum(0.0f);
+        //return m_diffuseReflectance;
+        return Spectrum(0.0);
 	}
 
 	Spectrum f(const BSDFQueryRecord &bRec) const {
@@ -149,7 +188,9 @@ public:
         /* Query phase function */
         const Float p = hgPhaseFunction(bRec.wi, bRec.wo, m_g);
 
-        return m_singleScatteringAlbedo * F * p / (std::abs(cos_wi) + std::abs(cos_wo));
+        /* Return single scattering + diffuse reflectance */
+        Spectrum f1 = m_singleScatteringAlbedo * F * p / (std::abs(cos_wi) + std::abs(cos_wo));
+        return m_singleScatteringFactor * f1 + m_diffuseReflectance * F * INV_PI;
     }
 
     /**
@@ -293,6 +334,9 @@ private:
     Spectrum m_invSigmaT;
     Spectrum m_negSigmaT;
     Spectrum m_singleScatteringAlbedo;
+    Spectrum m_singleScatteringFactor;
+    Spectrum m_diffuseReflectanceFactor;
+    Spectrum m_diffuseReflectance;
     Float m_invSigmaTMin; 
     Float m_sizeMultiplier;
     Float m_g;
