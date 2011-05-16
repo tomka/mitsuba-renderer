@@ -107,6 +107,7 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
         }
 
         setMadeOfSnow(shape, true);
+        materialMap[shape] = std::pair<BSDF*, Subsurface*>(bsdf, subsurface);
         std::string bsdfName = (bsdf == NULL) ? "None" : bsdf->getClass()->getName();
         std::string subsurfaceName = (subsurface == NULL) ? "None" : subsurface->getClass()->getName();
         std::cerr << "[Snow Material Manager] Replaced material of shape \"" << shape->getName() << "\"" << std::endl
@@ -125,6 +126,7 @@ void SnowMaterialManager::resetMaterial(Shape *shape, SceneContext *context) {
         // try to find shape in backup lists
         BSDFMap::iterator bsdfEntry = originalBSDFs.find(shape);
         SubsurfaceMap::iterator subsurfaceEntry = originalSubsurfaces.find(shape);
+        MaterialMap::iterator materialEntry = materialMap.find(shape);
 
         // if found, use materials
         if (bsdfEntry != originalBSDFs.end()) {
@@ -139,6 +141,9 @@ void SnowMaterialManager::resetMaterial(Shape *shape, SceneContext *context) {
             if (old_ss != NULL)
                 context->scene->removeSubsurface(old_ss);
         }
+        if (materialEntry != materialMap.end()) {
+            materialMap.erase(materialEntry);
+        }
         setMadeOfSnow(shape, false);
         std::cerr << "[Snow Material Manager] Reset material on shape " << shape->getName() << std::endl;
 }
@@ -152,6 +157,26 @@ bool SnowMaterialManager::isMadeOfSnow(Shape * shape) {
 
 void SnowMaterialManager::setMadeOfSnow(Shape *shape, bool snow) {
     snowShapes[shape] = snow;
+}
+
+std::string SnowMaterialManager::toString() {
+		std::ostringstream oss;
+		oss << "SnowMaterialManager[" << std::endl;
+
+        for (ShapeMap::iterator it = snowShapes.begin(); it != snowShapes.end(); it++) {
+            Shape *s = it->first;
+            if (it->second) {
+                BSDF* bsdf = materialMap[s].first;
+                Subsurface* subsurface = materialMap[s].second;
+
+                oss << "  " << s->getName() << ":" << std::endl
+                << "    BSDF: " << std::endl << (bsdf == NULL ? "None" : bsdf->toString()) << std::endl
+                << "    Subsurface: " << std::endl << (subsurface == NULL ? "None" : subsurface->toString()) << std::endl;
+            }
+        }
+
+		oss	<< "]";
+		return oss.str();
 }
 
 MTS_NAMESPACE_END
