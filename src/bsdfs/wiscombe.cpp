@@ -21,6 +21,7 @@
 #include <mitsuba/render/consttexture.h>
 #include <mitsuba/core/properties.h>
 #include <mitsuba/hw/renderer.h>
+#include <mitsuba/hw/gpuprogram.h>
 
 MTS_NAMESPACE_BEGIN
 
@@ -190,7 +191,7 @@ public:
 		return oss.str();
 	}
 
-//	Shader *createShader(Renderer *renderer) const;
+	Shader *createShader(Renderer *renderer) const;
 
 	MTS_DECLARE_CLASS()
 private:
@@ -223,48 +224,67 @@ private:
 
 // ================ Hardware shader implementation ================ 
 
-//class LambertianShader : public Shader {
-//public:
-//	LambertianShader(Renderer *renderer, const Texture *reflectance) 
-//		: Shader(renderer, EBSDFShader), m_reflectance(reflectance) {
-//		m_reflectanceShader = renderer->registerShaderForResource(m_reflectance.get());
-//	}
-//
-//	bool isComplete() const {
-//		return m_reflectanceShader.get() != NULL;
-//	}
-//
-//	void cleanup(Renderer *renderer) {
-//		renderer->unregisterShaderForResource(m_reflectance.get());
-//	}
-//
-//	void putDependencies(std::vector<Shader *> &deps) {
-//		deps.push_back(m_reflectanceShader.get());
-//	}
-//
-//	void generateCode(std::ostringstream &oss,
-//			const std::string &evalName,
-//			const std::vector<std::string> &depNames) const {
-//		oss << "vec3 " << evalName << "(vec2 uv, vec3 wi, vec3 wo) {" << endl
-//			<< "    if (wi.z < 0.0 || wo.z < 0.0)" << endl
-//			<< "    	return vec3(0.0);" << endl
-//			<< "    return " << depNames[0] << "(uv) * 0.31831;" << endl
-//			<< "}" << endl
-//			<< "vec3 " << evalName << "_diffuse(vec2 uv, vec3 wi, vec3 wo) {" << endl
-//			<< "    return " << evalName << "(uv, wi, wo);" << endl
-//			<< "}" << endl;
-//	}
-//
-//	MTS_DECLARE_CLASS()
-//private:
-//	ref<const Texture> m_reflectance;
-//	ref<Shader> m_reflectanceShader;
-//};
-//
-//Shader *Lambertian::createShader(Renderer *renderer) const { 
-//	return new LambertianShader(renderer, m_reflectance.get());
-//}
+class WiscombeShader : public Shader {
+public:
+	WiscombeShader(Renderer *renderer,
+        Spectrum wStar, Spectrum bStar, Spectrum P, Spectrum xi) 
+		: Shader(renderer, EBSDFShader),
+          m_wStar(wStar), m_bStar(bStar), m_P(P), m_xi(xi) {
+	}
 
+	void generateCode(std::ostringstream &oss,
+			const std::string &evalName,
+			const std::vector<std::string> &depNames) const {
+		oss	<< "uniform vec3 " << evalName << "_wStar;" << endl
+			<< "uniform vec3 " << evalName << "_bStar;" << endl
+			<< "uniform vec3 " << evalName << "_P;" << endl
+			<< "uniform vec3 " << evalName << "_xi;" << endl
+            << endl
+            << "const float " << evalName << "_PI = 3.14159265358979323846264;" << endl
+            << "const float " << evalName << "_invpi = 1.0 / " << evalName << "_PI;" << endl
+            << "const vec3  " << evalName << "_one = vec3(1.0,1.0,1.0);" << endl 
+            << endl
+		    << "vec3 " << evalName << "(vec2 uv, vec3 wi, vec3 wo) {" << endl
+			<< "    if (wi.z < 0.0 || wo.z < 0.0)" << endl
+			<< "    	return vec3(0.0);" << endl
+            << "    float mu0 = dot(wi, normal);" << endl
+            << "    float muPrime = dot(wo, normal);" << endl
+            << "    float b = 1.07 * mu0 - 0.84;" << endl
+            << "    float fBar = (3 / (3 -b)) * (1 + b * (muPrime - 1));" << endl
+            << "    vec3 albedo = (" << evalName << "_wStar / (vec3(1.0) + " << evalName << "_P))"
+            << " * ( (vec3(1.0) - " << evalName << "_xi * mu0 * " << evalName << "_bStar) / (vec3(1.0) + "
+            << evalName << "_xi * mu0) );" << endl
+            << "    return albedo * fBar * " << evalName << "_invpi;" << endl
+			<< "}" << endl
+            << endl
+			<< "vec3 " << evalName << "_diffuse(vec2 uv, vec3 wi, vec3 wo) {" << endl
+			<< "    return " << evalName << "(uv, wi, wo);" << endl
+			<< "}" << endl;
+	}
+
+	void resolve(const GPUProgram *program, const std::string &evalName, std::vector<int> &parameterIDs) const {
+		parameterIDs.push_back(program->getParameterID(evalName + "_wStar", false));
+		parameterIDs.push_back(program->getParameterID(evalName + "_bStar", false));
+		parameterIDs.push_back(program->getParameterID(evalName + "_P", false));
+		parameterIDs.push_back(program->getParameterID(evalName + "_xi", false));
+	}
+
+	void bind(GPUProgram *program, const std::vector<int> &parameterIDs, int &textureUnitOffset) const {
+		program->setParameter(parameterIDs[0], m_wStar);
+		program->setParameter(parameterIDs[1], m_bStar);
+		program->setParameter(parameterIDs[2], m_P);
+		program->setParameter(parameterIDs[3], m_xi);
+	}
+	MTS_DECLARE_CLASS()
+private:
+    Spectrum m_wStar, m_bStar, m_P, m_xi;
+};
+
+Shader *Wiscombe::createShader(Renderer *renderer) const { 
+	return new WiscombeShader(renderer, m_wStar, m_bStar, m_P, m_xi);
+}
+
+MTS_IMPLEMENT_CLASS(WiscombeShader, false, Shader)
 MTS_IMPLEMENT_CLASS_S(Wiscombe, false, BSDF)
 MTS_EXPORT_PLUGIN(Wiscombe, "Wiscombe snow BRDF")
 MTS_NAMESPACE_END
