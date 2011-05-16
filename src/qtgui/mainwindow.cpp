@@ -1093,9 +1093,18 @@ void MainWindow::updateSnowComponents() {
 
     SnowProperties& snow = context->snow;
 
+    /* forbid feedback */
     ui->snowtypeComboBox->blockSignals(true);
+    ui->grainsizeSpinBox->blockSignals(true);
+    ui->densitySpinBox->blockSignals(true);
+    ui->iorSpinBox->blockSignals(true);
+    ui->asymmetrySpinBox->blockSignals(true);
+    ui->snowCoeffComboBox->blockSignals(true);
+    ui->wl435SpinBox->blockSignals(true);
+    ui->wl545SpinBox->blockSignals(true);
+    ui->wl700SpinBox->blockSignals(true);
+
     ui->snowtypeComboBox->setCurrentIndex( (int) snow.lastPreset );
-    ui->snowtypeComboBox->blockSignals(false);
 
     ui->grainsizeSpinBox->setValue(snow.grainsize * 1000);
     ui->densitySpinBox->setValue(snow.density);
@@ -1103,7 +1112,6 @@ void MainWindow::updateSnowComponents() {
 
     /* media interaction */
     ui->asymmetrySpinBox->setValue(snow.g);
-
     int coeff = ui->snowCoeffComboBox->currentIndex();
     if (coeff == 0) {
         /* absorbtion coefficient of snow */
@@ -1138,6 +1146,16 @@ void MainWindow::updateSnowComponents() {
     Spectrum albedo = getAlbedo(snow.iceSigmaA, snow.grainsize);
     ui->albedoLabel->setText(QString::number(albedo.average(), 'g', 2));
     ui->ssalbedoLabel->setText(QString::number(snow.singleScatteringAlbedo.average(), 'g', 2));
+
+    ui->snowtypeComboBox->blockSignals(false);
+    ui->grainsizeSpinBox->blockSignals(false);
+    ui->densitySpinBox->blockSignals(false);
+    ui->iorSpinBox->blockSignals(false);
+    ui->asymmetrySpinBox->blockSignals(false);
+    ui->snowCoeffComboBox->blockSignals(false);
+    ui->wl435SpinBox->blockSignals(false);
+    ui->wl545SpinBox->blockSignals(false);
+    ui->wl700SpinBox->blockSignals(false);
 }
 
 void MainWindow::updateSnowOnShape(SceneContext* context, Shape* shape, bool hasSnow) {
@@ -1651,6 +1669,8 @@ void MainWindow::on_actionRender_triggered() {
 	resize(size() + context->sizeIncrease);
 #endif
 
+    std::cerr << snowMaterialManager.toString() << std::endl
+              << context->snow.toString() << std::endl;
 	updateStatus();
 	context->renderJob->start();
 }
