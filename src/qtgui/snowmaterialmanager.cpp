@@ -62,19 +62,24 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
                 BSDF::m_theClass, properties));
         }
 
+        Float ssFactor = context->snowRenderSettings.subsurfaceFactor;
+
         if (subsurfaceMode == ENoSubSurface) {
             subsurface = NULL; 
         } else if (subsurfaceMode == EJensenDipoleBSSRDF) {
+            properties.setSpectrum("ssFactor", Spectrum(ssFactor));
             properties.setPluginName("dipole");
             subsurface = static_cast<Subsurface *> (pluginManager->createObject(
                 Subsurface::m_theClass, properties));
         } else if (subsurfaceMode == EJensenMultipoleBSSRDF) {
+            properties.setFloat("ssFactor", ssFactor);
             properties.setPluginName("multipole");
             properties.setFloat("slabThickness", 0.1); // ToDo: Make dynamic
             properties.setInteger("extraDipoles", context->multipoleDipoles);
             subsurface = static_cast<Subsurface *> (pluginManager->createObject(
                 Subsurface::m_theClass, properties));
         } else if (subsurfaceMode == EJakobADipoleBSSRDF) {
+            properties.setFloat("ssFactor", ssFactor);
             properties.setPluginName("adipole");
             properties.setString("D", getFlakeDistribution());
             properties.setFloat("sigmaTn", 1.0f);
@@ -165,7 +170,7 @@ std::string SnowMaterialManager::toString() {
 
         for (ShapeMap::iterator it = snowShapes.begin(); it != snowShapes.end(); it++) {
             Shape *s = it->first;
-            if (it->second) {
+            if (it->second && s != NULL) {
                 BSDF* bsdf = materialMap[s].first;
                 Subsurface* subsurface = materialMap[s].second;
 

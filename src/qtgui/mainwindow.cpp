@@ -195,6 +195,7 @@ MainWindow::MainWindow(QWidget *parent) :
     /* snow render mode */
     connect(ui->surfaceComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(ui->subsurfaceComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange()));
+    connect(ui->subsurfaceSizeSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
 
 #if defined(__OSX__)
 	ui->toolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
@@ -684,28 +685,30 @@ void MainWindow::onSnowRenderModelChange() {
 
     // save proberties;
     ESurfaceRenderMode surfaceRenderMode;
-    if (surfaceIdx == 0)
-        surfaceRenderMode = ENoSurface;
-    else if (surfaceIdx == 1)
+    if (surfaceIdx == 1)
         surfaceRenderMode = EWiscombeWarrenAlbedo;
     else if (surfaceIdx == 2)
         surfaceRenderMode = EWiscombeWarrenBRDF;
     else if (surfaceIdx == 3)
         surfaceRenderMode = EHanrahanKruegerBRDF;
+    else
+        surfaceRenderMode = ENoSurface;
 
     context->snowRenderSettings.surfaceRenderMode = surfaceRenderMode;
 
     ESubSurfaceRenderMode subsurfaceRenderMode;
-    if (subsurfaceIdx == 0)
-        subsurfaceRenderMode = ENoSubSurface;
-    else if (subsurfaceIdx == 1)
+    if (subsurfaceIdx == 1)
         subsurfaceRenderMode = EJensenDipoleBSSRDF;
-    if (subsurfaceIdx == 2)
+    else if (subsurfaceIdx == 2)
         subsurfaceRenderMode = EJensenMultipoleBSSRDF;
-    if (subsurfaceIdx == 3)
+    else if (subsurfaceIdx == 3)
         subsurfaceRenderMode = EJakobADipoleBSSRDF;
+    else
+        subsurfaceRenderMode = ENoSubSurface;
 
     context->snowRenderSettings.subsurfaceRenderMode = subsurfaceRenderMode;
+
+    context->snowRenderSettings.subsurfaceFactor = ui->subsurfaceSizeSpinBox->value();
 
 	on_tabBar_currentChanged(-1);
     updateSnowOnAllShapes(context, true);
@@ -971,6 +974,7 @@ void MainWindow::updateUI() {
 	ui->actionSave->setEnabled(hasScene);
 	ui->actionSaveAs->setEnabled(hasScene);
 	ui->actionExportImage->setEnabled(hasTab);
+	ui->actionExportShape->setEnabled(hasScene);
 	ui->actionClose->setEnabled(hasTab);
 	ui->actionDuplicateTab->setEnabled(hasTab);
 	ui->actionAdjustSize->setEnabled(hasTab);
@@ -1177,6 +1181,7 @@ void MainWindow::updateSnowRenderingComponents() {
     ui->surfaceComboBox->setEnabled(hasScene);
     ui->subsurfaceLabel->setEnabled(hasScene);
     ui->subsurfaceComboBox->setEnabled(hasScene);
+    ui->subsurfaceSizeSpinBox->setEnabled(hasScene);
 
     if (!hasScene)
         return;
@@ -1211,14 +1216,20 @@ void MainWindow::updateSnowRenderingComponents() {
     /* block signals to avoid endless loop */
     ui->surfaceComboBox->blockSignals(true);
     ui->subsurfaceComboBox->blockSignals(true);
+    ui->subsurfaceSizeSpinBox->blockSignals(true);
+
     /* set new data */
     if (surfaceIdx != -1)
         ui->surfaceComboBox->setCurrentIndex(surfaceIdx);
     if (subsurfaceIdx != -1)
         ui->subsurfaceComboBox->setCurrentIndex(subsurfaceIdx);
+
+    Float ssFactor  = context->snowRenderSettings.subsurfaceFactor;
+    ui->subsurfaceSizeSpinBox->setValue(ssFactor);
     /* unblock signals */
     ui->surfaceComboBox->blockSignals(false);
     ui->subsurfaceComboBox->blockSignals(false);
+    ui->subsurfaceSizeSpinBox->blockSignals(false);
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event) {
