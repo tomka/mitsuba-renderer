@@ -229,8 +229,8 @@ struct SceneContext {
 
 	SceneContext() : scene(NULL), sceneResID(-1), 
 		renderJob(NULL), selectionMode(ENothing),
-		selectedShape(NULL), currentlySelectedShape(NULL),
-        multipoleDipoles(2) 
+		selectedShape(NULL),
+        normalScaling(0.04), multipoleDipoles(2), currentlySelectedShape(NULL)
     { }
 
     /* Snow properties */
