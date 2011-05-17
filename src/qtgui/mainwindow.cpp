@@ -1182,6 +1182,7 @@ void MainWindow::updateSnowRenderingComponents() {
     ui->subsurfaceLabel->setEnabled(hasScene);
     ui->subsurfaceComboBox->setEnabled(hasScene);
     ui->subsurfaceSizeSpinBox->setEnabled(hasScene);
+    ui->subsurfaceSizeLabel->setEnabled(hasScene);
 
     if (!hasScene)
         return;
@@ -1469,6 +1470,7 @@ void MainWindow::on_actionPreviewSettings_triggered() {
 	settings.setValue("preview_toneMappingMethod", context->toneMappingMethod);
 	settings.setValue("preview_diffuseReceivers", context->diffuseReceivers);
 	settings.setValue("preview_diffuseSources", context->diffuseSources);
+	settings.setValue("preview_normalScaling", context->normalScaling);
 #else
 	if (!m_previewSettings) {
 		m_previewSettings = new PreviewSettingsDlg(this);

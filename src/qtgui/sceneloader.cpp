@@ -124,7 +124,7 @@ void SceneLoader::run() {
 			m_result->showKDTree = false;
 			m_result->shownKDTreeLevel = 0;
 			m_result->showNormals = false;
-            m_result->normalScaling = 1.0f;
+            m_result->normalScaling = 0.04f;
 		}
 	} catch (const std::exception &e) {
 		m_error = e.what();

@@ -86,6 +86,7 @@ PreviewSettingsDialog::PreviewSettingsDialog(QWidget *parent, SceneContext *ctx,
 		? ctx->exposure : ctx->reinhardBurn)*100));
 	ui->keySlider->setValue((int) ((ctx->reinhardKey-REINHARD_MIN)/REINHARD_RANGE * 100));
 	ui->diffuseReceiversBox->setEnabled(ui->diffuseSourcesBox->isChecked());
+    ui->normalScalingSpinBox->setValue(ctx->normalScaling);
 
 	on_previewMethodCombo_activated(ctx->previewMethod);
 	on_toneMappingMethodCombo_activated(ctx->toneMappingMethod);
@@ -112,7 +113,7 @@ void PreviewSettingsDialog::on_resetButton_clicked() {
 	ui->diffuseSourcesBox->setCheckState(Qt::Checked);
 	ui->diffuseReceiversBox->setCheckState(Qt::Unchecked);
 
-    ui->normalScalingSpinBox->setValue(1.0);
+    ui->normalScalingSpinBox->setValue(0.04f);
 }
 
 void PreviewSettingsDialog::on_keySlider_valueChanged(int value) {
