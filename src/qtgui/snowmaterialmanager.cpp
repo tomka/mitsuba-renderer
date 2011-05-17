@@ -132,24 +132,37 @@ void SnowMaterialManager::resetMaterial(Shape *shape, SceneContext *context) {
         BSDFMap::iterator bsdfEntry = originalBSDFs.find(shape);
         SubsurfaceMap::iterator subsurfaceEntry = originalSubsurfaces.find(shape);
         MaterialMap::iterator materialEntry = materialMap.find(shape);
+        setMadeOfSnow(shape, false);
 
         // if found, use materials
         if (bsdfEntry != originalBSDFs.end()) {
-            shape->setBSDF( (*bsdfEntry).second );
+            BSDF *bsdf = bsdfEntry->second;
+            if (bsdf != NULL) {
+                bsdf->setParent(shape);
+                bsdf->configure();
+            }
+            shape->setBSDF( bsdf );
         }
+
         if (subsurfaceEntry != originalSubsurfaces.end()) {
             Subsurface *old_ss = shape->getSubsurface();
             Subsurface *subsurface = (*subsurfaceEntry).second;
-            shape->setSubsurface(subsurface);
-            if (subsurface != NULL)
+
+            if (subsurface != NULL) {
+                subsurface->setParent(shape);
+                subsurface->configure();
                 context->scene->addSubsurface(subsurface);
+            }
             if (old_ss != NULL)
                 context->scene->removeSubsurface(old_ss);
+
+            shape->setSubsurface(subsurface);
+            // allow the shape to react to this changes
+            shape->configure();
         }
         if (materialEntry != materialMap.end()) {
             materialMap.erase(materialEntry);
         }
-        setMadeOfSnow(shape, false);
         std::cerr << "[Snow Material Manager] Reset material on shape " << shape->getName() << std::endl;
 }
 
@@ -171,8 +184,8 @@ std::string SnowMaterialManager::toString() {
         for (ShapeMap::iterator it = snowShapes.begin(); it != snowShapes.end(); it++) {
             Shape *s = it->first;
             if (it->second && s != NULL) {
-                BSDF* bsdf = materialMap[s].first;
-                Subsurface* subsurface = materialMap[s].second;
+                BSDF* bsdf = s->getBSDF();
+                Subsurface* subsurface = s->getSubsurface();
 
                 oss << "  " << s->getName() << ":" << std::endl
                 << "    BSDF: " << std::endl << (bsdf == NULL ? "None" : bsdf->toString()) << std::endl
