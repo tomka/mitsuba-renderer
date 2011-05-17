@@ -72,14 +72,14 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
             subsurface = static_cast<Subsurface *> (pluginManager->createObject(
                 Subsurface::m_theClass, properties));
         } else if (subsurfaceMode == EJensenMultipoleBSSRDF) {
-            properties.setFloat("ssFactor", ssFactor);
+            properties.setSpectrum("ssFactor", Spectrum(ssFactor));
             properties.setPluginName("multipole");
             properties.setFloat("slabThickness", 0.1); // ToDo: Make dynamic
             properties.setInteger("extraDipoles", context->multipoleDipoles);
             subsurface = static_cast<Subsurface *> (pluginManager->createObject(
                 Subsurface::m_theClass, properties));
         } else if (subsurfaceMode == EJakobADipoleBSSRDF) {
-            properties.setFloat("ssFactor", ssFactor);
+            properties.setSpectrum("ssFactor", Spectrum(ssFactor));
             properties.setPluginName("adipole");
             properties.setString("D", getFlakeDistribution());
             properties.setFloat("sigmaTn", 1.0f);
