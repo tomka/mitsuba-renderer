@@ -136,7 +136,7 @@
        <enum>QTabWidget::North</enum>
       </property>
       <property name="currentIndex">
-       <number>2</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="sceneTab">
        <property name="sizePolicy">
@@ -600,7 +600,7 @@
             </rect>
            </property>
            <property name="text">
-            <string>Asymmetry</string>
+            <string>Anisotropy</string>
            </property>
            <property name="buddy">
             <cstring>asymmetrySpinBox</cstring>
@@ -729,7 +729,7 @@
           <rect>
            <x>0</x>
            <y>10</y>
-           <width>181</width>
+           <width>190</width>
            <height>401</height>
           </rect>
          </property>
@@ -753,6 +753,54 @@
               <property name="buddy">
                <cstring>surfaceComboBox</cstring>
               </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QComboBox" name="surfaceComboBox">
+              <property name="enabled">
+               <bool>true</bool>
+              </property>
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>0</width>
+                <height>0</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>100</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="sizeAdjustPolicy">
+               <enum>QComboBox::AdjustToContents</enum>
+              </property>
+              <item>
+               <property name="text">
+                <string>None</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Wiscombe-Warren (Albedo)</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Wiscombe-Warren</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Hanrahan-Krueger</string>
+               </property>
+              </item>
              </widget>
             </item>
             <item row="1" column="0">
@@ -810,58 +858,10 @@
               </item>
              </widget>
             </item>
-            <item row="0" column="1">
-             <widget class="QComboBox" name="surfaceComboBox">
-              <property name="enabled">
-               <bool>true</bool>
-              </property>
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="minimumSize">
-               <size>
-                <width>0</width>
-                <height>0</height>
-               </size>
-              </property>
-              <property name="maximumSize">
-               <size>
-                <width>100</width>
-                <height>16777215</height>
-               </size>
-              </property>
-              <property name="sizeAdjustPolicy">
-               <enum>QComboBox::AdjustToContents</enum>
-              </property>
-              <item>
-               <property name="text">
-                <string>None</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Wiscombe-Warren (Albedo)</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Wiscombe-Warren</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Hanrahan-Krueger</string>
-               </property>
-              </item>
-             </widget>
-            </item>
             <item row="2" column="0">
              <widget class="QLabel" name="subsurfaceSizeLabel">
               <property name="text">
-               <string>Subs. size x</string>
+               <string>SS size x</string>
               </property>
              </widget>
             </item>
@@ -881,6 +881,32 @@
               </property>
               <property name="singleStep">
                <double>0.100000000000000</double>
+              </property>
+              <property name="value">
+               <double>1.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="0">
+             <widget class="QLabel" name="subsurfaceSampleFactorLabel">
+              <property name="text">
+               <string>SS sample x</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="1">
+             <widget class="QDoubleSpinBox" name="subsurfaceSampleFactorSpinBox">
+              <property name="maximumSize">
+               <size>
+                <width>100</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="decimals">
+               <number>1</number>
+              </property>
+              <property name="maximum">
+               <double>100000.000000000000000</double>
               </property>
               <property name="value">
                <double>1.000000000000000</double>
