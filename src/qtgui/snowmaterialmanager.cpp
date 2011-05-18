@@ -11,20 +11,22 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
         // get currently selected material
         BSDF *bsdfOld = shape->getBSDF();
         Subsurface *subsurfaceOld = shape->getSubsurface();
-        // try to find shape in backup lists
-        BSDFMap::iterator bsdfEntry = originalBSDFs.find(shape);
-        SubsurfaceMap::iterator subsurfaceEntry = originalSubsurfaces.find(shape);
 
-        // if not found, add them
-        if (bsdfEntry == originalBSDFs.end()) {
-            originalBSDFs[shape] = bsdfOld;
+        // try to find shape in store 
+        ShapeMap::iterator it = snowShapes.find(shape);
+        // if not found, add new
+        if (it == snowShapes.end()) {
+            ShapeEntry newEntry;
+
+            newEntry.originalBSDF = bsdfOld;
             if (bsdfOld != NULL)
                 bsdfOld->incRef();
-        }
-        if (subsurfaceEntry == originalSubsurfaces.end()) {
-            originalSubsurfaces[shape] = subsurfaceOld;
+
+            newEntry.originalSubsurface = subsurfaceOld;
             if (subsurfaceOld != NULL)
                 subsurfaceOld->incRef();
+
+            snowShapes[shape] = newEntry;
         }
 
         PluginManager *pluginManager = PluginManager::getInstance();
@@ -112,7 +114,6 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
         }
 
         setMadeOfSnow(shape, true);
-        materialMap[shape] = std::pair<BSDF*, Subsurface*>(bsdf, subsurface);
         std::string bsdfName = (bsdf == NULL) ? "None" : bsdf->getClass()->getName();
         std::string subsurfaceName = (subsurface == NULL) ? "None" : subsurface->getClass()->getName();
         std::cerr << "[Snow Material Manager] Replaced material of shape \"" << shape->getName() << "\"" << std::endl
@@ -128,53 +129,61 @@ std::string SnowMaterialManager::getFlakeDistribution() {
 }
 
 void SnowMaterialManager::resetMaterial(Shape *shape, SceneContext *context) {
-        // try to find shape in backup lists
-        BSDFMap::iterator bsdfEntry = originalBSDFs.find(shape);
-        SubsurfaceMap::iterator subsurfaceEntry = originalSubsurfaces.find(shape);
-        MaterialMap::iterator materialEntry = materialMap.find(shape);
+        ShapeMap::iterator it = snowShapes.find(shape);
+        if (it == snowShapes.end()) {
+            SLog(EWarn, "Did not find requested shape to reset material.");
+            return;
+        }
+
         setMadeOfSnow(shape, false);
+        ShapeEntry &e = it->second;
 
         // if found, use materials
-        if (bsdfEntry != originalBSDFs.end()) {
-            BSDF *bsdf = bsdfEntry->second;
-            if (bsdf != NULL) {
-                bsdf->setParent(shape);
-                bsdf->configure();
-            }
-            shape->setBSDF( bsdf );
+        BSDF *bsdf = e.originalBSDF;
+        if (bsdf != NULL) {
+            bsdf->setParent(shape);
+            bsdf->configure();
         }
+        shape->setBSDF( bsdf );
 
-        if (subsurfaceEntry != originalSubsurfaces.end()) {
-            Subsurface *old_ss = shape->getSubsurface();
-            Subsurface *subsurface = (*subsurfaceEntry).second;
+        Subsurface *old_ss = shape->getSubsurface();
+        Subsurface *subsurface = e.originalSubsurface;
 
-            if (subsurface != NULL) {
-                subsurface->setParent(shape);
-                subsurface->configure();
-                context->scene->addSubsurface(subsurface);
-            }
-            if (old_ss != NULL)
-                context->scene->removeSubsurface(old_ss);
-
-            shape->setSubsurface(subsurface);
-            // allow the shape to react to this changes
-            shape->configure();
+        if (subsurface != NULL) {
+            subsurface->setParent(shape);
+            subsurface->configure();
+            context->scene->addSubsurface(subsurface);
         }
-        if (materialEntry != materialMap.end()) {
-            materialMap.erase(materialEntry);
-        }
+        if (old_ss != NULL)
+            context->scene->removeSubsurface(old_ss);
+
+        shape->setSubsurface(subsurface);
+        // allow the shape to react to this changes
+        shape->configure();
+
         std::cerr << "[Snow Material Manager] Reset material on shape " << shape->getName() << std::endl;
 }
 
 bool SnowMaterialManager::isMadeOfSnow(Shape * shape) {
-    if (snowShapes.find(shape) != snowShapes.end())
-        return snowShapes[shape];
+    ShapeMap::iterator it = snowShapes.find(shape);
+    if (it != snowShapes.end())
+        return it->second.madeOfSnow;
     else
         return false;
 }
 
+void SnowMaterialManager::removeShape(Shape *shape) {
+    ShapeMap::iterator it = snowShapes.find(shape);
+    if (it != snowShapes.end())
+        snowShapes.erase(it);
+}
+
 void SnowMaterialManager::setMadeOfSnow(Shape *shape, bool snow) {
-    snowShapes[shape] = snow;
+    ShapeMap::iterator it = snowShapes.find(shape);
+    if (it == snowShapes.end())
+        return;
+
+    it->second.madeOfSnow = snow;
 }
 
 std::string SnowMaterialManager::toString() {
@@ -183,7 +192,8 @@ std::string SnowMaterialManager::toString() {
 
         for (ShapeMap::iterator it = snowShapes.begin(); it != snowShapes.end(); it++) {
             Shape *s = it->first;
-            if (it->second && s != NULL) {
+            ShapeEntry &entry = it->second;
+            if (entry.madeOfSnow && s != NULL) {
                 BSDF* bsdf = s->getBSDF();
                 Subsurface* subsurface = s->getSubsurface();
 

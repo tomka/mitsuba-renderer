@@ -9,19 +9,20 @@
 MTS_NAMESPACE_BEGIN
 
 class SnowMaterialManager {
-    typedef std::map<Shape*, BSDF*> BSDFMap;
-    typedef std::map<Shape*, Subsurface*> SubsurfaceMap;
-    typedef std::map<Shape*, bool> ShapeMap;
-    typedef std::map<Shape*, std::pair<BSDF*, Subsurface*> > MaterialMap; 
 
-    // original BSDFs of shapes
-    BSDFMap originalBSDFs;
-    // original Subsurface integrators of shapes
-    SubsurfaceMap originalSubsurfaces;
+    struct ShapeEntry {
+        bool madeOfSnow;
+        BSDF *originalBSDF;
+        Subsurface *originalSubsurface;
+
+        ShapeEntry() : madeOfSnow(false),
+            originalBSDF(NULL), originalSubsurface(NULL) { }
+    };
+
+    typedef std::map<Shape*, ShapeEntry> ShapeMap;
+
     // a toggle for every shape if it has a snow material
     ShapeMap snowShapes;
-    // a map of the currently assigned materials
-    MaterialMap materialMap;
 
 public:
     /**
@@ -38,7 +39,12 @@ public:
     /**
      * Query if a particular shape is made of snow.
      */
-    bool isMadeOfSnow(Shape *);
+    bool isMadeOfSnow(Shape *shape);
+
+    /**
+     * Removes all links to a shape.
+     */
+    void removeShape(Shape *shape);
 
     /**
      * Get a string description of the snow material manager.
