@@ -64,17 +64,20 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
                 BSDF::m_theClass, properties));
         }
 
-        Float ssFactor = context->snowRenderSettings.subsurfaceFactor;
+        Float ssFactor = context->snowRenderSettings.ssDensityFactor;
+        Float ssSampleFactor = context->snowRenderSettings.ssSampleFactor;
 
         if (subsurfaceMode == ENoSubSurface) {
             subsurface = NULL; 
         } else if (subsurfaceMode == EJensenDipoleBSSRDF) {
             properties.setSpectrum("ssFactor", Spectrum(ssFactor));
+            properties.setFloat("sampleMultiplier", ssSampleFactor);
             properties.setPluginName("dipole");
             subsurface = static_cast<Subsurface *> (pluginManager->createObject(
                 Subsurface::m_theClass, properties));
         } else if (subsurfaceMode == EJensenMultipoleBSSRDF) {
             properties.setSpectrum("ssFactor", Spectrum(ssFactor));
+            properties.setFloat("sampleMultiplier", ssSampleFactor);
             properties.setPluginName("multipole");
             properties.setFloat("slabThickness", 0.1); // ToDo: Make dynamic
             properties.setInteger("extraDipoles", context->multipoleDipoles);
@@ -82,6 +85,7 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
                 Subsurface::m_theClass, properties));
         } else if (subsurfaceMode == EJakobADipoleBSSRDF) {
             properties.setSpectrum("ssFactor", Spectrum(ssFactor));
+            properties.setFloat("sampleMultiplier", ssSampleFactor);
             properties.setPluginName("adipole");
             properties.setString("D", getFlakeDistribution());
             properties.setFloat("sigmaTn", 1.0f);

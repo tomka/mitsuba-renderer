@@ -196,6 +196,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->surfaceComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(ui->subsurfaceComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(ui->subsurfaceSizeSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
+    connect(ui->subsurfaceSampleFactorSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
 
 #if defined(__OSX__)
 	ui->toolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
@@ -708,7 +709,8 @@ void MainWindow::onSnowRenderModelChange() {
 
     context->snowRenderSettings.subsurfaceRenderMode = subsurfaceRenderMode;
 
-    context->snowRenderSettings.subsurfaceFactor = ui->subsurfaceSizeSpinBox->value();
+    context->snowRenderSettings.ssDensityFactor = ui->subsurfaceSizeSpinBox->value();
+    context->snowRenderSettings.ssSampleFactor = ui->subsurfaceSampleFactorSpinBox->value();
 
 	on_tabBar_currentChanged(-1);
     updateSnowOnAllShapes(context, true);
@@ -1183,6 +1185,8 @@ void MainWindow::updateSnowRenderingComponents() {
     ui->subsurfaceComboBox->setEnabled(hasScene);
     ui->subsurfaceSizeSpinBox->setEnabled(hasScene);
     ui->subsurfaceSizeLabel->setEnabled(hasScene);
+    ui->subsurfaceSampleFactorSpinBox->setEnabled(hasScene);
+    ui->subsurfaceSampleFactorLabel->setEnabled(hasScene);
 
     if (!hasScene)
         return;
@@ -1225,8 +1229,10 @@ void MainWindow::updateSnowRenderingComponents() {
     if (subsurfaceIdx != -1)
         ui->subsurfaceComboBox->setCurrentIndex(subsurfaceIdx);
 
-    Float ssFactor  = context->snowRenderSettings.subsurfaceFactor;
-    ui->subsurfaceSizeSpinBox->setValue(ssFactor);
+    Float ssDensityFactor  = context->snowRenderSettings.ssDensityFactor;
+    Float ssSampleFactor  = context->snowRenderSettings.ssSampleFactor;
+    ui->subsurfaceSizeSpinBox->setValue(ssDensityFactor);
+    ui->subsurfaceSampleFactorSpinBox->setValue(ssSampleFactor);
     /* unblock signals */
     ui->surfaceComboBox->blockSignals(false);
     ui->subsurfaceComboBox->blockSignals(false);
