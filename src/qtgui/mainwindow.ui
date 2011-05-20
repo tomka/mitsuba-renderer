@@ -1001,10 +1001,19 @@
      <addaction name="actionSceneDescription"/>
      <addaction name="actionShowNormals"/>
     </widget>
+    <widget class="QMenu" name="menuAllShapes">
+     <property name="title">
+      <string>All shapes…</string>
+     </property>
+     <addaction name="actionAllShapesSnow"/>
+     <addaction name="actionAllShapesNoSnow"/>
+    </widget>
     <addaction name="actionStartServer"/>
     <addaction name="separator"/>
     <addaction name="menuDeveloper"/>
     <addaction name="actionSettings"/>
+    <addaction name="separator"/>
+    <addaction name="menuAllShapes"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuTools"/>
@@ -1327,6 +1336,26 @@
   <action name="actionExportShape">
    <property name="text">
     <string>Export shape</string>
+   </property>
+  </action>
+  <action name="actionAllShapesSnow_2">
+   <property name="text">
+    <string>made of snow</string>
+   </property>
+  </action>
+  <action name="actionNoShapeSnow">
+   <property name="text">
+    <string>not made of nrow</string>
+   </property>
+  </action>
+  <action name="actionAllShapesSnow">
+   <property name="text">
+    <string>made of snow</string>
+   </property>
+  </action>
+  <action name="actionAllShapesNoSnow">
+   <property name="text">
+    <string>not made of snow</string>
    </property>
   </action>
  </widget>

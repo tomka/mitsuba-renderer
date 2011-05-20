@@ -135,6 +135,8 @@ private slots:
 	void on_actionSettings_triggered();
 	void on_actionUpdateCheck_triggered();
     void on_actionStartServer_triggered();
+    void on_actionAllShapesSnow_triggered();
+    void on_actionAllShapesNoSnow_triggered();
 	void on_actionSave_triggered();
 	void on_actionSaveAs_triggered();
 	void on_actionExportImage_triggered();

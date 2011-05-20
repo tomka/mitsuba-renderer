@@ -985,6 +985,7 @@ void MainWindow::updateUI() {
 	ui->actionSceneDescription->setEnabled(hasTab);
 	ui->actionShowNormals->setEnabled(hasTab);
 	ui->actionShowNormals->setChecked(hasTab && context->showNormals);
+    ui->menuAllShapes->setEnabled(hasScene);
 #if !defined(__OSX__)
 	ui->actionPreviewSettings->setEnabled(!fallback && hasTab);
 #else
@@ -2046,6 +2047,28 @@ void MainWindow::on_actionStartServer_triggered() {
 	ui->actionStartServer->setEnabled(false);
 	connect(m_serverWidget, SIGNAL(closed()), this, SLOT(onServerClosed()));
 	m_serverWidget->show();
+}
+
+void MainWindow::on_actionAllShapesSnow_triggered() {
+	int currentIndex = ui->tabBar->currentIndex();
+    if (currentIndex == -1)
+        return;
+	SceneContext *context = m_context[currentIndex];
+    const shapeListType shapes = context->scene->getShapes();
+    for (shapeListType::const_iterator it = shapes.begin(); it != shapes.end(); it++)
+            updateSnowOnShape(context, *it, true);
+    updateUI();
+}
+
+void MainWindow::on_actionAllShapesNoSnow_triggered() {
+	int currentIndex = ui->tabBar->currentIndex();
+    if (currentIndex == -1)
+        return;
+	SceneContext *context = m_context[currentIndex];
+    const shapeListType shapes = context->scene->getShapes();
+    for (shapeListType::const_iterator it = shapes.begin(); it != shapes.end(); it++)
+            updateSnowOnShape(context, *it, false);
+    updateUI();
 }
 
 void MainWindow::on_actionReportBug_triggered() {
