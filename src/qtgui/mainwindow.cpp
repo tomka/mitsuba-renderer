@@ -1222,6 +1222,7 @@ void MainWindow::updateSnowRenderingComponents() {
     ui->surfaceComboBox->blockSignals(true);
     ui->subsurfaceComboBox->blockSignals(true);
     ui->subsurfaceSizeSpinBox->blockSignals(true);
+    ui->subsurfaceSampleFactorSpinBox->blockSignals(true);
 
     /* set new data */
     if (surfaceIdx != -1)
@@ -1237,6 +1238,7 @@ void MainWindow::updateSnowRenderingComponents() {
     ui->surfaceComboBox->blockSignals(false);
     ui->subsurfaceComboBox->blockSignals(false);
     ui->subsurfaceSizeSpinBox->blockSignals(false);
+    ui->subsurfaceSampleFactorSpinBox->blockSignals(false);
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event) {
@@ -1333,6 +1335,8 @@ void MainWindow::on_actionAdjustSize_triggered() {
 
 bool MainWindow::on_tabBar_tabCloseRequested(int index) {
 	SceneContext *context = m_context[index];
+	bool hasScene = context->scene != NULL;
+
 	if (context->renderJob != NULL) {
 		QMessageBox box(QMessageBox::Question, tr("Really close?"), 
 			tr("Rendering of scene \"%1\" is unfinished - all progress "
@@ -1343,29 +1347,32 @@ bool MainWindow::on_tabBar_tabCloseRequested(int index) {
 		if (box.exec() == QMessageBox::No)
 			return false;
 	}
-    /* Check if a shape is in use by another context. If not remole it from
-     * snow material manager.
-     */
-    shapeListType shapes(context->scene->getShapes());
-    std::map<Shape*, bool> removalCandidates;
-    for (shapeListType::const_iterator it = shapes.begin(); it != shapes.end(); it++) {
-        removalCandidates[*it] = true;
-        for(QList<SceneContext *>::Iterator ctxIt = m_context.begin(); ctxIt != m_context.end(); ++ctxIt ) {
-            SceneContext* testCtx = *ctxIt;
-            if (testCtx != context) {
-                const shapeListType testShapes = testCtx->scene->getShapes();
-                 /* look for shape in this context */
-                 shapeListType::const_iterator findIt = std::find(testShapes.begin(), testShapes.end(), *it);
-                 /* if found, don't delete it from material manager */
-                 if (findIt != shapes.end())
-                     removalCandidates[*it] = false;
+
+    if (hasScene) {
+        /* Check if a shape is in use by another context. If not remole it from
+         * snow material manager.
+         */
+        shapeListType shapes(context->scene->getShapes());
+        std::map<Shape*, bool> removalCandidates;
+        for (shapeListType::const_iterator it = shapes.begin(); it != shapes.end(); it++) {
+            removalCandidates[*it] = true;
+            for(QList<SceneContext *>::Iterator ctxIt = m_context.begin(); ctxIt != m_context.end(); ++ctxIt ) {
+                SceneContext* testCtx = *ctxIt;
+                if (testCtx != context) {
+                    const shapeListType testShapes = testCtx->scene->getShapes();
+                     /* look for shape in this context */
+                     shapeListType::const_iterator findIt = std::find(testShapes.begin(), testShapes.end(), *it);
+                     /* if found, don't delete it from material manager */
+                     if (findIt != shapes.end())
+                         removalCandidates[*it] = false;
+                }
             }
         }
-    }
-    for (std::map<Shape*, bool>::const_iterator it = removalCandidates.begin();
-            it != removalCandidates.end(); it++) {
-        if (it->second)
-            snowMaterialManager.removeShape(it->first);
+        for (std::map<Shape*, bool>::const_iterator it = removalCandidates.begin();
+                it != removalCandidates.end(); it++) {
+            if (it->second)
+                snowMaterialManager.removeShape(it->first);
+        }
     }
 
 	m_contextMutex.lock();
