@@ -639,7 +639,7 @@ void MainWindow::on700nmCoeffChanged(double coeff) {
 	if (currentIndex == -1)
 		return;
 
-    changeSnowCoefficient(1, coeff);
+    changeSnowCoefficient(0, coeff);
     updateSnowComponents();
 }
 
