@@ -44,51 +44,57 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
  
         BSDF *bsdf = NULL;
         Subsurface *subsurface = NULL;
+        SnowRenderSettings &srs = context->snowRenderSettings;
+
         if (surfaceMode == ENoSurface) {
             bsdf = NULL;
         } else if (surfaceMode == EWiscombeWarrenAlbedo) {
             properties.setPluginName("wiscombe");
-            properties.setFloat("depth", 2.0f); // ToDo: Make dynamic
+            properties.setFloat("depth",srs.wiscombeDepth);
             properties.setSpectrum("singleScatteringAlbedo", snow.singleScatteringAlbedo);
             bsdf = static_cast<BSDF *> (pluginManager->createObject(
                 BSDF::m_theClass, properties));
         } else if (surfaceMode == EWiscombeWarrenBRDF) {
             properties.setPluginName("wiscombe");
-            properties.setFloat("depth", 2.0f); // ToDo: Make dynamic
+            properties.setFloat("depth", srs.wiscombeDepth);
             properties.setSpectrum("singleScatteringAlbedo", snow.singleScatteringAlbedo);
             bsdf = static_cast<BSDF *> (pluginManager->createObject(
                 BSDF::m_theClass, properties));
         } else if (surfaceMode == EHanrahanKruegerBRDF) {
             properties.setPluginName("hanrahankrueger");
+            properties.setBoolean("addMultipleScattering", srs.hkUseMultipleScattering);
             bsdf = static_cast<BSDF *> (pluginManager->createObject(
                 BSDF::m_theClass, properties));
         }
 
-        Float ssFactor = context->snowRenderSettings.ssDensityFactor;
-        Float ssSampleFactor = context->snowRenderSettings.ssSampleFactor;
-
         if (subsurfaceMode == ENoSubSurface) {
             subsurface = NULL; 
         } else if (subsurfaceMode == EJensenDipoleBSSRDF) {
-            properties.setSpectrum("ssFactor", Spectrum(ssFactor));
-            properties.setFloat("sampleMultiplier", ssSampleFactor);
             properties.setPluginName("dipole");
+            properties.setSpectrum("ssFactor", Spectrum(srs.dipoleDensityFactor));
+            properties.setFloat("sampleMultiplier", srs.dipoleSampleFactor);
+            properties.setBoolean("addSingleScattering", srs.dipoleUseSingleScattering);
             subsurface = static_cast<Subsurface *> (pluginManager->createObject(
                 Subsurface::m_theClass, properties));
         } else if (subsurfaceMode == EJensenMultipoleBSSRDF) {
-            properties.setSpectrum("ssFactor", Spectrum(ssFactor));
-            properties.setFloat("sampleMultiplier", ssSampleFactor);
             properties.setPluginName("multipole");
-            properties.setFloat("slabThickness", 0.1); // ToDo: Make dynamic
-            properties.setInteger("extraDipoles", context->multipoleDipoles);
+            properties.setSpectrum("ssFactor", Spectrum(srs.multipoleDensityFactor));
+            properties.setFloat("sampleMultiplier", srs.multipoleSampleFactor);
+            properties.setBoolean("addSingleScattering", srs.dipoleUseSingleScattering);
+            properties.setFloat("slabThickness", srs.multipoleSlabThickness);
+            properties.setInteger("extraDipoles", srs.multipoleExtraDipoles);
             subsurface = static_cast<Subsurface *> (pluginManager->createObject(
                 Subsurface::m_theClass, properties));
         } else if (subsurfaceMode == EJakobADipoleBSSRDF) {
-            properties.setSpectrum("ssFactor", Spectrum(ssFactor));
-            properties.setFloat("sampleMultiplier", ssSampleFactor);
             properties.setPluginName("adipole");
-            properties.setString("D", getFlakeDistribution());
-            properties.setFloat("sigmaTn", 1.0f);
+            properties.setSpectrum("ssFactor", Spectrum(srs.adipoleDensityFactor));
+            properties.setFloat("sampleMultiplier", srs.adipoleSampleFactor);
+            QString D = QString::fromStdString(srs.adipoleD);
+            if (D.trimmed().length() == 0)
+                properties.setString("D", getFlakeDistribution());
+            else
+                properties.setString("D", srs.adipoleD);
+            properties.setFloat("sigmaTn", srs.adipoleSigmaTn);
             subsurface = static_cast<Subsurface *> (pluginManager->createObject(
                 Subsurface::m_theClass, properties));
         }

@@ -23,7 +23,10 @@
 #include "programsettingsdlg.h"
 #include "sceneinfodlg.h"
 #include "ui_wiscombeBRDFWidget.h"
+#include "ui_hkBRDFWidget.h"
 #include "ui_dipoleBSSRDFWidget.h"
+#include "ui_multipoleBSSRDFWidget.h"
+#include "ui_adipoleBSSRDFWidget.h"
 #include "sceneloader.h"
 #include "logwidget.h"
 #include "aboutdlg.h"
@@ -61,7 +64,10 @@ MainWindow::MainWindow(QWidget *parent) :
 	QMainWindow(parent), ui(new Ui::MainWindow), 
 	m_networkReply(NULL), m_activeWindowHack(false),
     m_wiscombeWidget(new QGroupBox()), m_wiscombeSettings(new Ui_WiscombeBRDFSettings()),
-    m_dipoleWidget(new QGroupBox()), m_dipoleSettings(new Ui_DipoleBSSRDFSettings()) {
+    m_hkWidget(new QGroupBox()), m_hkSettings(new Ui_HanrahanKruegerBRDFSettings()),
+    m_dipoleWidget(new QGroupBox()), m_dipoleSettings(new Ui_DipoleBSSRDFSettings()),
+    m_multipoleWidget(new QGroupBox()), m_multipoleSettings(new Ui_MultipoleBSSRDFSettings()),
+    m_adipoleWidget(new QGroupBox()), m_adipoleSettings(new Ui_AdipoleBSSRDFSettings()) {
 	Logger *logger = Thread::getThread()->getLogger();
 
 #if defined(__OSX__)
@@ -198,17 +204,34 @@ MainWindow::MainWindow(QWidget *parent) :
 
     /* snow render mode */
     m_wiscombeSettings->setupUi(m_wiscombeWidget);
+    m_hkSettings->setupUi(m_hkWidget);
     m_dipoleSettings->setupUi(m_dipoleWidget);
+    m_multipoleSettings->setupUi(m_multipoleWidget);
+    m_adipoleSettings->setupUi(m_adipoleWidget);
 
     ui->materialSettingsLayout->setAlignment(Qt::AlignTop);
     ui->materialSettingsLayout->addWidget(m_wiscombeWidget);
+    ui->materialSettingsLayout->addWidget(m_hkWidget);
     ui->materialSettingsLayout->addWidget(m_dipoleWidget);
+    ui->materialSettingsLayout->addWidget(m_multipoleWidget);
+    ui->materialSettingsLayout->addWidget(m_adipoleWidget);
 
     connect(ui->surfaceComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(ui->subsurfaceComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_wiscombeSettings->depthSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_hkSettings->multipleScatteringCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_dipoleSettings->subsurfaceSizeSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_dipoleSettings->subsurfaceSampleFactorSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_dipoleSettings->singleScatteringCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_multipoleSettings->subsurfaceSizeSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_multipoleSettings->subsurfaceSampleFactorSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_multipoleSettings->extraDipolesSpinBox, SIGNAL(valueChanged(int)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_multipoleSettings->slabThicknessSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_multipoleSettings->singleScatteringCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_adipoleSettings->subsurfaceSizeSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_adipoleSettings->subsurfaceSampleFactorSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_adipoleSettings->sigmaTnSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_adipoleSettings->dLineEdit, SIGNAL(textEdited(const QString&)), this, SLOT(onSnowRenderModelChange()));
 
 #if defined(__OSX__)
 	ui->toolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
@@ -722,8 +745,23 @@ void MainWindow::onSnowRenderModelChange() {
     context->snowRenderSettings.subsurfaceRenderMode = subsurfaceRenderMode;
 
     context->snowRenderSettings.wiscombeDepth = m_wiscombeSettings->depthSpinBox->value();
-    context->snowRenderSettings.ssDensityFactor = m_dipoleSettings->subsurfaceSizeSpinBox->value();
-    context->snowRenderSettings.ssSampleFactor = m_dipoleSettings->subsurfaceSampleFactorSpinBox->value();
+
+    context->snowRenderSettings.hkUseMultipleScattering = m_hkSettings->multipleScatteringCheckBox->isChecked();
+
+    context->snowRenderSettings.dipoleDensityFactor = m_dipoleSettings->subsurfaceSizeSpinBox->value();
+    context->snowRenderSettings.dipoleSampleFactor = m_dipoleSettings->subsurfaceSampleFactorSpinBox->value();
+    context->snowRenderSettings.dipoleUseSingleScattering = m_dipoleSettings->singleScatteringCheckBox->isChecked();
+
+    context->snowRenderSettings.multipoleDensityFactor = m_multipoleSettings->subsurfaceSizeSpinBox->value();
+    context->snowRenderSettings.multipoleSampleFactor = m_multipoleSettings->subsurfaceSampleFactorSpinBox->value();
+    context->snowRenderSettings.multipoleExtraDipoles = m_multipoleSettings->extraDipolesSpinBox->value();
+    context->snowRenderSettings.multipoleSlabThickness = m_multipoleSettings->slabThicknessSpinBox->value();
+    context->snowRenderSettings.multipoleUseSingleScattering = m_multipoleSettings->singleScatteringCheckBox->isChecked();
+
+    context->snowRenderSettings.adipoleDensityFactor = m_adipoleSettings->subsurfaceSizeSpinBox->value();
+    context->snowRenderSettings.adipoleSampleFactor = m_adipoleSettings->subsurfaceSampleFactorSpinBox->value();
+    context->snowRenderSettings.adipoleSigmaTn = m_adipoleSettings->sigmaTnSpinBox->value();
+    context->snowRenderSettings.adipoleD = m_adipoleSettings->dLineEdit->text().toStdString();
 
 	on_tabBar_currentChanged(-1);
     updateSnowOnAllShapes(context, true);
@@ -1199,7 +1237,10 @@ void MainWindow::updateSnowRenderingComponents() {
 
     /* Hide all material widgets */
     m_wiscombeWidget->hide();
+    m_hkWidget->hide();
     m_dipoleWidget->hide();
+    m_multipoleWidget->hide();
+    m_adipoleWidget->hide();
     
     if (!hasScene)
         return;
@@ -1219,27 +1260,44 @@ void MainWindow::updateSnowRenderingComponents() {
     else if (surfaceRenderMode == EWiscombeWarrenAlbedo) {
         surfaceIdx = 1;
         m_wiscombeWidget->show();
-    } else if (surfaceRenderMode == EWiscombeWarrenBRDF)
+    } else if (surfaceRenderMode == EWiscombeWarrenBRDF) {
         surfaceIdx = 2;
-    else if (surfaceRenderMode == EHanrahanKruegerBRDF)
+        m_wiscombeWidget->show();
+    } else if (surfaceRenderMode == EHanrahanKruegerBRDF) {
         surfaceIdx = 3;
+        m_hkWidget->show();
+    }
 
     if (subsurfaceRenderMode == ENoSubSurface)
         subsurfaceIdx = 0;
     else if (subsurfaceRenderMode == EJensenDipoleBSSRDF) {
         subsurfaceIdx = 1;
         m_dipoleWidget->show();
-    }else if (subsurfaceRenderMode == EJensenMultipoleBSSRDF)
+    } else if (subsurfaceRenderMode == EJensenMultipoleBSSRDF) {
         subsurfaceIdx = 2;
-    else if (subsurfaceRenderMode == EJakobADipoleBSSRDF)
+        m_multipoleWidget->show();
+    } else if (subsurfaceRenderMode == EJakobADipoleBSSRDF) {
         subsurfaceIdx = 3;
+        m_adipoleWidget->show();
+    }
 
     /* block signals to avoid endless loop */
     ui->surfaceComboBox->blockSignals(true);
     ui->subsurfaceComboBox->blockSignals(true);
     m_wiscombeSettings->depthSpinBox->blockSignals(true);
+    m_hkSettings->multipleScatteringCheckBox->blockSignals(true);
     m_dipoleSettings->subsurfaceSizeSpinBox->blockSignals(true);
     m_dipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(true);
+    m_dipoleSettings->singleScatteringCheckBox->blockSignals(true);
+    m_multipoleSettings->subsurfaceSizeSpinBox->blockSignals(true);
+    m_multipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(true);
+    m_multipoleSettings->extraDipolesSpinBox->blockSignals(true);
+    m_multipoleSettings->slabThicknessSpinBox->blockSignals(true);
+    m_multipoleSettings->singleScatteringCheckBox->blockSignals(true);
+    m_adipoleSettings->subsurfaceSizeSpinBox->blockSignals(true);
+    m_adipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(true);
+    m_adipoleSettings->sigmaTnSpinBox->blockSignals(true);
+    m_adipoleSettings->dLineEdit->blockSignals(true);
 
     /* set new data */
     if (surfaceIdx != -1)
@@ -1247,21 +1305,64 @@ void MainWindow::updateSnowRenderingComponents() {
     if (subsurfaceIdx != -1)
         ui->subsurfaceComboBox->setCurrentIndex(subsurfaceIdx);
 
-    Float wiscombeDepth  = context->snowRenderSettings.wiscombeDepth;
+    // Wiscombe
+    Float wiscombeDepth = context->snowRenderSettings.wiscombeDepth;
     m_wiscombeSettings->depthSpinBox->setValue(wiscombeDepth);
 
-    Float ssDensityFactor  = context->snowRenderSettings.ssDensityFactor;
-    Float ssSampleFactor  = context->snowRenderSettings.ssSampleFactor;
+    // Hanrahan-Krueger
+    bool hkUseMultipleScattering = context->snowRenderSettings.hkUseMultipleScattering;
+    m_hkSettings->multipleScatteringCheckBox->setChecked(hkUseMultipleScattering);
 
-    m_dipoleSettings->subsurfaceSizeSpinBox->setValue(ssDensityFactor);
-    m_dipoleSettings->subsurfaceSampleFactorSpinBox->setValue(ssSampleFactor);
+    // Jensen dipole
+    Float dipoleDensityFactor = context->snowRenderSettings.dipoleDensityFactor;
+    Float dipoleSampleFactor = context->snowRenderSettings.dipoleSampleFactor;
+    bool dipoleUseSingleScattering = context->snowRenderSettings.dipoleUseSingleScattering;
+
+    m_dipoleSettings->subsurfaceSizeSpinBox->setValue(dipoleDensityFactor);
+    m_dipoleSettings->subsurfaceSampleFactorSpinBox->setValue(dipoleSampleFactor);
+    m_dipoleSettings->singleScatteringCheckBox->setChecked(dipoleUseSingleScattering);
+
+    // Jensen multipole
+    Float multipoleDensityFactor = context->snowRenderSettings.multipoleDensityFactor;
+    Float multipoleSampleFactor = context->snowRenderSettings.multipoleSampleFactor;
+    int multipoleExtraDipoles = context->snowRenderSettings.multipoleExtraDipoles;
+    Float multipoleSlabThickness = context->snowRenderSettings.multipoleSlabThickness;
+    bool multipoleUseSingleScattering = context->snowRenderSettings.multipoleUseSingleScattering;
+
+    m_multipoleSettings->subsurfaceSizeSpinBox->setValue(multipoleDensityFactor);
+    m_multipoleSettings->subsurfaceSampleFactorSpinBox->setValue(multipoleSampleFactor);
+    m_multipoleSettings->extraDipolesSpinBox->setValue(multipoleExtraDipoles);
+    m_multipoleSettings->slabThicknessSpinBox->setValue(multipoleSlabThickness );
+    m_multipoleSettings->singleScatteringCheckBox->setChecked(multipoleUseSingleScattering );
+
+    // Jakob anisotropic multipole
+    Float adipoleDensityFactor = context->snowRenderSettings.adipoleDensityFactor;
+    Float adipoleSampleFactor = context->snowRenderSettings.adipoleSampleFactor;
+    Float adipoleSigmaTn = context->snowRenderSettings.adipoleSigmaTn;
+    QString adipoleD = QString::fromStdString(context->snowRenderSettings.adipoleD);
+
+    m_adipoleSettings->subsurfaceSizeSpinBox->setValue(adipoleDensityFactor);
+    m_adipoleSettings->subsurfaceSampleFactorSpinBox->setValue(adipoleSampleFactor);
+    m_adipoleSettings->sigmaTnSpinBox->setValue(adipoleSigmaTn);
+    m_adipoleSettings->dLineEdit->setText(adipoleD);
 
     /* unblock signals */
     ui->surfaceComboBox->blockSignals(false);
     ui->subsurfaceComboBox->blockSignals(false);
     m_wiscombeSettings->depthSpinBox->blockSignals(false);
+    m_hkSettings->multipleScatteringCheckBox->blockSignals(false);
     m_dipoleSettings->subsurfaceSizeSpinBox->blockSignals(false);
     m_dipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(false);
+    m_dipoleSettings->singleScatteringCheckBox->blockSignals(false);
+    m_multipoleSettings->subsurfaceSizeSpinBox->blockSignals(false);
+    m_multipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(false);
+    m_multipoleSettings->extraDipolesSpinBox->blockSignals(false);
+    m_multipoleSettings->slabThicknessSpinBox->blockSignals(false);
+    m_multipoleSettings->singleScatteringCheckBox->blockSignals(false);
+    m_adipoleSettings->subsurfaceSizeSpinBox->blockSignals(false);
+    m_adipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(false);
+    m_adipoleSettings->sigmaTnSpinBox->blockSignals(false);
+    m_adipoleSettings->dLineEdit->blockSignals(false);
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event) {

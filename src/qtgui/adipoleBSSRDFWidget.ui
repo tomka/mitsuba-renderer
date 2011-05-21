@@ -1,32 +1,32 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>DipoleBSSRDFSettings</class>
- <widget class="QGroupBox" name="DipoleBSSRDFSettings">
+ <class>AdipoleBSSRDFSettings</class>
+ <widget class="QGroupBox" name="AdipoleBSSRDFSettings">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
     <width>180</width>
-    <height>97</height>
+    <height>125</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
     <width>0</width>
-    <height>97</height>
+    <height>125</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
     <width>16777215</width>
-    <height>97</height>
+    <height>125</height>
    </size>
   </property>
   <property name="windowTitle">
    <string>GroupBox</string>
   </property>
   <property name="title">
-   <string>Dipole Diffusion</string>
+   <string>Anisotropic Dipole Diffusion</string>
   </property>
   <widget class="QWidget" name="formLayoutWidget_4">
    <property name="geometry">
@@ -34,7 +34,7 @@
      <x>10</x>
      <y>20</y>
      <width>161</width>
-     <height>51</height>
+     <height>101</height>
     </rect>
    </property>
    <layout class="QFormLayout" name="formLayout_7">
@@ -93,20 +93,40 @@
       </property>
      </widget>
     </item>
+    <item row="2" column="0">
+     <widget class="QLabel" name="label">
+      <property name="text">
+       <string>sigma Tn</string>
+      </property>
+     </widget>
+    </item>
+    <item row="2" column="1">
+     <widget class="QDoubleSpinBox" name="sigmaTnSpinBox">
+      <property name="decimals">
+       <number>2</number>
+      </property>
+      <property name="maximum">
+       <double>100.000000000000000</double>
+      </property>
+      <property name="singleStep">
+       <double>0.100000000000000</double>
+      </property>
+      <property name="value">
+       <double>1.000000000000000</double>
+      </property>
+     </widget>
+    </item>
+    <item row="3" column="0">
+     <widget class="QLabel" name="label_2">
+      <property name="text">
+       <string>D</string>
+      </property>
+     </widget>
+    </item>
+    <item row="3" column="1">
+     <widget class="QLineEdit" name="dLineEdit"/>
+    </item>
    </layout>
-  </widget>
-  <widget class="QCheckBox" name="singleScatteringCheckBox">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>70</y>
-     <width>161</width>
-     <height>19</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Single scattering</string>
-   </property>
   </widget>
  </widget>
  <resources/>

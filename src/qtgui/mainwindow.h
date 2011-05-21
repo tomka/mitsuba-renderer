@@ -36,7 +36,10 @@ class GLWidget;
 class PreviewSettingsDlg;
 
 class Ui_WiscombeBRDFSettings;
+class Ui_HanrahanKruegerBRDFSettings;
 class Ui_DipoleBSSRDFSettings;
+class Ui_MultipoleBSSRDFSettings;
+class Ui_AdipoleBSSRDFSettings;
 
 /**
  * Captures progress notifications from mitsuba and helps to transfer
@@ -231,10 +234,21 @@ private:
 #endif
 	QWidget *m_currentChild;
     SnowMaterialManager snowMaterialManager;
+
     QGroupBox *m_wiscombeWidget;
     Ui_WiscombeBRDFSettings *m_wiscombeSettings;
+
+    QGroupBox *m_hkWidget;
+    Ui_HanrahanKruegerBRDFSettings *m_hkSettings;
+
     QGroupBox *m_dipoleWidget;
     Ui_DipoleBSSRDFSettings *m_dipoleSettings;
+
+    QGroupBox *m_multipoleWidget;
+    Ui_MultipoleBSSRDFSettings *m_multipoleSettings;
+
+    QGroupBox *m_adipoleWidget;
+    Ui_AdipoleBSSRDFSettings *m_adipoleSettings;
 };
 
 #endif // MAINWINDOW_H

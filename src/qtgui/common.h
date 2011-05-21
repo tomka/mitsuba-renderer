@@ -66,16 +66,42 @@ struct SnowRenderSettings {
     ESubSurfaceRenderMode subsurfaceRenderMode;
     ESurfaceRenderMode surfaceRenderMode;
 
+    /* Wiscombe BRDF settings */
     Float wiscombeDepth;
 
-    Float ssDensityFactor;
-    Float ssSampleFactor;
+    /* Hanrahan-Krueger BRDF settings */
+    bool hkUseMultipleScattering;
+
+    /* Jensen dipole BSSRDF settings */
+    Float dipoleDensityFactor;
+    Float dipoleSampleFactor;
+    bool dipoleUseSingleScattering;
+
+    /* Jensen multipole settings */
+    Float multipoleDensityFactor;
+    Float multipoleSampleFactor;
+    int multipoleExtraDipoles;
+    Float multipoleSlabThickness;
+    bool multipoleUseSingleScattering;
+
+    /* Jakob anisotropic dipole settings */
+    Float adipoleDensityFactor;
+    Float adipoleSampleFactor;
+    Float adipoleSigmaTn;
+    std::string adipoleD;
 
     SnowRenderSettings() :
-        wiscombeDepth(2.0f),  ssDensityFactor(1.0f), ssSampleFactor(1.0f) { };
+        wiscombeDepth(2.0f),
+        dipoleDensityFactor(1.0f), dipoleSampleFactor(1.0f), dipoleUseSingleScattering(false),
+        multipoleDensityFactor(1.0f), multipoleSampleFactor(1.0f), multipoleExtraDipoles(2),
+        multipoleSlabThickness(0.2f), adipoleDensityFactor(1.0f), adipoleSampleFactor(1.0f),
+        adipoleSigmaTn(1.0f),
+        // default to sin^20 flake distribution
+        adipoleD("1.6307, -0.00049, 0.00069, -0.00049, 1.63148, 0.00001, 0.00067, 0.00002, 2.12596")
+    { }
 };
 
-namespace mitsuba {
+namespace mitsuba  {
 	class RemoteWorker;
 };
 
