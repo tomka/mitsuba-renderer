@@ -35,6 +35,9 @@ class ServerWidget;
 class GLWidget;
 class PreviewSettingsDlg;
 
+class Ui_WiscombeBRDFSettings;
+class Ui_DipoleBSSRDFSettings;
+
 /**
  * Captures progress notifications from mitsuba and helps to transfer
  * them to the Qt event loop.
@@ -228,6 +231,10 @@ private:
 #endif
 	QWidget *m_currentChild;
     SnowMaterialManager snowMaterialManager;
+    QGroupBox *m_wiscombeWidget;
+    Ui_WiscombeBRDFSettings *m_wiscombeSettings;
+    QGroupBox *m_dipoleWidget;
+    Ui_DipoleBSSRDFSettings *m_dipoleSettings;
 };
 
 #endif // MAINWINDOW_H

@@ -22,6 +22,8 @@
 #include "previewsettingsdlg.h"
 #include "programsettingsdlg.h"
 #include "sceneinfodlg.h"
+#include "ui_wiscombeBRDFWidget.h"
+#include "ui_dipoleBSSRDFWidget.h"
 #include "sceneloader.h"
 #include "logwidget.h"
 #include "aboutdlg.h"
@@ -57,7 +59,9 @@ static int localWorkerCtr = 0, remoteWorkerCtr = 0;
 
 MainWindow::MainWindow(QWidget *parent) :
 	QMainWindow(parent), ui(new Ui::MainWindow), 
-	m_networkReply(NULL), m_activeWindowHack(false) {
+	m_networkReply(NULL), m_activeWindowHack(false),
+    m_wiscombeWidget(new QGroupBox()), m_wiscombeSettings(new Ui_WiscombeBRDFSettings()),
+    m_dipoleWidget(new QGroupBox()), m_dipoleSettings(new Ui_DipoleBSSRDFSettings()) {
 	Logger *logger = Thread::getThread()->getLogger();
 
 #if defined(__OSX__)
@@ -193,10 +197,18 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->wl700SpinBox, SIGNAL(valueChanged(double)), this, SLOT(on700nmCoeffChanged(double)));
 
     /* snow render mode */
+    m_wiscombeSettings->setupUi(m_wiscombeWidget);
+    m_dipoleSettings->setupUi(m_dipoleWidget);
+
+    ui->materialSettingsLayout->setAlignment(Qt::AlignTop);
+    ui->materialSettingsLayout->addWidget(m_wiscombeWidget);
+    ui->materialSettingsLayout->addWidget(m_dipoleWidget);
+
     connect(ui->surfaceComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(ui->subsurfaceComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange()));
-    connect(ui->subsurfaceSizeSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
-    connect(ui->subsurfaceSampleFactorSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_wiscombeSettings->depthSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_dipoleSettings->subsurfaceSizeSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_dipoleSettings->subsurfaceSampleFactorSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
 
 #if defined(__OSX__)
 	ui->toolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
@@ -686,9 +698,9 @@ void MainWindow::onSnowRenderModelChange() {
 
     // save proberties;
     ESurfaceRenderMode surfaceRenderMode;
-    if (surfaceIdx == 1)
+    if (surfaceIdx == 1) {
         surfaceRenderMode = EWiscombeWarrenAlbedo;
-    else if (surfaceIdx == 2)
+    } else if (surfaceIdx == 2)
         surfaceRenderMode = EWiscombeWarrenBRDF;
     else if (surfaceIdx == 3)
         surfaceRenderMode = EHanrahanKruegerBRDF;
@@ -709,8 +721,9 @@ void MainWindow::onSnowRenderModelChange() {
 
     context->snowRenderSettings.subsurfaceRenderMode = subsurfaceRenderMode;
 
-    context->snowRenderSettings.ssDensityFactor = ui->subsurfaceSizeSpinBox->value();
-    context->snowRenderSettings.ssSampleFactor = ui->subsurfaceSampleFactorSpinBox->value();
+    context->snowRenderSettings.wiscombeDepth = m_wiscombeSettings->depthSpinBox->value();
+    context->snowRenderSettings.ssDensityFactor = m_dipoleSettings->subsurfaceSizeSpinBox->value();
+    context->snowRenderSettings.ssSampleFactor = m_dipoleSettings->subsurfaceSampleFactorSpinBox->value();
 
 	on_tabBar_currentChanged(-1);
     updateSnowOnAllShapes(context, true);
@@ -740,7 +753,6 @@ void MainWindow::on_actionShowKDTree_triggered() {
 		ui->glView->resetPreview();
 }
 
-<<<<<<< HEAD
 void MainWindow::on_actionSceneDescription_triggered() {
 	int currentIndex = ui->tabBar->currentIndex();
 	if (currentIndex == -1)
@@ -1184,11 +1196,11 @@ void MainWindow::updateSnowRenderingComponents() {
     ui->surfaceComboBox->setEnabled(hasScene);
     ui->subsurfaceLabel->setEnabled(hasScene);
     ui->subsurfaceComboBox->setEnabled(hasScene);
-    ui->subsurfaceSizeSpinBox->setEnabled(hasScene);
-    ui->subsurfaceSizeLabel->setEnabled(hasScene);
-    ui->subsurfaceSampleFactorSpinBox->setEnabled(hasScene);
-    ui->subsurfaceSampleFactorLabel->setEnabled(hasScene);
 
+    /* Hide all material widgets */
+    m_wiscombeWidget->hide();
+    m_dipoleWidget->hide();
+    
     if (!hasScene)
         return;
 
@@ -1200,30 +1212,34 @@ void MainWindow::updateSnowRenderingComponents() {
 
     int surfaceIdx = -1;
     int subsurfaceIdx = -1;
+
     // save proberties;
     if (surfaceRenderMode == ENoSurface)
         surfaceIdx = 0;
-    else if (surfaceRenderMode == EWiscombeWarrenAlbedo)
+    else if (surfaceRenderMode == EWiscombeWarrenAlbedo) {
         surfaceIdx = 1;
-    else if (surfaceRenderMode == EWiscombeWarrenBRDF)
+        m_wiscombeWidget->show();
+    } else if (surfaceRenderMode == EWiscombeWarrenBRDF)
         surfaceIdx = 2;
     else if (surfaceRenderMode == EHanrahanKruegerBRDF)
         surfaceIdx = 3;
 
     if (subsurfaceRenderMode == ENoSubSurface)
         subsurfaceIdx = 0;
-    else if (subsurfaceRenderMode == EJensenDipoleBSSRDF)
+    else if (subsurfaceRenderMode == EJensenDipoleBSSRDF) {
         subsurfaceIdx = 1;
-    if (subsurfaceRenderMode == EJensenMultipoleBSSRDF)
+        m_dipoleWidget->show();
+    }else if (subsurfaceRenderMode == EJensenMultipoleBSSRDF)
         subsurfaceIdx = 2;
-    if (subsurfaceRenderMode == EJakobADipoleBSSRDF)
+    else if (subsurfaceRenderMode == EJakobADipoleBSSRDF)
         subsurfaceIdx = 3;
 
     /* block signals to avoid endless loop */
     ui->surfaceComboBox->blockSignals(true);
     ui->subsurfaceComboBox->blockSignals(true);
-    ui->subsurfaceSizeSpinBox->blockSignals(true);
-    ui->subsurfaceSampleFactorSpinBox->blockSignals(true);
+    m_wiscombeSettings->depthSpinBox->blockSignals(true);
+    m_dipoleSettings->subsurfaceSizeSpinBox->blockSignals(true);
+    m_dipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(true);
 
     /* set new data */
     if (surfaceIdx != -1)
@@ -1231,15 +1247,21 @@ void MainWindow::updateSnowRenderingComponents() {
     if (subsurfaceIdx != -1)
         ui->subsurfaceComboBox->setCurrentIndex(subsurfaceIdx);
 
+    Float wiscombeDepth  = context->snowRenderSettings.wiscombeDepth;
+    m_wiscombeSettings->depthSpinBox->setValue(wiscombeDepth);
+
     Float ssDensityFactor  = context->snowRenderSettings.ssDensityFactor;
     Float ssSampleFactor  = context->snowRenderSettings.ssSampleFactor;
-    ui->subsurfaceSizeSpinBox->setValue(ssDensityFactor);
-    ui->subsurfaceSampleFactorSpinBox->setValue(ssSampleFactor);
+
+    m_dipoleSettings->subsurfaceSizeSpinBox->setValue(ssDensityFactor);
+    m_dipoleSettings->subsurfaceSampleFactorSpinBox->setValue(ssSampleFactor);
+
     /* unblock signals */
     ui->surfaceComboBox->blockSignals(false);
     ui->subsurfaceComboBox->blockSignals(false);
-    ui->subsurfaceSizeSpinBox->blockSignals(false);
-    ui->subsurfaceSampleFactorSpinBox->blockSignals(false);
+    m_wiscombeSettings->depthSpinBox->blockSignals(false);
+    m_dipoleSettings->subsurfaceSizeSpinBox->blockSignals(false);
+    m_dipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(false);
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event) {

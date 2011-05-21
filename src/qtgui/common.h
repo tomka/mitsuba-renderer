@@ -65,11 +65,14 @@ Q_DECLARE_METATYPE( Shape * );
 struct SnowRenderSettings {
     ESubSurfaceRenderMode subsurfaceRenderMode;
     ESurfaceRenderMode surfaceRenderMode;
+
+    Float wiscombeDepth;
+
     Float ssDensityFactor;
     Float ssSampleFactor;
 
-    SnowRenderSettings() : ssDensityFactor(1.0f),
-        ssSampleFactor(1.0f) { };
+    SnowRenderSettings() :
+        wiscombeDepth(2.0f),  ssDensityFactor(1.0f), ssSampleFactor(1.0f) { };
 };
 
 namespace mitsuba {
