@@ -67,7 +67,7 @@ public:
         /* Mutliplicative factors for different contributions */
         m_singleScatteringFactor = props.getSpectrum("ssFactor", Spectrum(1.0f));
         m_diffuseReflectanceFactor = props.getSpectrum("drFactor", Spectrum(1.0f));
-
+        m_useDiffuseReflectance = props.getBoolean("diffuseReflectance", true);
 		m_componentCount = 1;
 		m_type = new unsigned int[m_componentCount];
 		m_combinedType = m_type[0] = EDiffuseReflection;
@@ -87,14 +87,8 @@ public:
 	}
 
     void configure() {
-        /* we need the scene for intersection tests */
-        //m_scene = static_cast<Scene *>(getResource("scene"));
         /* Calculate extinction coefficient */
         m_sigmaT = m_sigmaA + m_sigmaS;
-        /* get the longest mean free path */
-        m_invSigmaTMin = 1.0f / m_sigmaT.min();
-        m_invSigmaT = m_sigmaT.pow(-1.0f);
-        m_negSigmaT = m_sigmaT * (-1.0f);
 
         /* Calculate albedo */
         m_singleScatteringAlbedo = m_sigmaS / m_sigmaT;
@@ -190,89 +184,11 @@ public:
 
         /* Return single scattering + diffuse reflectance */
         Spectrum f1 = m_singleScatteringAlbedo * F * p / (std::abs(cos_wi) + std::abs(cos_wo));
-        return m_singleScatteringFactor * f1 + m_diffuseReflectance * F * INV_PI;
-    }
+        Spectrum Lo = m_singleScatteringFactor * f1;
 
-    /**
-     * Computes the single-scattering radiance with the help of a BSSRDF.
-     * ToDo: Actual Monte Carlo sampling.
-     */
-    Spectrum radianceBSSRDF(const BSDFQueryRecord &bRec) const {
-        /* cosines of input and output directions */
-        const Float cos_wi = Frame::cosTheta(bRec.wi);
-        const Float cos_wo = Frame::cosTheta(bRec.wo);
-        const Float cos_wo_abs = std::abs(cos_wo);
+        if (m_useDiffuseReflectance)
+            Lo += m_diffuseReflectance * F * INV_PI;
 
-        Float eta = m_etaInt / m_etaExt;
-        Float oneovereta = 1.0 / eta;
-        Float oneoveretaSq = oneovereta * oneovereta;;
-
-        /* Using Snell's law, calculate the squared sine of the
-         * angle between the normal and the transmitted ray */
-        Float sinTheta2Sqr = oneoveretaSq * Frame::sinTheta2(bRec.wi);
-
-        if (sinTheta2Sqr > 1.0f) /* Total internal reflection! */
-            return Spectrum(1.0f);
-
-        /* Compute the cosine, but guard against numerical imprecision */
-        Float cosTheta2 = std::sqrt(std::max((Float) 0.0f, 1.0f - sinTheta2Sqr));
-        /* With cos(N, transmittedRay) on tap, calculating the 
-         * transmission direction is straightforward. */
-        Vector localTo = Vector(-oneovereta*bRec.wi.x, -oneovereta*bRec.wi.y, -cosTheta2);
-        Vector to = normalize( bRec.its.toWorld( localTo ));
-
-        /* importance sampling norminator */
-        Random* random = m_random.get();
-        if (random == NULL) {
-            random = new Random();
-            m_random.set(random);
-        }
-        Float sample = random->nextFloat();
-        if (sample < 0.001)
-            sample = 0.001;
-        const Float ran = - std::log( sample );
-        /* so' with max. maen frea path */
-        const Float soPrimeMin =  m_invSigmaTMin * ran;
-
-        /* Get sample point on refracted ray in world coordinates */
-        const Point &xi = bRec.its.p;
-        const Point3 xsamp = xi + to * soPrimeMin;
-
-        /* Calculate siPrime and soPrime */
-
-        /* Indireclty find intersection of light with surface xo by using the
-         * triangle xi, xo, xamp with angles ai, ao, asamp. By using the
-         * height/z-difference between xi and xsamp, we can calculate
-         * si = h/(sin ao). si is the distance from sample point in surface
-         * to light entering point. If gamma is the angle between normal an wo,
-         * then ao = 90 degree - gamma. The sine of ao eqals the sine of
-         * (90 - gamma), which again is (sin 90 * cos gamma - cos 90 * sin gamma)
-         * This can be reduced to cos gamma.
-         */
-        const Float si = std::abs(xi.z - xsamp.z) / cos_wo;
-
-        /* so' over whole spectrum */
-        const Float term = 1.0f - (cos_wo_abs * cos_wo_abs);
-        const Float siPrime = si * cos_wo_abs / sqrt(1.0f - oneoveretaSq * term);
-
-        /* Calculate combined transmission coefficient */
-        const Float G = std::abs(cosTheta2) / cos_wo_abs;
-        const Spectrum sigmaTc = m_sigmaT + m_sigmaT * G;
-
-        /* Calculate Fresnel trensmission T = 1- R */
-        const Float Ft1 = 1.0f - fresnel(cos_wo, 1.0f, eta);
-        const Float Ft2 = 1.0f - fresnel(cos_wi, 1.0f, eta);
-        const Float F = Ft1 * Ft2;
-
-        /* Query phase function */
-        const Float p = hgPhaseFunction(bRec.wi, bRec.wo, m_g);
-
-        const Spectrum siTerm = (m_negSigmaT * siPrime).exp();
-        /* Actually the soTerm would be e^(-sPrime_o * sigmaT), but
-         * this could be reduced to e^(ran) since sPrime_o = -ran/sigmaT. */
-        const Spectrum soTerm = Spectrum( exp(ran) );
-
-        Spectrum Lo = (m_sigmaS * F * p / sigmaTc) * siTerm * soTerm;
         return Lo;
     }
 
@@ -331,18 +247,15 @@ private:
     Spectrum m_sigmaS;
     Spectrum m_sigmaA;
     Spectrum m_sigmaT;
-    Spectrum m_invSigmaT;
-    Spectrum m_negSigmaT;
     Spectrum m_singleScatteringAlbedo;
     Spectrum m_singleScatteringFactor;
     Spectrum m_diffuseReflectanceFactor;
     Spectrum m_diffuseReflectance;
-    Float m_invSigmaTMin; 
     Float m_sizeMultiplier;
     Float m_g;
     Float m_etaInt, m_etaExt;
     Float m_albedo;
-    mutable ThreadLocal<Random> m_random;
+    bool m_useDiffuseReflectance;
     ref<Scene> m_scene;
 };
 
