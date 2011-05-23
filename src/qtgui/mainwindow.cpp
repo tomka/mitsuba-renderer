@@ -219,6 +219,8 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->surfaceComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(ui->subsurfaceComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_wiscombeSettings->depthSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_hkSettings->singleScatteringSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_hkSettings->multipleScatteringSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_hkSettings->multipleScatteringCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_dipoleSettings->subsurfaceSizeSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_dipoleSettings->subsurfaceSampleFactorSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
@@ -746,6 +748,8 @@ void MainWindow::onSnowRenderModelChange() {
 
     context->snowRenderSettings.wiscombeDepth = m_wiscombeSettings->depthSpinBox->value();
 
+    context->snowRenderSettings.hkSingleScatteringFactor = m_hkSettings->singleScatteringSpinBox->value();
+    context->snowRenderSettings.hkMultipleScatteringFactor = m_hkSettings->multipleScatteringSpinBox->value();
     context->snowRenderSettings.hkUseMultipleScattering = m_hkSettings->multipleScatteringCheckBox->isChecked();
 
     context->snowRenderSettings.dipoleDensityFactor = m_dipoleSettings->subsurfaceSizeSpinBox->value();
@@ -1285,6 +1289,8 @@ void MainWindow::updateSnowRenderingComponents() {
     ui->surfaceComboBox->blockSignals(true);
     ui->subsurfaceComboBox->blockSignals(true);
     m_wiscombeSettings->depthSpinBox->blockSignals(true);
+    m_hkSettings->singleScatteringSpinBox->blockSignals(true);
+    m_hkSettings->multipleScatteringSpinBox->blockSignals(true);
     m_hkSettings->multipleScatteringCheckBox->blockSignals(true);
     m_dipoleSettings->subsurfaceSizeSpinBox->blockSignals(true);
     m_dipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(true);
@@ -1310,7 +1316,12 @@ void MainWindow::updateSnowRenderingComponents() {
     m_wiscombeSettings->depthSpinBox->setValue(wiscombeDepth);
 
     // Hanrahan-Krueger
+    Float hkSingleScatteringFactor = context->snowRenderSettings.hkSingleScatteringFactor;
+    Float hkMultipleScatteringFactor = context->snowRenderSettings.hkMultipleScatteringFactor;
     bool hkUseMultipleScattering = context->snowRenderSettings.hkUseMultipleScattering;
+
+    m_hkSettings->singleScatteringSpinBox->setValue(hkSingleScatteringFactor);
+    m_hkSettings->multipleScatteringSpinBox->setValue(hkMultipleScatteringFactor);
     m_hkSettings->multipleScatteringCheckBox->setChecked(hkUseMultipleScattering);
 
     // Jensen dipole
@@ -1350,6 +1361,8 @@ void MainWindow::updateSnowRenderingComponents() {
     ui->surfaceComboBox->blockSignals(false);
     ui->subsurfaceComboBox->blockSignals(false);
     m_wiscombeSettings->depthSpinBox->blockSignals(false);
+    m_hkSettings->singleScatteringSpinBox->blockSignals(false);
+    m_hkSettings->multipleScatteringSpinBox->blockSignals(false);
     m_hkSettings->multipleScatteringCheckBox->blockSignals(false);
     m_dipoleSettings->subsurfaceSizeSpinBox->blockSignals(false);
     m_dipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(false);

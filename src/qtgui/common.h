@@ -70,6 +70,8 @@ struct SnowRenderSettings {
     Float wiscombeDepth;
 
     /* Hanrahan-Krueger BRDF settings */
+    Float hkSingleScatteringFactor;
+    Float hkMultipleScatteringFactor;
     bool hkUseMultipleScattering;
 
     /* Jensen dipole BSSRDF settings */
@@ -91,7 +93,7 @@ struct SnowRenderSettings {
     std::string adipoleD;
 
     SnowRenderSettings() :
-        wiscombeDepth(2.0f),
+        wiscombeDepth(2.0f), hkSingleScatteringFactor(1.0f), hkMultipleScatteringFactor(1.0f),
         dipoleDensityFactor(1.0f), dipoleSampleFactor(1.0f), dipoleUseSingleScattering(false),
         multipoleDensityFactor(1.0f), multipoleSampleFactor(1.0f), multipoleExtraDipoles(2),
         multipoleSlabThickness(0.2f), adipoleDensityFactor(1.0f), adipoleSampleFactor(1.0f),
