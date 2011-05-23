@@ -145,6 +145,8 @@ public:
 		m_maxDepth = props.getInteger("maxDepth", 40);
 		/* Asymmetry parameter of the phase function */
 		m_g = props.getFloat("g", 0);
+        /* alternative diffusion coefficient */
+        m_useMartelliD = props.getBoolean("useMartelliDC", true);
 		m_ready = false;
 		m_octreeResID = -1;
 	}
@@ -254,12 +256,23 @@ public:
 		/* Effective transport extinction coefficient */
 		m_sigmaTr = (m_sigmaA * m_sigmaTPrime * 3.0f).sqrt();
 
-		/* Diffusion coefficient */
-		m_D = Spectrum(1.0f) / (m_sigmaTPrime * 3.0f);
+		/* Diffusion coefficient
+         * According to Martelli et al.'s paper "Accuracy of the Diffusion
+         * Equation to Describe Photon Migration through an Infininite
+         * Medium" from 2000, the diffusion coefficient should be calculated
+         * slightly different. In practice this seems only required when
+         * sigmaA / sigmaSPrime > 0.01.
+         */
+        if (m_useMartelliD)
+		    m_D = Spectrum(1.0f) / (m_sigmaSPrime * 3.0f + m_sigmaA);
+        else
+		    m_D = Spectrum(1.0f) / (m_sigmaTPrime * 3.0f);
 
 		/* Distance of the dipole point sources to the surface */
 		m_zr = m_mfp; 
 		m_zv = m_mfp * (1.0f + 4.0f/3.0f * m_A);
+
+        
 	}
 
 	/// Unpolarized fresnel reflection term for dielectric materials
@@ -350,6 +363,7 @@ private:
 	Float m_Fdr, m_Fdt, m_A, m_minDelta, m_g;
 	Spectrum m_mfp, m_sigmaTr, m_zr, m_zv, m_alphaPrime;
 	Spectrum m_sigmaSPrime, m_sigmaTPrime, m_D, m_ssFactor;
+    bool m_useMartelliD;
 	ref<IrradianceOctree> m_octree;
 	ref<ParallelProcess> m_proc;
 	int m_octreeResID, m_octreeIndex;

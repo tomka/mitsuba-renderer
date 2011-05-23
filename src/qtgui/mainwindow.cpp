@@ -225,11 +225,13 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_dipoleSettings->subsurfaceSizeSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_dipoleSettings->subsurfaceSampleFactorSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_dipoleSettings->singleScatteringCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_dipoleSettings->martelliDCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_multipoleSettings->subsurfaceSizeSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_multipoleSettings->subsurfaceSampleFactorSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_multipoleSettings->extraDipolesSpinBox, SIGNAL(valueChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_multipoleSettings->slabThicknessSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_multipoleSettings->singleScatteringCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_multipoleSettings->martelliDCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_adipoleSettings->subsurfaceSizeSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_adipoleSettings->subsurfaceSampleFactorSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_adipoleSettings->sigmaTnSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
@@ -755,12 +757,14 @@ void MainWindow::onSnowRenderModelChange() {
     context->snowRenderSettings.dipoleDensityFactor = m_dipoleSettings->subsurfaceSizeSpinBox->value();
     context->snowRenderSettings.dipoleSampleFactor = m_dipoleSettings->subsurfaceSampleFactorSpinBox->value();
     context->snowRenderSettings.dipoleUseSingleScattering = m_dipoleSettings->singleScatteringCheckBox->isChecked();
+    context->snowRenderSettings.dipoleMartelliDC = m_dipoleSettings->martelliDCheckBox->isChecked();
 
     context->snowRenderSettings.multipoleDensityFactor = m_multipoleSettings->subsurfaceSizeSpinBox->value();
     context->snowRenderSettings.multipoleSampleFactor = m_multipoleSettings->subsurfaceSampleFactorSpinBox->value();
     context->snowRenderSettings.multipoleExtraDipoles = m_multipoleSettings->extraDipolesSpinBox->value();
     context->snowRenderSettings.multipoleSlabThickness = m_multipoleSettings->slabThicknessSpinBox->value();
     context->snowRenderSettings.multipoleUseSingleScattering = m_multipoleSettings->singleScatteringCheckBox->isChecked();
+    context->snowRenderSettings.multipoleMartelliDC = m_multipoleSettings->martelliDCheckBox->isChecked();
 
     context->snowRenderSettings.adipoleDensityFactor = m_adipoleSettings->subsurfaceSizeSpinBox->value();
     context->snowRenderSettings.adipoleSampleFactor = m_adipoleSettings->subsurfaceSampleFactorSpinBox->value();
@@ -1295,11 +1299,13 @@ void MainWindow::updateSnowRenderingComponents() {
     m_dipoleSettings->subsurfaceSizeSpinBox->blockSignals(true);
     m_dipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(true);
     m_dipoleSettings->singleScatteringCheckBox->blockSignals(true);
+    m_dipoleSettings->martelliDCheckBox->blockSignals(true);
     m_multipoleSettings->subsurfaceSizeSpinBox->blockSignals(true);
     m_multipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(true);
     m_multipoleSettings->extraDipolesSpinBox->blockSignals(true);
     m_multipoleSettings->slabThicknessSpinBox->blockSignals(true);
     m_multipoleSettings->singleScatteringCheckBox->blockSignals(true);
+    m_multipoleSettings->martelliDCheckBox->blockSignals(true);
     m_adipoleSettings->subsurfaceSizeSpinBox->blockSignals(true);
     m_adipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(true);
     m_adipoleSettings->sigmaTnSpinBox->blockSignals(true);
@@ -1328,10 +1334,12 @@ void MainWindow::updateSnowRenderingComponents() {
     Float dipoleDensityFactor = context->snowRenderSettings.dipoleDensityFactor;
     Float dipoleSampleFactor = context->snowRenderSettings.dipoleSampleFactor;
     bool dipoleUseSingleScattering = context->snowRenderSettings.dipoleUseSingleScattering;
+    bool dipoleUseMartelliDC = context->snowRenderSettings.dipoleMartelliDC;
 
     m_dipoleSettings->subsurfaceSizeSpinBox->setValue(dipoleDensityFactor);
     m_dipoleSettings->subsurfaceSampleFactorSpinBox->setValue(dipoleSampleFactor);
     m_dipoleSettings->singleScatteringCheckBox->setChecked(dipoleUseSingleScattering);
+    m_dipoleSettings->martelliDCheckBox->setChecked(dipoleUseMartelliDC);
 
     // Jensen multipole
     Float multipoleDensityFactor = context->snowRenderSettings.multipoleDensityFactor;
@@ -1339,12 +1347,14 @@ void MainWindow::updateSnowRenderingComponents() {
     int multipoleExtraDipoles = context->snowRenderSettings.multipoleExtraDipoles;
     Float multipoleSlabThickness = context->snowRenderSettings.multipoleSlabThickness;
     bool multipoleUseSingleScattering = context->snowRenderSettings.multipoleUseSingleScattering;
+    bool multipoleUseMartelliDC = context->snowRenderSettings.multipoleMartelliDC;
 
     m_multipoleSettings->subsurfaceSizeSpinBox->setValue(multipoleDensityFactor);
     m_multipoleSettings->subsurfaceSampleFactorSpinBox->setValue(multipoleSampleFactor);
     m_multipoleSettings->extraDipolesSpinBox->setValue(multipoleExtraDipoles);
     m_multipoleSettings->slabThicknessSpinBox->setValue(multipoleSlabThickness );
     m_multipoleSettings->singleScatteringCheckBox->setChecked(multipoleUseSingleScattering );
+    m_multipoleSettings->martelliDCheckBox->setChecked(multipoleUseMartelliDC);
 
     // Jakob anisotropic multipole
     Float adipoleDensityFactor = context->snowRenderSettings.adipoleDensityFactor;
@@ -1367,11 +1377,13 @@ void MainWindow::updateSnowRenderingComponents() {
     m_dipoleSettings->subsurfaceSizeSpinBox->blockSignals(false);
     m_dipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(false);
     m_dipoleSettings->singleScatteringCheckBox->blockSignals(false);
+    m_dipoleSettings->martelliDCheckBox->blockSignals(false);
     m_multipoleSettings->subsurfaceSizeSpinBox->blockSignals(false);
     m_multipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(false);
     m_multipoleSettings->extraDipolesSpinBox->blockSignals(false);
     m_multipoleSettings->slabThicknessSpinBox->blockSignals(false);
     m_multipoleSettings->singleScatteringCheckBox->blockSignals(false);
+    m_multipoleSettings->martelliDCheckBox->blockSignals(false);
     m_adipoleSettings->subsurfaceSizeSpinBox->blockSignals(false);
     m_adipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(false);
     m_adipoleSettings->sigmaTnSpinBox->blockSignals(false);

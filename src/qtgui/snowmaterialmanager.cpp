@@ -76,6 +76,7 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
             properties.setSpectrum("ssFactor", Spectrum(srs.dipoleDensityFactor));
             properties.setFloat("sampleMultiplier", srs.dipoleSampleFactor);
             properties.setBoolean("addSingleScattering", srs.dipoleUseSingleScattering);
+            properties.setBoolean("useMartelliD", srs.dipoleMartelliDC);
             subsurface = static_cast<Subsurface *> (pluginManager->createObject(
                 Subsurface::m_theClass, properties));
         } else if (subsurfaceMode == EJensenMultipoleBSSRDF) {
@@ -85,6 +86,7 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
             properties.setBoolean("addSingleScattering", srs.dipoleUseSingleScattering);
             properties.setFloat("slabThickness", srs.multipoleSlabThickness);
             properties.setInteger("extraDipoles", srs.multipoleExtraDipoles);
+            properties.setBoolean("useMartelliD", srs.multipoleMartelliDC);
             subsurface = static_cast<Subsurface *> (pluginManager->createObject(
                 Subsurface::m_theClass, properties));
         } else if (subsurfaceMode == EJakobADipoleBSSRDF) {

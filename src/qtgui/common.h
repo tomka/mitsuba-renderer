@@ -78,6 +78,7 @@ struct SnowRenderSettings {
     Float dipoleDensityFactor;
     Float dipoleSampleFactor;
     bool dipoleUseSingleScattering;
+    bool dipoleMartelliDC;
 
     /* Jensen multipole settings */
     Float multipoleDensityFactor;
@@ -85,6 +86,7 @@ struct SnowRenderSettings {
     int multipoleExtraDipoles;
     Float multipoleSlabThickness;
     bool multipoleUseSingleScattering;
+    bool multipoleMartelliDC;
 
     /* Jakob anisotropic dipole settings */
     Float adipoleDensityFactor;
