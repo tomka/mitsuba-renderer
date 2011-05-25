@@ -1,0 +1,7 @@
+*.so
+*.os
+*.o
+*.swp
+src/qtgui/ui_*.h
+src/qtgui/moc_*.cc
+.sconf_temp/*
