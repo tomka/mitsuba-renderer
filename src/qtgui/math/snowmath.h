@@ -51,12 +51,12 @@ Spectrum getAlbedo(const Spectrum &sigmaAIce, Float d);
  * coefficient of ice and tha grain radis d. Make sure both are basde on the
  * same unit. From: Bohren1983
  */
-inline Spectrum getSingleScatteringAlbedo(const Spectrum &sigmaA_ice, Float d);
+Spectrum getSingleScatteringAlbedo(const Spectrum &sigmaA_ice, Float d);
 
 /**
  * Get number density of snow.
  */
-inline Float getNumberDensity(Float d, Float rho, Float rhoIce);
+Float getNumberDensity(Float d, Float rho, Float rhoIce);
 
 /**
  * Calculates the absorption coefficient of snow. Make sure that
@@ -66,11 +66,10 @@ inline Float getNumberDensity(Float d, Float rho, Float rhoIce);
 Spectrum getSigmaA(const Spectrum &absIce, Float rho, Float rhoIce);
 
 /**
- * Calculates the extinction coefficient of snow. Make sure that
- * the density 'rho' and the grain size 'd' have the same unit base
- * as well as the density of ice 'rhoIce'.
+ * Calculates the extinction coefficient of a large particle. This is
+ * basically  2 * pi * d^2 / 4 where d is the diameter.
  */
-Spectrum getSigmaT(Float d, Float rho, Float rhoIce);
+Spectrum getLargeParticleExtCoeff(Float d, Float rho, Float rhoIce);
 
 /**
  * Calculates the asymtopic extinction coefficient of snow. Make
@@ -87,14 +86,21 @@ Spectrum getAsymptoticExtCoeff(const Spectrum &absCoeffIce, Float d, Float rho, 
  * scattering albedo. Examples (w - v0): 0.99 - 5.80, 0.95 - 2.63,
  * 0.90 - 1.90, 0.80 - 1.41
  */
-inline Spectrum getBarkstromExtCoeff(const Spectrum &absCoeffIce, Float d, Float rho, Float rhoIce, Float v0 = 5.80);
+Spectrum getBarkstromExtCoeff(const Spectrum &absCoeffIce, Float d, Float rho, Float rhoIce, const Spectrum &v0);
 
-inline Spectrum getBarkstromAbsCoeff(const Spectrum &singleScatAlbedo, Spectrum &extCoeff);
+Spectrum getBarkstromAbsCoeff(const Spectrum &singleScatAlbedo, Spectrum &extCoeff);
+
+/**
+ * Get the eigenvector v0 of the radiative transfer equation.
+ */
+Spectrum geRteEigenvector(const Spectrum &singleScatAlbedo, Float g);
+
+Spectrum getSnowPackExtCoeff(Float rho, Float c1, Float c2);
 
 /**
  * Calculate the reduced scattering coefficient
  */
-inline Spectrum getReducedScatterCoeff(const Spectrum &sigmaS, Float g);
+Spectrum getReducedScatterCoeff(const Spectrum &sigmaS, Float g);
 
 MTS_NAMESPACE_END
 

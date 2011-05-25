@@ -48,7 +48,7 @@ Spectrum getAlbedo(const Spectrum &sigmaAIce, Float d) {
         return Spectrum(1.0f) - (5.96f * sigmaAIceSq * sqrt(d));
 }
 
-inline Spectrum getSingleScatteringAlbedo(const Spectrum &sigmaA_ice, Float d) {
+Spectrum getSingleScatteringAlbedo(const Spectrum &sigmaA_ice, Float d) {
         return Spectrum(1.0f) - (sigmaA_ice * 0.84f * d);
 }
 
@@ -60,11 +60,12 @@ Spectrum getSigmaA(const Spectrum &absIce, Float rho, Float rhoIce) {
         return absIce * 1.26f * (rho / rhoIce);
 }
 
-Spectrum getSigmaT(Float d, Float rho, Float rhoIce) {
+Spectrum getLargeParticleExtCoeff(Float d, Float rho, Float rhoIce) {
         // Calculate geometrical cross-section
         Float G = M_PI * d * d * 0.25f;
-        // Calculate extinction cross-section
-        Float Cext = 2.0f * G;
+        /* Calculate extinction cross-section, without diffraction
+         * this is just G. [Bohren and Barkstrom 1974] */
+        Float Cext = G;
         // Get number density
         Float N = getNumberDensity(d, rho, rhoIce);
         return Spectrum(Cext * N);
@@ -75,7 +76,7 @@ Spectrum getAsymptoticExtCoeff(const Spectrum &absCoeffIce, Float d, Float rho, 
         return 0.845f * absCoeffIceSq * (1 / sqrt(d)) * (rho/rhoIce);
 }
 
-inline Spectrum getBarkstromExtCoeff(const Spectrum &absCoeffIce, Float d, Float rho, Float rhoIce, Float v0 = 5.80) {
+Spectrum getBarkstromExtCoeff(const Spectrum &absCoeffIce, Float d, Float rho, Float rhoIce, const Spectrum &v0) {
     Spectrum Ks = getAsymptoticExtCoeff(absCoeffIce, d, rho, rhoIce);
     return v0 * Ks;
 }
@@ -86,6 +87,17 @@ inline Spectrum getBarkstromAbsCoeff(const Spectrum &singleScatAlbedo, Spectrum 
 
 inline Spectrum getReducedScatterCoeff(const Spectrum &sigmaS, Float g) {
     return sigmaS * (1 - g);
+}
+
+Spectrum getSnowPackExtCoeff(Float rho, Float c1, Float c2) {
+    return Spectrum( rho / c1 + c2);
+}
+
+Spectrum geRteEigenvector(const Spectrum &singleScatAlbedo, Float g) {
+    Spectrum co_gw = Spectrum(1.0f) - singleScatAlbedo * g;
+    Spectrum co_ssa = Spectrum(1.0f) - singleScatAlbedo;
+    Spectrum inv_v0 = (co_gw * co_ssa * 3.0f).sqrt();
+    return Spectrum(1.0f) / inv_v0; 
 }
 
 MTS_NAMESPACE_END

@@ -197,6 +197,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->densitySpinBox, SIGNAL(valueChanged(double)), this, SLOT(onDensityChanged(double)));
     connect(ui->iorSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onIorChanged(double)));
     connect(ui->asymmetrySpinBox, SIGNAL(valueChanged(double)), this, SLOT(onAsymmetryFactorChanged(double)));
+    connect(ui->calculationComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onCalculationTypeChanged(int)));
     connect(ui->snowCoeffComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(updateSnowComponents()));
     connect(ui->wl435SpinBox, SIGNAL(valueChanged(double)), this, SLOT(on435nmCoeffChanged(double)));
     connect(ui->wl545SpinBox, SIGNAL(valueChanged(double)), this, SLOT(on545nmCoeffChanged(double)));
@@ -630,6 +631,30 @@ void MainWindow::onAsymmetryFactorChanged(double g) {
 	SceneContext *currentContext = m_context[currentIndex];
     currentContext->snow.g = g;
     resetPreview(currentContext);
+}
+
+void MainWindow::onCalculationTypeChanged(int index) {
+	int currentIndex = ui->tabBar->currentIndex();
+	if (currentIndex == -1)
+		return;
+	SceneContext *currentContext = m_context[currentIndex];
+
+    if (index == 0)
+        currentContext->snow.calcMode = SnowProperties::EPhenomenological;
+    else if (index == 1)
+        currentContext->snow.calcMode = SnowProperties::EAsymptotic;
+    else if (index == 2)
+        currentContext->snow.calcMode = SnowProperties::ESnowPack;
+    else if (index == 3)
+        currentContext->snow.calcMode = SnowProperties::ELargeParticle;
+    else
+        SLog(EWarn, "Unknown snow coefficient calculation mode encountered");
+
+    // recalculate coefficients, as they depend on density
+    currentContext->snow.configure();
+    resetPreview(currentContext);
+    updateSnowComponents();
+
 }
 
 void MainWindow::changeSnowCoefficient(int wlIndex, double value) {
@@ -1161,6 +1186,7 @@ void MainWindow::updateSnowComponents() {
     ui->densitySpinBox->blockSignals(true);
     ui->iorSpinBox->blockSignals(true);
     ui->asymmetrySpinBox->blockSignals(true);
+    ui->calculationComboBox->blockSignals(true);
     ui->snowCoeffComboBox->blockSignals(true);
     ui->wl435SpinBox->blockSignals(true);
     ui->wl545SpinBox->blockSignals(true);
@@ -1174,6 +1200,8 @@ void MainWindow::updateSnowComponents() {
 
     /* media interaction */
     ui->asymmetrySpinBox->setValue(snow.g);
+    ui->calculationComboBox->setCurrentIndex( (int) snow.calcMode );
+
     int coeff = ui->snowCoeffComboBox->currentIndex();
     if (coeff == 0) {
         /* absorbtion coefficient of snow */

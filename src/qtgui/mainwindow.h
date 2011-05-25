@@ -195,6 +195,7 @@ private slots:
     void onDensityChanged(double density);
     void onIorChanged(double ior);
     void onAsymmetryFactorChanged(double g);
+    void onCalculationTypeChanged(int index);
     void on435nmCoeffChanged(double coeff);
     void on545nmCoeffChanged(double coeff);
     void on700nmCoeffChanged(double coeff);

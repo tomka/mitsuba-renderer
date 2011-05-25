@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>737</width>
-    <height>656</height>
+    <height>664</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -136,7 +136,7 @@
        <enum>QTabWidget::North</enum>
       </property>
       <property name="currentIndex">
-       <number>2</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="sceneTab">
        <property name="sizePolicy">
@@ -245,7 +245,7 @@
           <x>0</x>
           <y>0</y>
           <width>191</width>
-          <height>551</height>
+          <height>550</height>
          </rect>
         </property>
         <property name="sizePolicy">
@@ -470,7 +470,7 @@
             <x>10</x>
             <y>150</y>
             <width>161</width>
-            <height>161</height>
+            <height>201</height>
            </rect>
           </property>
           <property name="title">
@@ -480,10 +480,13 @@
            <property name="geometry">
             <rect>
              <x>10</x>
-             <y>50</y>
+             <y>80</y>
              <width>141</width>
              <height>22</height>
             </rect>
+           </property>
+           <property name="currentIndex">
+            <number>1</number>
            </property>
            <item>
             <property name="text">
@@ -510,7 +513,7 @@
            <property name="geometry">
             <rect>
              <x>10</x>
-             <y>80</y>
+             <y>110</y>
              <width>142</width>
              <height>81</height>
             </rect>
@@ -531,11 +534,20 @@
             </item>
             <item row="0" column="1">
              <widget class="QDoubleSpinBox" name="wl435SpinBox">
+              <property name="maximumSize">
+               <size>
+                <width>95</width>
+                <height>16777215</height>
+               </size>
+              </property>
               <property name="suffix">
                <string> / m</string>
               </property>
               <property name="decimals">
                <number>4</number>
+              </property>
+              <property name="maximum">
+               <double>100000.000000000000000</double>
               </property>
               <property name="singleStep">
                <double>0.000100000000000</double>
@@ -554,11 +566,20 @@
             </item>
             <item row="1" column="1">
              <widget class="QDoubleSpinBox" name="wl545SpinBox">
+              <property name="maximumSize">
+               <size>
+                <width>95</width>
+                <height>16777215</height>
+               </size>
+              </property>
               <property name="suffix">
                <string> / m</string>
               </property>
               <property name="decimals">
                <number>4</number>
+              </property>
+              <property name="maximum">
+               <double>100000.000000000000000</double>
               </property>
               <property name="singleStep">
                <double>0.001000000000000</double>
@@ -577,11 +598,20 @@
             </item>
             <item row="2" column="1">
              <widget class="QDoubleSpinBox" name="wl700SpinBox">
+              <property name="maximumSize">
+               <size>
+                <width>95</width>
+                <height>16777215</height>
+               </size>
+              </property>
               <property name="suffix">
                <string> / m</string>
               </property>
               <property name="decimals">
                <number>4</number>
+              </property>
+              <property name="maximum">
+               <double>100000.000000000000000</double>
               </property>
               <property name="singleStep">
                <double>0.001000000000000</double>
@@ -590,47 +620,87 @@
             </item>
            </layout>
           </widget>
-          <widget class="QLabel" name="asymmetryLabel">
+          <widget class="QWidget" name="formLayoutWidget_4">
            <property name="geometry">
             <rect>
              <x>10</x>
              <y>20</y>
-             <width>71</width>
-             <height>20</height>
+             <width>144</width>
+             <height>51</height>
             </rect>
            </property>
-           <property name="text">
-            <string>Anisotropy</string>
-           </property>
-           <property name="buddy">
-            <cstring>asymmetrySpinBox</cstring>
-           </property>
-          </widget>
-          <widget class="QDoubleSpinBox" name="asymmetrySpinBox">
-           <property name="geometry">
-            <rect>
-             <x>90</x>
-             <y>20</y>
-             <width>59</width>
-             <height>20</height>
-            </rect>
-           </property>
-           <property name="minimum">
-            <double>-1.000000000000000</double>
-           </property>
-           <property name="maximum">
-            <double>1.000000000000000</double>
-           </property>
-           <property name="singleStep">
-            <double>0.010000000000000</double>
-           </property>
+           <layout class="QFormLayout" name="formLayout_5">
+            <item row="0" column="0">
+             <widget class="QLabel" name="asymmetryLabel">
+              <property name="text">
+               <string>Anisotropy</string>
+              </property>
+              <property name="buddy">
+               <cstring>asymmetrySpinBox</cstring>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QDoubleSpinBox" name="asymmetrySpinBox">
+              <property name="minimum">
+               <double>-1.000000000000000</double>
+              </property>
+              <property name="maximum">
+               <double>1.000000000000000</double>
+              </property>
+              <property name="singleStep">
+               <double>0.010000000000000</double>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="label_2">
+              <property name="toolTip">
+               <string>Different methods exist for calculating absorbtion and scattering coefficients.</string>
+              </property>
+              <property name="text">
+               <string>Calculation</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QComboBox" name="calculationComboBox">
+              <property name="toolTip">
+               <string>Different methods exist for calculating absorbtion and scattering coefficients.</string>
+              </property>
+              <property name="currentIndex">
+               <number>1</number>
+              </property>
+              <item>
+               <property name="text">
+                <string>Phenomenological</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Asymptotic</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>SNOWPACK (SLF)</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>General large particle</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+           </layout>
           </widget>
          </widget>
          <widget class="QGroupBox" name="snowInfoGroup">
           <property name="geometry">
            <rect>
             <x>10</x>
-            <y>320</y>
+            <y>360</y>
             <width>161</width>
             <height>81</height>
            </rect>

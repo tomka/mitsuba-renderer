@@ -16,6 +16,14 @@ struct SnowProperties {
         ECustom = 3
     };
 
+    /* Different calculation modes */
+    enum ECalculationMode {
+        EPhenomenological = 0,
+        EAsymptotic = 1,
+        ESnowPack = 2,
+        ELargeParticle =3
+    };
+
     /* grain diameter in m */
     Float grainsize;
     /* density in kg / m^3 */
@@ -38,6 +46,8 @@ struct SnowProperties {
     static Float iceDensity;
     /* last breset associated with an instance */
     EPreset lastPreset;
+    /* calculation mode of coefficients */
+    ECalculationMode calcMode;
 
     SnowProperties();
 
