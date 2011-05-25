@@ -14,7 +14,8 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
 
         // try to find shape in store 
         ShapeMap::iterator it = snowShapes.find(shape);
-        // if not found, add new
+        /* If not found, add new.
+         */
         if (it == snowShapes.end()) {
             ShapeEntry newEntry;
 
@@ -63,9 +64,9 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
                 BSDF::m_theClass, properties));
         } else if (surfaceMode == EHanrahanKruegerBRDF) {
             properties.setPluginName("hanrahankrueger");
-            properties.setBoolean("addMultipleScattering", srs.hkUseMultipleScattering);
             properties.setFloat("ssFactor", srs.hkSingleScatteringFactor);
             properties.setFloat("drFactor", srs.hkMultipleScatteringFactor);
+            properties.setBoolean("diffuseReflectance", srs.hkUseMultipleScattering);
             bsdf = static_cast<BSDF *> (pluginManager->createObject(
                 BSDF::m_theClass, properties));
         }
@@ -76,7 +77,7 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
             properties.setPluginName("dipole");
             properties.setSpectrum("ssFactor", Spectrum(srs.dipoleDensityFactor));
             properties.setFloat("sampleMultiplier", srs.dipoleSampleFactor);
-            properties.setBoolean("addSingleScattering", srs.dipoleUseSingleScattering);
+            properties.setBoolean("singleScattering", srs.dipoleUseSingleScattering);
             properties.setBoolean("useMartelliD", srs.dipoleMartelliDC);
             properties.setBoolean("useTexture", srs.dipoleTexture);
             if (srs.dipoleTexture) {
@@ -91,7 +92,7 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
             properties.setPluginName("multipole");
             properties.setSpectrum("ssFactor", Spectrum(srs.multipoleDensityFactor));
             properties.setFloat("sampleMultiplier", srs.multipoleSampleFactor);
-            properties.setBoolean("addSingleScattering", srs.dipoleUseSingleScattering);
+            properties.setBoolean("singleScattering", srs.dipoleUseSingleScattering);
             properties.setFloat("slabThickness", srs.multipoleSlabThickness);
             properties.setInteger("extraDipoles", srs.multipoleExtraDipoles);
             properties.setBoolean("useMartelliD", srs.multipoleMartelliDC);
