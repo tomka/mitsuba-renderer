@@ -207,8 +207,6 @@ std::string SnowMaterialManager::toString() {
 		std::ostringstream oss;
 		oss << "SnowMaterialManager[" << std::endl;
 
-/* for now disabled, because encountered occashional sag faults */
-/*
         for (ShapeMap::iterator it = snowShapes.begin(); it != snowShapes.end(); it++) {
             Shape *s = it->first;
             ShapeEntry &entry = it->second;
@@ -221,7 +219,6 @@ std::string SnowMaterialManager::toString() {
                 << "    Subsurface: " << std::endl << (subsurface == NULL ? "None" : subsurface->toString()) << std::endl;
             }
         }
-*/
 		oss	<< "]";
 		return oss.str();
 }
