@@ -1459,29 +1459,33 @@ void MainWindow::updateSnowRenderingComponents() {
     m_adipoleSettings->dLineEdit->blockSignals(true);
 
     /* set new data */
+    SnowRenderSettings &srs = context->snowRenderSettings;
+
     if (surfaceIdx != -1)
         ui->surfaceComboBox->setCurrentIndex(surfaceIdx);
     if (subsurfaceIdx != -1)
         ui->subsurfaceComboBox->setCurrentIndex(subsurfaceIdx);
 
     // Wiscombe
-    Float wiscombeDepth = context->snowRenderSettings.wiscombeDepth;
+    Float wiscombeDepth = srs.wiscombeDepth;
     m_wiscombeSettings->depthSpinBox->setValue(wiscombeDepth);
 
     // Hanrahan-Krueger
-    Float hkSingleScatteringFactor = context->snowRenderSettings.hkSingleScatteringFactor;
-    Float hkMultipleScatteringFactor = context->snowRenderSettings.hkMultipleScatteringFactor;
-    bool hkUseMultipleScattering = context->snowRenderSettings.hkUseMultipleScattering;
+    Float hkSingleScatteringFactor = srs.hkSingleScatteringFactor;
+    Float hkMultipleScatteringFactor = srs.hkMultipleScatteringFactor;
+    bool hkUseMultipleScattering = srs.hkUseMultipleScattering;
 
     m_hkSettings->singleScatteringSpinBox->setValue(hkSingleScatteringFactor);
     m_hkSettings->multipleScatteringSpinBox->setValue(hkMultipleScatteringFactor);
     m_hkSettings->multipleScatteringCheckBox->setChecked(hkUseMultipleScattering);
 
     // Jensen dipole
-    Float dipoleDensityFactor = context->snowRenderSettings.dipoleDensityFactor;
-    Float dipoleSampleFactor = context->snowRenderSettings.dipoleSampleFactor;
-    bool dipoleUseSingleScattering = context->snowRenderSettings.dipoleUseSingleScattering;
-    bool dipoleUseMartelliDC = context->snowRenderSettings.dipoleMartelliDC;
+    Float dipoleDensityFactor = srs.dipoleDensityFactor;
+    Float dipoleSampleFactor = srs.dipoleSampleFactor;
+    bool dipoleUseSingleScattering = srs.dipoleUseSingleScattering;
+    bool dipoleUseMartelliDC = srs.dipoleMartelliDC;
+    QString dipoleZrTex = QString::fromStdString(srs.dipoleZrTexture);
+    QString dipoleSigmaTrTex = QString::fromStdString(srs.dipoleSigmaTrTexture);
 
     m_dipoleSettings->subsurfaceSizeSpinBox->setValue(dipoleDensityFactor);
     m_dipoleSettings->subsurfaceSampleFactorSpinBox->setValue(dipoleSampleFactor);
@@ -1494,12 +1498,12 @@ void MainWindow::updateSnowRenderingComponents() {
     m_dipoleSettings->textureVSpinBox->setValue(srs.dipoleTextureVScaling);
 
     // Jensen multipole
-    Float multipoleDensityFactor = context->snowRenderSettings.multipoleDensityFactor;
-    Float multipoleSampleFactor = context->snowRenderSettings.multipoleSampleFactor;
-    int multipoleExtraDipoles = context->snowRenderSettings.multipoleExtraDipoles;
-    Float multipoleSlabThickness = context->snowRenderSettings.multipoleSlabThickness;
-    bool multipoleUseSingleScattering = context->snowRenderSettings.multipoleUseSingleScattering;
-    bool multipoleUseMartelliDC = context->snowRenderSettings.multipoleMartelliDC;
+    Float multipoleDensityFactor = srs.multipoleDensityFactor;
+    Float multipoleSampleFactor = srs.multipoleSampleFactor;
+    int multipoleExtraDipoles = srs.multipoleExtraDipoles;
+    Float multipoleSlabThickness = srs.multipoleSlabThickness;
+    bool multipoleUseSingleScattering = srs.multipoleUseSingleScattering;
+    bool multipoleUseMartelliDC = srs.multipoleMartelliDC;
 
     m_multipoleSettings->subsurfaceSizeSpinBox->setValue(multipoleDensityFactor);
     m_multipoleSettings->subsurfaceSampleFactorSpinBox->setValue(multipoleSampleFactor);
@@ -1509,10 +1513,10 @@ void MainWindow::updateSnowRenderingComponents() {
     m_multipoleSettings->martelliDCheckBox->setChecked(multipoleUseMartelliDC);
 
     // Jakob anisotropic multipole
-    Float adipoleDensityFactor = context->snowRenderSettings.adipoleDensityFactor;
-    Float adipoleSampleFactor = context->snowRenderSettings.adipoleSampleFactor;
-    Float adipoleSigmaTn = context->snowRenderSettings.adipoleSigmaTn;
-    QString adipoleD = QString::fromStdString(context->snowRenderSettings.adipoleD);
+    Float adipoleDensityFactor = srs.adipoleDensityFactor;
+    Float adipoleSampleFactor = srs.adipoleSampleFactor;
+    Float adipoleSigmaTn = srs.adipoleSigmaTn;
+    QString adipoleD = QString::fromStdString(srs.adipoleD);
 
     m_adipoleSettings->subsurfaceSizeSpinBox->setValue(adipoleDensityFactor);
     m_adipoleSettings->subsurfaceSampleFactorSpinBox->setValue(adipoleSampleFactor);

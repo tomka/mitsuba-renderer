@@ -33,7 +33,7 @@
     <rect>
      <x>10</x>
      <y>20</y>
-     <width>161</width>
+     <width>167</width>
      <height>101</height>
     </rect>
    </property>
@@ -41,7 +41,7 @@
     <item row="0" column="0">
      <widget class="QLabel" name="subsurfaceSizeLabel">
       <property name="text">
-       <string>SS size x</string>
+       <string>Size factor</string>
       </property>
      </widget>
     </item>
@@ -70,7 +70,7 @@
     <item row="1" column="0">
      <widget class="QLabel" name="subsurfaceSampleFactorLabel">
       <property name="text">
-       <string>SS sample x</string>
+       <string>Sample factor</string>
       </property>
      </widget>
     </item>
@@ -96,7 +96,7 @@
     <item row="2" column="0">
      <widget class="QLabel" name="label">
       <property name="text">
-       <string>sigma Tn</string>
+       <string>Sigma Tn</string>
       </property>
      </widget>
     </item>
