@@ -27,7 +27,7 @@
 MTS_NAMESPACE_BEGIN
 
 Shape::Shape(const Properties &props) 
- : ConfigurableObject(props), m_occluder(false) { }
+ : ConfigurableObject(props), m_occluder(false), m_subsurface(NULL) { }
 
 Shape::Shape(Stream *stream, InstanceManager *manager) 
  : ConfigurableObject(stream, manager) {

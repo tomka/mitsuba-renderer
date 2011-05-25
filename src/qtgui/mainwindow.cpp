@@ -708,9 +708,7 @@ void MainWindow::onToggleSnowMaterial(int state) {
 
     bool hasSnow = (state != 0);
 
-	on_tabBar_currentChanged(-1);
     updateSnowOnShape(currentContext, currentShape, hasSnow);
-	on_tabBar_currentChanged(currentIndex);
     resetPreview(currentContext);
 }
 
@@ -771,9 +769,7 @@ void MainWindow::onSnowRenderModelChange() {
     context->snowRenderSettings.adipoleSigmaTn = m_adipoleSettings->sigmaTnSpinBox->value();
     context->snowRenderSettings.adipoleD = m_adipoleSettings->dLineEdit->text().toStdString();
 
-	on_tabBar_currentChanged(-1);
     updateSnowOnAllShapes(context, true);
-	on_tabBar_currentChanged(currentIndex);
     updateUI();
     resetPreview(context);
 }
@@ -1218,6 +1214,7 @@ void MainWindow::updateSnowComponents() {
     ui->densitySpinBox->blockSignals(false);
     ui->iorSpinBox->blockSignals(false);
     ui->asymmetrySpinBox->blockSignals(false);
+    ui->calculationComboBox->blockSignals(false);
     ui->snowCoeffComboBox->blockSignals(false);
     ui->wl435SpinBox->blockSignals(false);
     ui->wl545SpinBox->blockSignals(false);
@@ -1225,11 +1222,21 @@ void MainWindow::updateSnowComponents() {
 }
 
 void MainWindow::updateSnowOnShape(SceneContext* context, Shape* shape, bool hasSnow) {
+	on_tabBar_currentChanged(-1);
+	qApp->processEvents();
+
     if (hasSnow) {
         snowMaterialManager.replaceMaterial(shape, context);
     } else {
         snowMaterialManager.resetMaterial(shape, context);
     }
+    /* expects allowed on control on context and preview data (i.e. should not be active) */
+    /* Reset preview data */
+    context->previewBuffer.vplSampleOffset = 0;
+    context->pathLength = context->detectPathLength();
+	int index = ui->tabBar->currentIndex();
+    if (index != -1)
+        on_tabBar_currentChanged(index);
 }
 
 void MainWindow::updateSnowRenderingComponents() {

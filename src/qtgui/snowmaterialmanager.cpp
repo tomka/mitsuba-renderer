@@ -26,6 +26,7 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
             if (subsurfaceOld != NULL)
                 subsurfaceOld->incRef();
 
+            shape->incRef();
             snowShapes[shape] = newEntry;
         }
 
@@ -107,10 +108,12 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
         if (bsdf) {
             bsdf->setParent(shape);
             bsdf->configure();
+            bsdf->incRef();
         }
         if (subsurface) {
             subsurface->setParent(shape);
             subsurface->configure();
+            subsurface->incRef();
             // if a subsurface material has been selected, inform the scene about it
             context->scene->addSubsurface(subsurface);
         }
