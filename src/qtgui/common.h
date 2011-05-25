@@ -79,6 +79,11 @@ struct SnowRenderSettings {
     Float dipoleSampleFactor;
     bool dipoleUseSingleScattering;
     bool dipoleMartelliDC;
+    bool dipoleTexture;
+    std::string dipoleZrTexture;
+    std::string dipoleSigmaTrTexture;
+    Float dipoleTextureUScaling;
+    Float dipoleTextureVScaling;
 
     /* Jensen multipole settings */
     Float multipoleDensityFactor;
@@ -97,12 +102,18 @@ struct SnowRenderSettings {
     SnowRenderSettings() :
         wiscombeDepth(2.0f), hkSingleScatteringFactor(1.0f), hkMultipleScatteringFactor(1.0f),
         dipoleDensityFactor(1.0f), dipoleSampleFactor(1.0f), dipoleUseSingleScattering(false),
+        dipoleTexture(false), dipoleTextureUScaling(1.0f), dipoleTextureVScaling(1.0f),
         multipoleDensityFactor(1.0f), multipoleSampleFactor(1.0f), multipoleExtraDipoles(2),
         multipoleSlabThickness(0.2f), adipoleDensityFactor(1.0f), adipoleSampleFactor(1.0f),
         adipoleSigmaTn(1.0f),
         // default to sin^20 flake distribution
         adipoleD("1.6307, -0.00049, 0.00069, -0.00049, 1.63148, 0.00001, 0.00067, 0.00002, 2.12596")
-    { }
+    {
+        /* try to load last texture paths */
+	    QSettings settings("mitsuba-renderer.org", "qtgui");
+		dipoleZrTexture = settings.value("lastDipoleZrTexture", "").toString().toStdString();
+		dipoleSigmaTrTexture = settings.value("lastDipoleSigmaTrTexture", "").toString().toStdString();
+    }
 };
 
 namespace mitsuba  {

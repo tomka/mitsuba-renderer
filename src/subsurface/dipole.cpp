@@ -18,6 +18,11 @@
 
 #include <mitsuba/render/scene.h>
 #include <mitsuba/core/plugin.h>
+#include <mitsuba/core/util.h>
+#include <mitsuba/core/bitmap.h>
+#include <mitsuba/core/mstream.h>
+#include <mitsuba/core/fstream.h>
+#include <mitsuba/core/fresolver.h>
 #include "irrtree.h"
 
 MTS_NAMESPACE_BEGIN
@@ -32,10 +37,13 @@ struct IsotropicDipoleQuery {
 		const Spectrum &sigmaTr, Float Fdt, const Point &p) 
 		: zr(zr), zv(zv), sigmaTr(sigmaTr), result(0.0f), Fdt(Fdt), p(p) {
 			count = 0;
+            Float zrMin = zr.min();
+            zrMinSq = zrMin * zrMin;
 	}
 
 	inline void operator()(const IrradianceSample &sample) {
-		Spectrum rSqr = Spectrum((p - sample.p).lengthSquared());
+        Float dist = std::max((p - sample.p).lengthSquared(), zrMinSq); 
+		Spectrum rSqr = Spectrum(dist);
 		/* Distance to the real source */
 		Spectrum dr = (rSqr + zr*zr).sqrt();
 		/* Distance to the image point source */
@@ -56,6 +64,7 @@ struct IsotropicDipoleQuery {
 	}
 
 	Spectrum zr, zv, sigmaTr, result;
+    Float zrMinSq;
 #else
 	inline IsotropicDipoleQuery(const Spectrum &_zr, const Spectrum &_zv, 
 		const Spectrum &_sigmaTr, Float Fdt, const Point &p) : Fdt(Fdt), p(p) {
@@ -66,11 +75,14 @@ struct IsotropicDipoleQuery {
 		zvSqr = _mm_mul_ps(zv, zv);
 		result.ps = _mm_setzero_ps();
 		count = 0;
+        Float zrMin = _zr.min();
+        zrMinSq = zrMin * zrMin;
 	}
 
 	inline void operator()(const IrradianceSample &sample) {
 		/* Distance to the positive point source of the dipole */
-		const __m128 lengthSquared = _mm_set1_ps((p - sample.p).lengthSquared()),
+        Float dist = std::max((p - sample.p).lengthSquared(), zrMinSq);
+		const __m128 lengthSquared = _mm_set1_ps(dist),
 			drSqr = _mm_add_ps(zrSqr, lengthSquared), 
 			dvSqr = _mm_add_ps(zvSqr, lengthSquared),
 			dr = _mm_sqrt_ps(drSqr), dv = _mm_sqrt_ps(dvSqr), 
@@ -99,7 +111,7 @@ struct IsotropicDipoleQuery {
 #endif
 
 	int count;
-	Float Fdt;
+	Float Fdt, zrMinSq;
 	Point p;
 };
 
@@ -135,7 +147,7 @@ public:
 		   irradiance samples */
 		m_sampleMultiplier = props.getFloat("sampleMultiplier", 2.0f);
 		/* Error threshold - lower means better quality */
-		m_minDelta= props.getFloat("quality", 0.1f);
+		m_minDelta = props.getFloat("quality", 0.1f);
 		/* Max. depth of the created octree */
 		m_maxDepth = props.getInteger("maxDepth", 40);
         /* Single scattering term */
@@ -144,11 +156,31 @@ public:
 		   this contribution completely, making it possible to use this integrator
 		   for other interesting things.. */
 		m_ssFactor = props.getSpectrum("ssFactor", Spectrum(1.0f));
-		m_maxDepth = props.getInteger("maxDepth", 40);
 		/* Asymmetry parameter of the phase function */
 		m_g = props.getFloat("g", 0);
         /* alternative diffusion coefficient */
         m_useMartelliD = props.getBoolean("useMartelliDC", true);
+        /* texture usage */
+        m_useTextures = props.getBoolean("useTexture", false);
+        if (m_useTextures) {
+            fs::path filename = Thread::getThread()->getFileResolver()->resolve(
+                    props.getString("zrFilename"));
+            Log(EInfo, "Loading texture \"%s\"", filename.leaf().c_str());
+
+            ref<FileStream> fs = new FileStream(filename, FileStream::EReadOnly);
+            m_zrBitmap = new Bitmap(Bitmap::EEXR, fs);
+
+            filename = Thread::getThread()->getFileResolver()->resolve(
+                    props.getString("sigmaTrFilename"));
+            Log(EInfo, "Loading texture \"%s\"", filename.leaf().c_str());
+
+            fs = new FileStream(filename, FileStream::EReadOnly);
+            m_sigmaTrBitmap = new Bitmap(Bitmap::EEXR, fs);
+
+            m_texUScaling = props.getFloat("texUScaling", 1.0f);
+            m_texVScaling = props.getFloat("texVScaling", 1.0f);
+        }
+
 		m_ready = false;
 		m_octreeResID = -1;
 	}
@@ -164,6 +196,7 @@ public:
 		m_irrSamples = stream->readInt();
 		m_irrIndirect = stream->readBool();
         m_useMartelliD = stream->readBool();
+        m_useTextures = stream->readBool();
 		m_ready = false;
 		m_octreeResID = -1;
 		configure();
@@ -190,31 +223,68 @@ public:
 		stream->writeInt(m_irrSamples);
 		stream->writeBool(m_irrIndirect);
         stream->writeBool(m_useMartelliD);
+        stream->writeBool(m_useTextures);
 	}
 
 	Spectrum Lo(const Scene *scene, Sampler *sampler,
 			const Intersection &its, const Vector &d, int depth) const {
 		if (!m_ready || m_ssFactor.isZero())
 			return Spectrum(0.0f);
-		IsotropicDipoleQuery query(m_zr, m_zv, m_sigmaTr, m_Fdt, its.p);
-	
-		const Normal &n = its.shFrame.n;
-		m_octree->execute(query);
 
-        // compute multiple scattering term
-        Spectrum Sd = query.getResult();
-        // compute single scattering term
-        Spectrum S1 = Spectrum(0.0f);
+        if (m_useTextures) {
+            Spectrum zr = m_zrTex->getValue(its);
+            Spectrum zv = m_zvTex->getValue(its);
+            Spectrum sigmaTr = m_sigmaTrTex->getValue(its);
 
-        // compute total BSSRDF
-        Spectrum S = Sd + S1;
+            IsotropicDipoleQuery query(zr, zv, sigmaTr, m_Fdt, its.p);
+        
+            const Normal &n = its.shFrame.n;
+            m_octree->execute(query);
 
-		if (m_eta == 1.0f) {
-			return S * m_ssFactor * INV_PI;
-		} else {
-			Float Ft = 1.0f - fresnel(absDot(n, d));
-			return S * m_ssFactor * INV_PI * (Ft / m_Fdr);
-		}
+            // compute multiple scattering term
+            Spectrum Mo = query.getResult();
+
+            Spectrum Lo;
+            if (m_eta == 1.0f) {
+                Lo = Mo * m_ssFactor * INV_PI;
+            } else {
+                Float Ft = 1.0f - fresnel(absDot(n, d));
+                Lo = Mo * m_ssFactor * INV_PI * (Ft / m_Fdr);
+            }
+            return Lo;
+        } else {
+            IsotropicDipoleQuery query(m_zr, m_zv, m_sigmaTr, m_Fdt, its.p);
+        
+            const Normal &n = its.shFrame.n;
+            m_octree->execute(query);
+
+            // compute multiple scattering term
+            Spectrum Mo = query.getResult();
+
+            Spectrum Lo;
+            if (m_eta == 1.0f) {
+                Lo = Mo * m_ssFactor * INV_PI;
+            } else {
+                Float Ft = 1.0f - fresnel(absDot(n, d));
+                Lo = Mo * m_ssFactor * INV_PI * (Ft / m_Fdr);
+            }
+
+            /* Compute single scattering term if requested. This is done with
+             * one shadow ray per light. Then per shadow ray a number of samples
+             * is used to calculate the contribution due to that one. */
+            if (m_singleScattering) {
+                const int nrSamples = 5;
+                Float singleScatteringLo = 0.0f;
+                for (int i=0; i < nrSamples; ++i) {
+                    Vector wo;
+                    //singleScatteringLo += LoSingleScattering(wo, d, its);
+                }
+
+                //Lo += singleScatteringLo / nrSamples;
+            }
+
+            return Lo;
+        }
 	}
 
 	void configure() {
@@ -281,7 +351,165 @@ public:
 		m_zr = m_mfp; 
 		m_zv = m_mfp * (1.0f + 4.0f/3.0f * m_A);
 
-        
+        /* Configure bitmap usage */
+        if (m_useTextures)
+            configureTexture();
+    }
+
+    void configureTexture() {
+        Random *random = new Random();
+        m_random.set(random);
+
+        PluginManager *pluginManager = PluginManager::getInstance();
+        int w = m_zrBitmap->getWidth();
+        int h = m_zrBitmap->getHeight();
+        float *data = m_zrBitmap->getFloatData();
+
+        /* create zr bitmap */
+        ref<Bitmap> zrBitmap = new Bitmap(w, h, 128);
+        float *zrData = zrBitmap->getFloatData();
+       
+        const bool adjustMFP = true;
+        const Float origMinMFP = m_minMFP;
+
+        /* if alpha of image is > 0, then use the RGB values */
+        for (int y=0; y<m_zrBitmap->getHeight(); ++y) {
+            for (int x=0; x<m_zrBitmap->getWidth(); ++x) {
+                float r = *data++;
+                float g = *data++;
+                float b = *data++;
+                ++data; // alpha
+                float sum = r + g + b;
+
+                if (sum > 0.001) { // test values for skin
+                    *zrData++ = r;
+                    *zrData++ = g;
+                    *zrData++ = b;
+                    *zrData++ = 1.0; //a;
+                    // find a potentially lower MFP
+                    if (adjustMFP) {
+                        /* the tests are rearranged for faster computation */
+                        if (r < m_minMFP)
+                            m_minMFP = r;
+                        if (g < m_minMFP)
+                            m_minMFP = g;
+                        if (b < m_minMFP)
+                            m_minMFP = b;
+                    }
+                } else {
+                    *zrData++ = m_zr[0];
+                    *zrData++ = m_zr[1];
+                    *zrData++ = m_zr[2];
+                    *zrData++ = 1.0;
+                }
+            }
+        }
+        /* write out the bitmap */
+        std::string zrFileName = "zr" + randomString(m_random.get(), 7) + ".exr";
+        fs::path filename = Thread::getThread()->getFileResolver()->resolve(zrFileName);
+
+        Log(EInfo, "Writing zr texture \"%s\"", filename.leaf().c_str());
+
+        ref<FileStream> outStream = new FileStream(filename, FileStream::ETruncWrite);
+        zrBitmap->save(Bitmap::EEXR, outStream);
+        outStream->close();
+
+        /* create zr texture */
+        Properties props;
+        props.setPluginName("diffusiontexture");
+        props.setString("filename", zrFileName);
+        props.setFloat("uscale", m_texUScaling);
+        props.setFloat("vscale", m_texVScaling);
+        m_zrTex = static_cast<Texture *> (pluginManager->createObject(
+                Texture::m_theClass, props));
+
+        /* create zv bitmap */
+        ref<Bitmap> zvBitmap = new Bitmap(w, h, 128);
+        float *zvData = zvBitmap->getFloatData();
+        zrData = zrBitmap->getFloatData();
+
+        /* if alpha of image is > 0, then use the RGB values */
+        for (int y=0; y<m_zrBitmap->getHeight(); ++y) {
+            for (int x=0; x<m_zrBitmap->getWidth(); ++x) {
+                float r = *zrData++;
+                float g = *zrData++;
+                float b = *zrData++;
+                ++zrData; // alpha
+
+                *zvData++ = r * (1.0f + (4.0f/3.0f) * m_A);
+                *zvData++ = g * (1.0f + (4.0f/3.0f) * m_A);
+                *zvData++ = b * (1.0f + (4.0f/3.0f) * m_A);
+                *zvData++ = 1.0;
+            }
+        }
+        /* write out the bitmap */
+        std::string zvFileName = "zv" + randomString(m_random.get(), 7) + ".exr";
+        filename = Thread::getThread()->getFileResolver()->resolve(zvFileName);
+
+        Log(EInfo, "Writing zv texture \"%s\"", filename.leaf().c_str());
+
+        outStream = new FileStream(filename, FileStream::ETruncWrite);
+        zrBitmap->save(Bitmap::EEXR, outStream);
+        outStream->close();
+
+        /* create zv texture */
+        Properties zvProps;
+        zvProps.setPluginName("diffusiontexture");
+        zvProps.setString("filename", zvFileName);
+        zvProps.setFloat("uscale", m_texUScaling);
+        zvProps.setFloat("vscale", m_texVScaling);
+        m_zvTex = static_cast<Texture *> (pluginManager->createObject(
+                Texture::m_theClass, zvProps));
+
+        /* create sigmaTr bitmap */
+        ref<Bitmap> sTrBitmap = new Bitmap(w, h, 128);
+        float *sTrData = sTrBitmap->getFloatData();
+        data = m_sigmaTrBitmap->getFloatData();
+
+        /* if alpha of image is > 0, then use the RGB values */
+        for (int y=0; y<m_sigmaTrBitmap->getHeight(); ++y) {
+            for (int x=0; x<m_sigmaTrBitmap->getWidth(); ++x) {
+                float r = *data++;
+                float g = *data++;
+                float b = *data++;
+                ++data; // alpha
+                float sum = r + g + b;
+
+                if (sum > 0.001) { // test values for ketchup
+                    *sTrData++ = r;
+                    *sTrData++ = g;
+                    *sTrData++ = b;
+                    *sTrData++ = 1.0; //a;
+                } else {
+                    *sTrData++ = m_sigmaTr[0];
+                    *sTrData++ = m_sigmaTr[1];
+                    *sTrData++ = m_sigmaTr[2];
+                    *sTrData++ = 1.0;
+                }
+            }
+        }
+        /* write out the bitmap */
+        std::string sTrFileName = "sigmaTr" + randomString(m_random.get(), 7) + ".exr";
+        filename = Thread::getThread()->getFileResolver()->resolve(sTrFileName);
+
+        Log(EInfo, "Writing sigmaTr texture \"%s\"", filename.leaf().c_str());
+
+        outStream = new FileStream(filename, FileStream::ETruncWrite);
+        sTrBitmap->save(Bitmap::EEXR, outStream);
+        outStream->close();
+
+        /* create sigmaTr texture */
+        Properties sTrProps;
+        sTrProps.setPluginName("diffusiontexture");
+        sTrProps.setString("filename", sTrFileName);
+        sTrProps.setFloat("uscale", m_texUScaling);
+        sTrProps.setFloat("vscale", m_texVScaling);
+        m_sigmaTrTex = static_cast<Texture *> (pluginManager->createObject(
+                Texture::m_theClass, sTrProps));
+
+        if (std::abs(origMinMFP - m_minMFP) > 0.0001) {
+            Log(EInfo, "Adjusted minimum MFP from %.6f to %.6f", origMinMFP, m_minMFP);
+        }
 	}
 
 	/// Unpolarized fresnel reflection term for dielectric materials
@@ -482,6 +710,14 @@ private:
 	bool m_ready, m_requireSample;
 	bool m_ready, m_requireSample, m_singleScattering;
     mutable ThreadLocal<Random> m_random;
+    bool m_useTextures;
+    ref<Texture> m_zvTex;
+    ref<Texture> m_zrTex;
+    ref<Texture> m_sigmaTrTex;
+    ref<Bitmap> m_zrBitmap;
+    ref<Bitmap> m_sigmaTrBitmap;
+    Float m_texUScaling;
+    Float m_texVScaling;
 };
 
 MTS_IMPLEMENT_CLASS_S(IsotropicDipole, false, Subsurface)

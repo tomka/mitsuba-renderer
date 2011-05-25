@@ -78,6 +78,13 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
             properties.setFloat("sampleMultiplier", srs.dipoleSampleFactor);
             properties.setBoolean("addSingleScattering", srs.dipoleUseSingleScattering);
             properties.setBoolean("useMartelliD", srs.dipoleMartelliDC);
+            properties.setBoolean("useTexture", srs.dipoleTexture);
+            if (srs.dipoleTexture) {
+                properties.setString("zrFilename", srs.dipoleZrTexture);
+                properties.setString("sigmaTrFilename", srs.dipoleSigmaTrTexture);
+                properties.setFloat("texUScaling", srs.dipoleTextureUScaling);
+                properties.setFloat("texVScaling", srs.dipoleTextureVScaling);
+            }
             subsurface = static_cast<Subsurface *> (pluginManager->createObject(
                 Subsurface::m_theClass, properties));
         } else if (subsurfaceMode == EJensenMultipoleBSSRDF) {

@@ -202,6 +202,11 @@ private slots:
     void onSelectedShapeChanged(int shape);
     void onToggleSnowMaterial(int state);
     void onSnowRenderModelChange();
+    void onDipoleTextureSettingsChanged();
+    void onDipoleZrTextureLoad();
+    void onDipoleZrTextureOpenDialogClose(int reason);
+    void onDipoleSigmaTrTextureLoad();
+    void onDipoleSigmaTrTextureOpenDialogClose(int reason);
 
 private:
     Ui::MainWindow *ui;

@@ -227,6 +227,11 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_dipoleSettings->subsurfaceSampleFactorSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_dipoleSettings->singleScatteringCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_dipoleSettings->martelliDCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_dipoleSettings->textureCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onDipoleTextureSettingsChanged()));
+    connect(m_dipoleSettings->textureZrButton, SIGNAL(pressed()), this, SLOT(onDipoleZrTextureLoad()));
+    connect(m_dipoleSettings->textureSigmaTrButton, SIGNAL(pressed()), this, SLOT(onDipoleSigmaTrTextureLoad()));
+    connect(m_dipoleSettings->textureUSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onDipoleTextureSettingsChanged()));
+    connect(m_dipoleSettings->textureVSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onDipoleTextureSettingsChanged()));
     connect(m_multipoleSettings->subsurfaceSizeSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_multipoleSettings->subsurfaceSampleFactorSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_multipoleSettings->extraDipolesSpinBox, SIGNAL(valueChanged(int)), this, SLOT(onSnowRenderModelChange()));
@@ -735,6 +740,108 @@ void MainWindow::onToggleSnowMaterial(int state) {
 
     updateSnowOnShape(currentContext, currentShape, hasSnow);
     resetPreview(currentContext);
+}
+
+void MainWindow::onDipoleTextureSettingsChanged() {
+	int currentIndex = ui->tabBar->currentIndex();
+	if (currentIndex == -1 || ui->shapeComboBox->count() == 0) 
+		return;
+
+	SceneContext *context = m_context[currentIndex];
+    SnowRenderSettings &srs = context->snowRenderSettings;
+
+    const bool useTextures = m_dipoleSettings->textureCheckBox->isChecked();
+    const bool usageChange = !(useTextures == srs.dipoleTexture);
+
+    srs.dipoleTexture = useTextures;
+    srs.dipoleTextureUScaling = m_dipoleSettings->textureUSpinBox->value();
+    srs.dipoleTextureVScaling = m_dipoleSettings->textureVSpinBox->value();
+    srs.dipoleZrTexture = m_dipoleSettings->textureZrEdit->text().toStdString();
+    srs.dipoleSigmaTrTexture = m_dipoleSettings->textureSigmaTrEdit->text().toStdString();
+
+    /* only update on checkbox state change */
+    if (usageChange) {
+        updateSnowOnAllShapes(context, true);
+        resetPreview(context);
+    }
+}
+
+void MainWindow::onDipoleZrTextureLoad() {
+	QFileDialog *dialog = new QFileDialog(this, Qt::Sheet);
+	dialog->setNameFilter(tr("EXR Images (*.exr)"));
+	dialog->setAttribute(Qt::WA_DeleteOnClose);
+	dialog->setAcceptMode(QFileDialog::AcceptOpen);
+	dialog->setViewMode(QFileDialog::Detail);
+	dialog->setWindowModality(Qt::WindowModal);
+
+	QSettings settings("mitsuba-renderer.org", "qtgui");
+	dialog->restoreState(settings.value("fileDialogState").toByteArray());
+	connect(dialog, SIGNAL(finished(int)), this, SLOT(onDipoleZrTextureOpenDialogClose(int)));
+	m_currentChild = dialog;
+	// prevent a tab drawing artifact on Qt/OSX
+	m_activeWindowHack = true;
+	dialog->show();
+	qApp->processEvents();
+	m_activeWindowHack = false;
+}
+
+void MainWindow::onDipoleSigmaTrTextureLoad() {
+	QFileDialog *dialog = new QFileDialog(this, Qt::Sheet);
+	dialog->setNameFilter(tr("EXR Images (*.exr)"));
+	dialog->setAttribute(Qt::WA_DeleteOnClose);
+	dialog->setAcceptMode(QFileDialog::AcceptOpen);
+	dialog->setViewMode(QFileDialog::Detail);
+	dialog->setWindowModality(Qt::WindowModal);
+
+	QSettings settings("mitsuba-renderer.org", "qtgui");
+	dialog->restoreState(settings.value("fileDialogState").toByteArray());
+	connect(dialog, SIGNAL(finished(int)), this, SLOT(onDipoleSigmaTrTextureOpenDialogClose(int)));
+	m_currentChild = dialog;
+	// prevent a tab drawing artifact on Qt/OSX
+	m_activeWindowHack = true;
+	dialog->show();
+	qApp->processEvents();
+	m_activeWindowHack = false;
+}
+
+void MainWindow::onDipoleZrTextureOpenDialogClose(int reason) {
+	QSettings settings("mitsuba-renderer.org", "qtgui");
+	QFileDialog *dialog = static_cast<QFileDialog *>(sender());
+	m_currentChild = NULL;
+	if (reason == QDialog::Accepted) {
+	    int currentIndex = ui->tabBar->currentIndex();
+    	if (currentIndex == -1)
+	    	return;
+    	SceneContext *context = m_context[currentIndex];
+
+		QStringList fileNames = dialog->selectedFiles();
+		settings.setValue("fileDialogState", dialog->saveState());
+		settings.setValue("lastDipoleZrTexture", fileNames[0]);
+
+        context->snowRenderSettings.dipoleZrTexture
+            = fileNames[0].toStdString();
+        updateSnowRenderingComponents();
+	}
+}
+
+void MainWindow::onDipoleSigmaTrTextureOpenDialogClose(int reason) {
+	QSettings settings("mitsuba-renderer.org", "qtgui");
+	QFileDialog *dialog = static_cast<QFileDialog *>(sender());
+	m_currentChild = NULL;
+	if (reason == QDialog::Accepted) {
+	    int currentIndex = ui->tabBar->currentIndex();
+    	if (currentIndex == -1)
+	    	return;
+    	SceneContext *context = m_context[currentIndex];
+
+		QStringList fileNames = dialog->selectedFiles();
+		settings.setValue("fileDialogState", dialog->saveState());
+		settings.setValue("lastDipoleSigmaTrTexture", fileNames[0]);
+
+        context->snowRenderSettings.dipoleSigmaTrTexture
+            = fileNames[0].toStdString();
+        updateSnowRenderingComponents();
+	}
 }
 
 void MainWindow::onSnowRenderModelChange() {
@@ -1335,6 +1442,11 @@ void MainWindow::updateSnowRenderingComponents() {
     m_dipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(true);
     m_dipoleSettings->singleScatteringCheckBox->blockSignals(true);
     m_dipoleSettings->martelliDCheckBox->blockSignals(true);
+    m_dipoleSettings->textureCheckBox->blockSignals(true);
+    m_dipoleSettings->textureZrEdit->blockSignals(true);
+    m_dipoleSettings->textureSigmaTrEdit->blockSignals(true);
+    m_dipoleSettings->textureUSpinBox->blockSignals(true);
+    m_dipoleSettings->textureVSpinBox->blockSignals(true);
     m_multipoleSettings->subsurfaceSizeSpinBox->blockSignals(true);
     m_multipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(true);
     m_multipoleSettings->extraDipolesSpinBox->blockSignals(true);
@@ -1375,6 +1487,11 @@ void MainWindow::updateSnowRenderingComponents() {
     m_dipoleSettings->subsurfaceSampleFactorSpinBox->setValue(dipoleSampleFactor);
     m_dipoleSettings->singleScatteringCheckBox->setChecked(dipoleUseSingleScattering);
     m_dipoleSettings->martelliDCheckBox->setChecked(dipoleUseMartelliDC);
+    m_dipoleSettings->textureCheckBox->setChecked(srs.dipoleTexture);
+    m_dipoleSettings->textureZrEdit->setText(dipoleZrTex);
+    m_dipoleSettings->textureSigmaTrEdit->setText(dipoleSigmaTrTex);
+    m_dipoleSettings->textureUSpinBox->setValue(srs.dipoleTextureUScaling);
+    m_dipoleSettings->textureVSpinBox->setValue(srs.dipoleTextureVScaling);
 
     // Jensen multipole
     Float multipoleDensityFactor = context->snowRenderSettings.multipoleDensityFactor;
@@ -1413,6 +1530,11 @@ void MainWindow::updateSnowRenderingComponents() {
     m_dipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(false);
     m_dipoleSettings->singleScatteringCheckBox->blockSignals(false);
     m_dipoleSettings->martelliDCheckBox->blockSignals(false);
+    m_dipoleSettings->textureCheckBox->blockSignals(false);
+    m_dipoleSettings->textureZrEdit->blockSignals(false);
+    m_dipoleSettings->textureSigmaTrEdit->blockSignals(false);
+    m_dipoleSettings->textureUSpinBox->blockSignals(false);
+    m_dipoleSettings->textureVSpinBox->blockSignals(false);
     m_multipoleSettings->subsurfaceSizeSpinBox->blockSignals(false);
     m_multipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(false);
     m_multipoleSettings->extraDipolesSpinBox->blockSignals(false);
