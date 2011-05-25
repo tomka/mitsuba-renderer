@@ -791,6 +791,21 @@ std::string timeString(Float time, bool precise) {
 	return os.str();
 }
 
+std::string randomString(Random *random, size_t size) {
+    static const char alphanum[] =
+        "0123456789"
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "abcdefghijklmnopqrstuvwxyz";
+
+    std::string ranStr(size, 't');
+
+    for (size_t i = 0; i < size; ++i) {
+        ranStr[i] = alphanum[ (int)(random->nextFloat() * (sizeof(alphanum) - 1)) ];
+    }
+
+    return ranStr;
+}
+
 double normalQuantile(double p) {
 	// By Peter J. Acklam
 	// http://home.online.no/~pjacklam/notes/invnorm/impl/sprouse/ltqnorm.c

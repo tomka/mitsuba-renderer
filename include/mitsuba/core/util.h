@@ -479,6 +479,9 @@ extern MTS_EXPORT Vector refract(const Vector& wi, const Normal& n, Float eta);
 
 /*! @} */
 
+/// Create a random alpha-numeric string of a specific size
+extern MTS_EXPORT std::string randomString(Random*, size_t size);
+
 MTS_NAMESPACE_END
 
 #endif /* __UTIL_H */
