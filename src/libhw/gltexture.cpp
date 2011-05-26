@@ -487,8 +487,11 @@ Spectrum GLTexture::getPixel(int x, int y) const {
 
 void GLTexture::activateTarget() {
 	Assert(m_fbType != ENone);
+    // bind FBO
 	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, m_fboId);
+    // save the viewport
 	glPushAttrib(GL_VIEWPORT_BIT);
+    // set viewport to the textures size
 	glViewport(0, 0, m_size.x, m_size.y);
 }
 
@@ -523,7 +526,9 @@ void GLTexture::setTargetRegion(const Point2i &offset, const Vector2i &size) {
 
 void GLTexture::releaseTarget() {
 	Assert(m_fbType != ENone);
+    // restore previous viewport
 	glPopAttrib();
+    // unbind FBO
 	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, GL_NONE);
 	if (isMipMapped())
 		m_needsUpdate = true;

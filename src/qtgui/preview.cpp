@@ -38,6 +38,9 @@ PreviewThread::PreviewThread(Device *parentDevice, Renderer *parentRenderer)
 	m_sleep = false;
 	m_started = new WaitFlag();
 
+    /* Create accumulation program to combine several rendering results
+     * (available as textures/FBO's) by adding them up. This is mainly
+     * needed for VPL rendering. */
 	m_accumProgram = m_renderer->createGPUProgram("Accumulation program");
 	m_accumProgram->setSource(GPUProgram::EVertexProgram,
 		"void main() {\n"
@@ -699,34 +702,51 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
 	Point camPos = m_camPos;
 	m_mutex->unlock();
 
+    // bind and init FBO
 	m_framebuffer->activateTarget();
 	m_framebuffer->clear();
+
 	m_renderer->beginDrawingMeshes();
 	for (size_t j=0; j<meshes.size(); j++) {
 		//m_directShaderManager->configure(vpl, meshes[j]->getBSDF(), 
 		//	meshes[j]->getLuminaire(), camPos, !meshes[j]->hasVertexNormals());
 		m_renderer->drawTriMesh(meshes[j]);
-		m_directShaderManager->unbind();
+        // unbind potentially bound data due to prev. configuring
+		//m_directShaderManager->unbind();
 	}
 	m_renderer->endDrawingMeshes();
 
     if (m_context->showNormals)
         oglRenderNormals(meshes);
 	m_directShaderManager->drawBackground(clipToWorld, camPos);
+    // unbind FBO
 	m_framebuffer->releaseTarget();
 
+    /* Get framebuffer result to the target buffer. Either by direct
+     * blitting or with the help of an accumulation program to combine
+     * different results. Depth masking and depth testing is not needed
+     * for this and hence is disabled. */
+
+    // bind target buffer FBO
 	target.buffer->activateTarget();
 	m_renderer->setDepthMask(false);
 	m_renderer->setDepthTest(false);
+    // bind framebuffer FBO to texture unit 0
 	m_framebuffer->bind(0);
-	if (m_accumBuffer == NULL) { 
+
+    // for this rendering method, an accumulation buffer is actually not needed
+	if (m_accumBuffer == NULL) {
+        // blit rendering result into target buffer 
 		target.buffer->clear();
 		m_renderer->blitTexture(m_framebuffer, true);
 	} else {
+        // bind already present data to texture unit 1
 		m_accumBuffer->bind(1);
 		m_accumProgram->bind();
+        // set sounce parameters (uniforms) for accum. program
 		m_accumProgram->setParameter(m_accumProgramParam_source1, m_accumBuffer);
 		m_accumProgram->setParameter(m_accumProgramParam_source2, m_framebuffer);
+        // create screeen quad on which the accum. program works
 		m_renderer->blitQuad(true);
 		m_accumProgram->unbind();
 		m_accumBuffer->unbind();
@@ -735,6 +755,7 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
 	m_renderer->setDepthMask(true);
 	m_renderer->setDepthTest(true);
 	target.buffer->releaseTarget();
+    // make render target FBO the new accum. buffer
 	m_accumBuffer = target.buffer;
 
 	static int i=0;
