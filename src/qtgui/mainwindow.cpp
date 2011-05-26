@@ -854,6 +854,8 @@ void MainWindow::onSnowRenderModelChange() {
     int subsurfaceIdx = ui->subsurfaceComboBox->currentIndex();
 
     // save proberties;
+    SnowRenderSettings &srs = context->snowRenderSettings;
+
     ESurfaceRenderMode surfaceRenderMode;
     if (surfaceIdx == 1) {
         surfaceRenderMode = EWiscombeWarrenAlbedo;
@@ -864,7 +866,7 @@ void MainWindow::onSnowRenderModelChange() {
     else
         surfaceRenderMode = ENoSurface;
 
-    context->snowRenderSettings.surfaceRenderMode = surfaceRenderMode;
+    srs.surfaceRenderMode = surfaceRenderMode;
 
     ESubSurfaceRenderMode subsurfaceRenderMode;
     if (subsurfaceIdx == 1)
@@ -876,30 +878,30 @@ void MainWindow::onSnowRenderModelChange() {
     else
         subsurfaceRenderMode = ENoSubSurface;
 
-    context->snowRenderSettings.subsurfaceRenderMode = subsurfaceRenderMode;
+    srs.subsurfaceRenderMode = subsurfaceRenderMode;
 
-    context->snowRenderSettings.wiscombeDepth = m_wiscombeSettings->depthSpinBox->value();
+    srs.wiscombeDepth = m_wiscombeSettings->depthSpinBox->value();
 
-    context->snowRenderSettings.hkSingleScatteringFactor = m_hkSettings->singleScatteringSpinBox->value();
-    context->snowRenderSettings.hkMultipleScatteringFactor = m_hkSettings->multipleScatteringSpinBox->value();
-    context->snowRenderSettings.hkUseMultipleScattering = m_hkSettings->multipleScatteringCheckBox->isChecked();
+    srs.hkSingleScatteringFactor = m_hkSettings->singleScatteringSpinBox->value();
+    srs.hkMultipleScatteringFactor = m_hkSettings->multipleScatteringSpinBox->value();
+    srs.hkUseMultipleScattering = m_hkSettings->multipleScatteringCheckBox->isChecked();
 
-    context->snowRenderSettings.dipoleDensityFactor = m_dipoleSettings->subsurfaceSizeSpinBox->value();
-    context->snowRenderSettings.dipoleSampleFactor = m_dipoleSettings->subsurfaceSampleFactorSpinBox->value();
-    context->snowRenderSettings.dipoleUseSingleScattering = m_dipoleSettings->singleScatteringCheckBox->isChecked();
-    context->snowRenderSettings.dipoleMartelliDC = m_dipoleSettings->martelliDCheckBox->isChecked();
+    srs.dipoleDensityFactor = m_dipoleSettings->subsurfaceSizeSpinBox->value();
+    srs.dipoleSampleFactor = m_dipoleSettings->subsurfaceSampleFactorSpinBox->value();
+    srs.dipoleUseSingleScattering = m_dipoleSettings->singleScatteringCheckBox->isChecked();
+    srs.dipoleMartelliDC = m_dipoleSettings->martelliDCheckBox->isChecked();
 
-    context->snowRenderSettings.multipoleDensityFactor = m_multipoleSettings->subsurfaceSizeSpinBox->value();
-    context->snowRenderSettings.multipoleSampleFactor = m_multipoleSettings->subsurfaceSampleFactorSpinBox->value();
-    context->snowRenderSettings.multipoleExtraDipoles = m_multipoleSettings->extraDipolesSpinBox->value();
-    context->snowRenderSettings.multipoleSlabThickness = m_multipoleSettings->slabThicknessSpinBox->value();
-    context->snowRenderSettings.multipoleUseSingleScattering = m_multipoleSettings->singleScatteringCheckBox->isChecked();
-    context->snowRenderSettings.multipoleMartelliDC = m_multipoleSettings->martelliDCheckBox->isChecked();
+    srs.multipoleDensityFactor = m_multipoleSettings->subsurfaceSizeSpinBox->value();
+    srs.multipoleSampleFactor = m_multipoleSettings->subsurfaceSampleFactorSpinBox->value();
+    srs.multipoleExtraDipoles = m_multipoleSettings->extraDipolesSpinBox->value();
+    srs.multipoleSlabThickness = m_multipoleSettings->slabThicknessSpinBox->value();
+    srs.multipoleUseSingleScattering = m_multipoleSettings->singleScatteringCheckBox->isChecked();
+    srs.multipoleMartelliDC = m_multipoleSettings->martelliDCheckBox->isChecked();
 
-    context->snowRenderSettings.adipoleDensityFactor = m_adipoleSettings->subsurfaceSizeSpinBox->value();
-    context->snowRenderSettings.adipoleSampleFactor = m_adipoleSettings->subsurfaceSampleFactorSpinBox->value();
-    context->snowRenderSettings.adipoleSigmaTn = m_adipoleSettings->sigmaTnSpinBox->value();
-    context->snowRenderSettings.adipoleD = m_adipoleSettings->dLineEdit->text().toStdString();
+    srs.adipoleDensityFactor = m_adipoleSettings->subsurfaceSizeSpinBox->value();
+    srs.adipoleSampleFactor = m_adipoleSettings->subsurfaceSampleFactorSpinBox->value();
+    srs.adipoleSigmaTn = m_adipoleSettings->sigmaTnSpinBox->value();
+    srs.adipoleD = m_adipoleSettings->dLineEdit->text().toStdString();
 
     updateSnowOnAllShapes(context, true);
     updateUI();

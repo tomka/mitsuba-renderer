@@ -381,11 +381,11 @@ public:
                 ++data; // alpha
                 float sum = r + g + b;
 
-                if (sum > 0.001) { // test values for skin
+                if (sum > 0.001) {
                     *zrData++ = r;
                     *zrData++ = g;
                     *zrData++ = b;
-                    *zrData++ = 1.0; //a;
+                    *zrData++ = 1.0; // alpha
                     // find a potentially lower MFP
                     if (adjustMFP) {
                         /* the tests are rearranged for faster computation */
@@ -475,11 +475,11 @@ public:
                 ++data; // alpha
                 float sum = r + g + b;
 
-                if (sum > 0.001) { // test values for ketchup
+                if (sum > 0.001) {
                     *sTrData++ = r;
                     *sTrData++ = g;
                     *sTrData++ = b;
-                    *sTrData++ = 1.0; //a;
+                    *sTrData++ = 1.0; // alpha
                 } else {
                     *sTrData++ = m_sigmaTr[0];
                     *sTrData++ = m_sigmaTr[1];
