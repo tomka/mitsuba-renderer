@@ -88,7 +88,7 @@ public:
 		Texture2D::serialize(stream, manager);
 		stream->writeString(m_filename.file_string());
 		stream->writeBool(m_anisotropic);
-stream->writeUInt(m_wrapMode);
+        stream->writeUInt(m_wrapMode);
 		stream->writeFloat(m_maxAnisotropy);
 		ref<Stream> is = new FileStream(m_filename, FileStream::EReadOnly);
 		stream->writeInt(is->getSize());

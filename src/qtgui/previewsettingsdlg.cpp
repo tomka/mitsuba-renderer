@@ -33,7 +33,8 @@ public:
 			<< "OpenGL"
 			<< "OpenGL (single pass)"
 			<< "Coherent ray tracing"
-			<< "Standard ray tracing";
+			<< "Standard ray tracing"
+            << "OpenGL Realtime SSS";
 		setStringList(tmp);
 	}
 

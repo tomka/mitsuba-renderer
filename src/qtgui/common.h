@@ -191,7 +191,8 @@ enum EPreviewMethod {
 	EOpenGL,
 	EOpenGLSinglePass,
 	ERayTraceCoherent,
-	ERayTrace
+	ERayTrace,
+    EOpenGLRealtime
 };
 
 enum EToneMappingMethod {

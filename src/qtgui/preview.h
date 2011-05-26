@@ -22,6 +22,7 @@
 #include <mitsuba/core/platform.h>
 #include <QtGui>
 #include <mitsuba/hw/vpl.h>
+#include <mitsuba/hw/direct.h>
 #include <mitsuba/render/preview.h>
 #include "common.h"
 #include "preview_proc.h"
@@ -74,13 +75,19 @@ protected:
 	virtual ~PreviewThread();
 	/// Render a single VPL using OpenGL
 	void oglRenderVPL(PreviewQueueEntry &target, const VPL &vpl);
+    /// Render face or vertex normals of all meshes
+    void oglRenderNormals(const std::vector<const TriMesh *> meshes);
 	/// Render a single VPL using real-time coherent ray tracing
 	void rtrtRenderVPL(PreviewQueueEntry &target, const VPL &vpl);
+    /// Render a multi-pass OpenGL visalisation that supports realtime SSS
+    void oglRender(PreviewQueueEntry &target);
+
 private:
 	ref<Session> m_session;
 	ref<Device> m_device, m_parentDevice;
 	ref<Renderer> m_renderer, m_parentRenderer;
 	ref<VPLShaderManager> m_shaderManager;
+	ref<DirectShaderManager> m_directShaderManager;
 	ref<GPUTexture> m_framebuffer;
 	ref<GPUProgram> m_accumProgram;
 	ref<PreviewProcess> m_previewProc;

@@ -22,7 +22,7 @@
 
 PreviewThread::PreviewThread(Device *parentDevice, Renderer *parentRenderer)
 	: Thread("prev"), m_parentDevice(parentDevice), m_parentRenderer(parentRenderer), 
-		m_context(NULL), m_quit(false) {
+		m_directShaderManager(NULL), m_context(NULL), m_quit(false) {
 	MTS_AUTORELEASE_BEGIN()
 	m_session = Session::create();
 	m_device = Device::create(m_session);
@@ -363,7 +363,33 @@ void PreviewThread::run() {
 				m_vpls.pop_front();
 
 				rtrtRenderVPL(target, vpl);
-			} else {
+			} else if (m_context->previewMethod == EOpenGLRealtime) {
+				if (m_directShaderManager == NULL || m_directShaderManager->getScene() != m_context->scene) {
+					if (m_directShaderManager) {
+						m_directShaderManager->cleanup();
+						m_framebuffer->cleanup();
+					}
+					m_directShaderManager = new DirectShaderManager(m_context->scene, m_renderer);
+					m_directShaderManager->init();
+					m_framebuffer->setFormat(GPUTexture::EFloat32RGB);
+					m_framebuffer->setSize(size);
+					m_framebuffer->setFilterType(GPUTexture::ENearest);
+					m_framebuffer->setFrameBufferType(GPUTexture::EColorBuffer);
+					m_framebuffer->setMipMapped(false);
+					m_framebuffer->init();
+				}
+
+				m_directShaderManager->setShadowMapResolution(m_context->shadowMapResolution);
+				m_directShaderManager->setClamping(m_context->clamping);
+				m_directShaderManager->setSinglePass(m_context->previewMethod == EOpenGLSinglePass);
+				//m_directShaderManager->setDiffuseSources(m_context->diffuseSources);
+				m_directShaderManager->setDiffuseReceivers(m_context->diffuseReceivers);
+                
+                oglRender(target);
+
+				if (m_useSync)
+					target.sync->init(); 
+            } else {
 				if (m_shaderManager == NULL || m_shaderManager->getScene() != m_context->scene) {
 					if (m_shaderManager) {
 						m_shaderManager->cleanup();
@@ -437,6 +463,8 @@ void PreviewThread::run() {
 	if (initializedGraphics) {
 		if (m_shaderManager)
 			m_shaderManager->cleanup();
+		if (m_directShaderManager)
+			m_directShaderManager->cleanup();
 
 		m_accumProgram->cleanup();
 
@@ -508,51 +536,8 @@ void PreviewThread::oglRenderVPL(PreviewQueueEntry &target, const VPL &vpl) {
 		m_shaderManager->unbind();
 	}
 	m_renderer->endDrawingMeshes();
-
-    if (m_context->showNormals) {
-        Float scale = m_context->normalScaling;
-        Spectrum normalColor;
-        Normal n(0.0f);
-
-        for (size_t j=0; j<meshes.size(); j++) {
-            const TriMesh *mesh = meshes[j];
-            if (mesh->hasVertexNormals()) {
-                normalColor.fromLinearRGB(0.8f, 0.2f, 0.0f);
-                m_renderer->setColor(normalColor);
-                const Point *vertices = mesh->getVertexPositions();
-                const Normal *normals = mesh->getVertexNormals();
-                for (size_t i=0; i<mesh->getVertexCount(); ++i) {
-                        m_renderer->drawLine( vertices[i], vertices[i] + scale * normals[i] );
-                }
-            } else {
-                normalColor.fromLinearRGB(0.0f, 0.8f, 0.2f);
-                m_renderer->setColor(normalColor);
-                const Triangle *triangles = mesh->getTriangles();
-                const Point *vertices = mesh->getVertexPositions();
-                for (size_t i=0; i<mesh->getTriangleCount(); ++i) {
-                    const Triangle &tri = triangles[i];
-                    for (int j=0; j<3; ++j) {
-                        const Point &v0 = vertices[tri.idx[j]];
-                        const Point &v1 = vertices[tri.idx[(j+1)%3]];
-                        const Point &v2 = vertices[tri.idx[(j+2)%3]];
-                        Vector sideA(v1-v0), sideB(v2-v0);
-                        if (i==0)
-                            n = Normal(normalize(cross(sideA, sideB)));
-                        const Point &center = (v0 + v1 + v2) / 3.0f;
-                        m_renderer->drawLine( center, center + scale * n );
-                    }
-                }
-            }
-        }
-    }
-
-	if (m_context->showKDTree) {
-		oglRenderKDTree(m_context->scene->getKDTree());
-		const std::vector<Shape *> shapes = m_context->scene->getShapes();
-		for (size_t j=0; j<shapes.size(); ++j) 
-			if (shapes[j]->getKDTree())
-				oglRenderKDTree(shapes[j]->getKDTree());
-	}
+    if (m_context->showNormals)
+        oglRenderNormals(meshes); 
 
 	m_shaderManager->drawBackground(clipToWorld, camPos,
 		m_backgroundScaleFactor);
@@ -597,6 +582,43 @@ void PreviewThread::oglRenderVPL(PreviewQueueEntry &target, const VPL &vpl) {
 			m_renderer->finish();
 		}
 	}
+}
+
+void PreviewThread::oglRenderNormals(const std::vector<const TriMesh *> meshes) {
+    Float scale = m_context->normalScaling;
+    Spectrum normalColor;
+    Normal n(0.0f);
+
+    for (size_t j=0; j<meshes.size(); j++) {
+        const TriMesh *mesh = meshes[j];
+        if (mesh->hasVertexNormals()) {
+            normalColor.fromLinearRGB(0.8f, 0.2f, 0.0f);
+            m_renderer->setColor(normalColor);
+            const Point *vertices = mesh->getVertexPositions();
+            const Normal *normals = mesh->getVertexNormals();
+            for (size_t i=0; i<mesh->getVertexCount(); ++i) {
+                    m_renderer->drawLine( vertices[i], vertices[i] + scale * normals[i] );
+            }
+        } else {
+            normalColor.fromLinearRGB(0.0f, 0.8f, 0.2f);
+            m_renderer->setColor(normalColor);
+            const Triangle *triangles = mesh->getTriangles();
+            const Point *vertices = mesh->getVertexPositions();
+            for (size_t i=0; i<mesh->getTriangleCount(); ++i) {
+                const Triangle &tri = triangles[i];
+                for (int j=0; j<3; ++j) {
+                    const Point &v0 = vertices[tri.idx[j]];
+                    const Point &v1 = vertices[tri.idx[(j+1)%3]];
+                    const Point &v2 = vertices[tri.idx[(j+2)%3]];
+                    Vector sideA(v1-v0), sideB(v2-v0);
+                    if (i==0)
+                        n = Normal(normalize(cross(sideA, sideB)));
+                    const Point &center = (v0 + v1 + v2) / 3.0f;
+                    m_renderer->drawLine( center, center + scale * n );
+                }
+            }
+        }
+    }
 }
 
 void PreviewThread::rtrtRenderVPL(PreviewQueueEntry &target, const VPL &vpl) {
@@ -657,4 +679,76 @@ void PreviewThread::rtrtRenderVPL(PreviewQueueEntry &target, const VPL &vpl) {
 	target.vplSampleOffset = m_vplSampleOffset;
 	m_raysPerSecond += m_previewProc->getRayCount();
 	m_accumBuffer = target.buffer;
+}
+
+void PreviewThread::oglRender(PreviewQueueEntry &target) {
+	const std::vector<const TriMesh *> meshes = m_directShaderManager->getMeshes();
+
+	Point2 jitter(.5f, .5f);
+	if (!m_motion && !m_context->showKDTree)
+		jitter -= Vector2(m_random->nextFloat(), m_random->nextFloat());
+
+	m_mutex->lock();
+	const ProjectiveCamera *camera = static_cast<const ProjectiveCamera *>
+		(m_context->scene->getCamera());
+	Transform projectionTransform = camera->getGLProjectionTransform(jitter);
+	m_renderer->setCamera(projectionTransform.getMatrix(), m_camViewTransform.getMatrix());
+	Transform clipToWorld = m_camViewTransform.inverse() 
+		* Transform::scale(Vector(1, 1, -1)) * projectionTransform.inverse();
+
+	Point camPos = m_camPos;
+	m_mutex->unlock();
+
+	m_framebuffer->activateTarget();
+	m_framebuffer->clear();
+	m_renderer->beginDrawingMeshes();
+	for (size_t j=0; j<meshes.size(); j++) {
+		//m_directShaderManager->configure(vpl, meshes[j]->getBSDF(), 
+		//	meshes[j]->getLuminaire(), camPos, !meshes[j]->hasVertexNormals());
+		m_renderer->drawTriMesh(meshes[j]);
+		m_directShaderManager->unbind();
+	}
+	m_renderer->endDrawingMeshes();
+
+    if (m_context->showNormals)
+        oglRenderNormals(meshes);
+	m_directShaderManager->drawBackground(clipToWorld, camPos);
+	m_framebuffer->releaseTarget();
+
+	target.buffer->activateTarget();
+	m_renderer->setDepthMask(false);
+	m_renderer->setDepthTest(false);
+	m_framebuffer->bind(0);
+	if (m_accumBuffer == NULL) { 
+		target.buffer->clear();
+		m_renderer->blitTexture(m_framebuffer, true);
+	} else {
+		m_accumBuffer->bind(1);
+		m_accumProgram->bind();
+		m_accumProgram->setParameter(m_accumProgramParam_source1, m_accumBuffer);
+		m_accumProgram->setParameter(m_accumProgramParam_source2, m_framebuffer);
+		m_renderer->blitQuad(true);
+		m_accumProgram->unbind();
+		m_accumBuffer->unbind();
+	}
+	m_framebuffer->unbind();
+	m_renderer->setDepthMask(true);
+	m_renderer->setDepthTest(true);
+	target.buffer->releaseTarget();
+	m_accumBuffer = target.buffer;
+
+	static int i=0;
+	if ((++i % 4) == 0 || m_motion) {
+		/* Don't let the queue get too large -- this makes
+		   the whole system unresponsive */
+		m_renderer->finish();
+	} else {
+		if (m_useSync) {
+			m_renderer->flush();
+		} else {
+			/* No sync objects available - we have to wait 
+			   for everything to finish */
+			m_renderer->finish();
+		}
+	}
 }
