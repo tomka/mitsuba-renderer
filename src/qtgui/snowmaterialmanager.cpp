@@ -80,6 +80,8 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
             properties.setBoolean("singleScattering", srs.dipoleUseSingleScattering);
             properties.setBoolean("useMartelliD", srs.dipoleMartelliDC);
             properties.setBoolean("useTexture", srs.dipoleTexture);
+            properties.setBoolean("dumpIrrtree", srs.dipoleDumpIrrtree);
+            properties.setString("dumpIrrtreePath", srs.dipoleDumpIrrtreePath);
             if (srs.dipoleTexture) {
                 properties.setString("zrFilename", srs.dipoleZrTexture);
                 properties.setString("sigmaTrFilename", srs.dipoleSigmaTrTexture);

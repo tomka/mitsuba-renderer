@@ -232,6 +232,10 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_dipoleSettings->textureSigmaTrButton, SIGNAL(pressed()), this, SLOT(onDipoleSigmaTrTextureLoad()));
     connect(m_dipoleSettings->textureUSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onDipoleTextureSettingsChanged()));
     connect(m_dipoleSettings->textureVSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onDipoleTextureSettingsChanged()));
+    connect(m_dipoleSettings->irrDumpCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_dipoleSettings->irrDumpPathEdit, SIGNAL(textChanged(const QString&)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_dipoleSettings->irrDumpPathButton, SIGNAL(pressed()), this, SLOT(onDipoleIrrtrrDumpPathRequest()));
+
     connect(m_multipoleSettings->subsurfaceSizeSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_multipoleSettings->subsurfaceSampleFactorSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_multipoleSettings->extraDipolesSpinBox, SIGNAL(valueChanged(int)), this, SLOT(onSnowRenderModelChange()));
@@ -844,6 +848,46 @@ void MainWindow::onDipoleSigmaTrTextureOpenDialogClose(int reason) {
 	}
 }
 
+void MainWindow::onDipoleIrrtrrDumpPathRequest() {
+	QFileDialog *dialog = new QFileDialog(this, tr("Dump irradiance tree .."),
+		"", tr("OBJ mesh (*.obj)"));
+
+	QSettings settings("mitsuba-renderer.org", "qtgui");
+	dialog->setViewMode(QFileDialog::Detail);
+	dialog->setAcceptMode(QFileDialog::AcceptSave);
+
+#if defined(__OSX__)
+	dialog->setOption(QFileDialog::DontUseNativeDialog, true);
+#endif
+
+	dialog->restoreState(settings.value("fileDialogState").toByteArray());
+	dialog->setAttribute(Qt::WA_DeleteOnClose);
+	dialog->setWindowModality(Qt::WindowModal);
+	connect(dialog, SIGNAL(finished(int)), this, SLOT(onDipoleIrrtrrDumpPathDialogClose(int)));
+	m_currentChild = dialog;
+	// prevent a tab drawing artifact on Qt/OSX
+	m_activeWindowHack = true;
+	dialog->show();
+	qApp->processEvents();
+	m_activeWindowHack = false;
+}
+
+void MainWindow::onDipoleIrrtrrDumpPathDialogClose(int reason) {
+	int currentIndex = ui->tabBar->currentIndex();
+	SceneContext *ctx = m_context[currentIndex];
+
+	QSettings settings("mitsuba-renderer.org", "qtgui");
+	QFileDialog *dialog = static_cast<QFileDialog *>(sender());
+	m_currentChild = NULL;
+
+    if (reason == QDialog::Accepted) {
+		settings.setValue("fileDialogState", dialog->saveState());
+        QString fileName = dialog->selectedFiles().value(0);
+        ctx->snowRenderSettings.dipoleDumpIrrtreePath = fileName.toStdString();
+        updateSnowRenderingComponents();
+    }
+}
+
 void MainWindow::onSnowRenderModelChange() {
 	int currentIndex = ui->tabBar->currentIndex();
 	if (currentIndex == -1)
@@ -890,6 +934,8 @@ void MainWindow::onSnowRenderModelChange() {
     srs.dipoleSampleFactor = m_dipoleSettings->subsurfaceSampleFactorSpinBox->value();
     srs.dipoleUseSingleScattering = m_dipoleSettings->singleScatteringCheckBox->isChecked();
     srs.dipoleMartelliDC = m_dipoleSettings->martelliDCheckBox->isChecked();
+    srs.dipoleDumpIrrtree = m_dipoleSettings->irrDumpCheckBox->isChecked();
+    srs.dipoleDumpIrrtreePath = m_dipoleSettings->irrDumpPathEdit->text().toStdString();
 
     srs.multipoleDensityFactor = m_multipoleSettings->subsurfaceSizeSpinBox->value();
     srs.multipoleSampleFactor = m_multipoleSettings->subsurfaceSampleFactorSpinBox->value();
@@ -1449,6 +1495,8 @@ void MainWindow::updateSnowRenderingComponents() {
     m_dipoleSettings->textureSigmaTrEdit->blockSignals(true);
     m_dipoleSettings->textureUSpinBox->blockSignals(true);
     m_dipoleSettings->textureVSpinBox->blockSignals(true);
+    m_dipoleSettings->irrDumpCheckBox->blockSignals(true);
+    m_dipoleSettings->irrDumpPathEdit->blockSignals(true);
     m_multipoleSettings->subsurfaceSizeSpinBox->blockSignals(true);
     m_multipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(true);
     m_multipoleSettings->extraDipolesSpinBox->blockSignals(true);
@@ -1498,6 +1546,8 @@ void MainWindow::updateSnowRenderingComponents() {
     m_dipoleSettings->textureSigmaTrEdit->setText(dipoleSigmaTrTex);
     m_dipoleSettings->textureUSpinBox->setValue(srs.dipoleTextureUScaling);
     m_dipoleSettings->textureVSpinBox->setValue(srs.dipoleTextureVScaling);
+    m_dipoleSettings->irrDumpCheckBox->setChecked(srs.dipoleDumpIrrtree);
+    m_dipoleSettings->irrDumpPathEdit->setText(QString::fromStdString(srs.dipoleDumpIrrtreePath));
 
     // Jensen multipole
     Float multipoleDensityFactor = srs.multipoleDensityFactor;
@@ -1541,6 +1591,8 @@ void MainWindow::updateSnowRenderingComponents() {
     m_dipoleSettings->textureSigmaTrEdit->blockSignals(false);
     m_dipoleSettings->textureUSpinBox->blockSignals(false);
     m_dipoleSettings->textureVSpinBox->blockSignals(false);
+    m_dipoleSettings->irrDumpCheckBox->blockSignals(false);
+    m_dipoleSettings->irrDumpPathEdit->blockSignals(false);
     m_multipoleSettings->subsurfaceSizeSpinBox->blockSignals(false);
     m_multipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(false);
     m_multipoleSettings->extraDipolesSpinBox->blockSignals(false);

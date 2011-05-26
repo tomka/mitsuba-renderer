@@ -84,6 +84,8 @@ struct SnowRenderSettings {
     std::string dipoleSigmaTrTexture;
     Float dipoleTextureUScaling;
     Float dipoleTextureVScaling;
+    bool dipoleDumpIrrtree;
+    std::string dipoleDumpIrrtreePath;
 
     /* Jensen multipole settings */
     Float multipoleDensityFactor;
@@ -103,6 +105,7 @@ struct SnowRenderSettings {
         wiscombeDepth(2.0f), hkSingleScatteringFactor(1.0f), hkMultipleScatteringFactor(1.0f),
         dipoleDensityFactor(1.0f), dipoleSampleFactor(1.0f), dipoleUseSingleScattering(false),
         dipoleTexture(false), dipoleTextureUScaling(1.0f), dipoleTextureVScaling(1.0f),
+        dipoleDumpIrrtree(false), dipoleDumpIrrtreePath(""),
         multipoleDensityFactor(1.0f), multipoleSampleFactor(1.0f), multipoleExtraDipoles(2),
         multipoleSlabThickness(0.2f), adipoleDensityFactor(1.0f), adipoleSampleFactor(1.0f),
         adipoleSigmaTn(1.0f),

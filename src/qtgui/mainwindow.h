@@ -207,6 +207,8 @@ private slots:
     void onDipoleZrTextureOpenDialogClose(int reason);
     void onDipoleSigmaTrTextureLoad();
     void onDipoleSigmaTrTextureOpenDialogClose(int reason);
+    void onDipoleIrrtrrDumpPathRequest();
+    void onDipoleIrrtrrDumpPathDialogClose(int reason);
 
 private:
     Ui::MainWindow *ui;

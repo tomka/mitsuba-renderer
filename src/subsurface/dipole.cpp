@@ -152,6 +152,9 @@ public:
 		m_maxDepth = props.getInteger("maxDepth", 40);
         /* Single scattering term */
         m_singleScattering = props.getBoolean("singleScattering", false);
+        /* Should the irrtree be dumped? */
+        m_dumpIrrtree = props.getBoolean("dumpIrrtree", false);
+        m_dumpIrrtreePath = props.getString("dumpIrrtreePath", "");
 		/* Multiplicative factor for the subsurface term - can be used to remove
 		   this contribution completely, making it possible to use this integrator
 		   for other interesting things.. */
@@ -676,6 +679,12 @@ public:
 		m_octree->preprocess();
 		m_octreeResID = Scheduler::getInstance()->registerResource(m_octree);
 
+        if (m_dumpIrrtree && m_dumpIrrtreePath.length() > 0) {
+            Log(EInfo, "Starting to dump irradiance tree to %s", m_dumpIrrtreePath.c_str());
+            m_octree->dumpOBJ(m_dumpIrrtreePath);
+            Log(EInfo, "Dump finished");
+        }
+
 		m_ready = true;
 		return true;
 	}
@@ -707,8 +716,8 @@ private:
 	int m_maxDepth;
 	int m_irrSamples;
 	bool m_irrIndirect;
-	bool m_ready, m_requireSample;
-	bool m_ready, m_requireSample, m_singleScattering;
+	bool m_ready, m_requireSample, m_singleScattering, m_dumpIrrtree;
+    std::string m_dumpIrrtreePath;
     mutable ThreadLocal<Random> m_random;
     bool m_useTextures;
     ref<Texture> m_zvTex;
