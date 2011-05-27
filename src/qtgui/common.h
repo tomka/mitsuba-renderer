@@ -111,6 +111,7 @@ struct SnowRenderSettings {
         dipoleDumpIrrtree(false), dipoleDumpIrrtreePath(""),
         multipoleDensityFactor(1.0f), multipoleSampleFactor(1.0f), multipoleExtraDipoles(2),
         multipoleSlabThickness(0.2f), multipoleUseSingleScattering(false), multipoleMartelliDC(false),
+        multipoleUseLut(true), multipoleLutResolution(0.01),
         adipoleDensityFactor(1.0f), adipoleSampleFactor(1.0f), adipoleSigmaTn(1.0f),
         // default to sin^20 flake distribution
         adipoleD("1.6307, -0.00049, 0.00069, -0.00049, 1.63148, 0.00001, 0.00067, 0.00002, 2.12596")
