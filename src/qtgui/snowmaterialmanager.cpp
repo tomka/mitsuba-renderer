@@ -98,6 +98,8 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
             properties.setFloat("slabThickness", srs.multipoleSlabThickness);
             properties.setInteger("extraDipoles", srs.multipoleExtraDipoles);
             properties.setBoolean("useMartelliD", srs.multipoleMartelliDC);
+            properties.setBoolean("useLookUpTable", srs.multipoleUseLut);
+            properties.setFloat("lutResolution", srs.multipoleLutResolution);
             subsurface = static_cast<Subsurface *> (pluginManager->createObject(
                 Subsurface::m_theClass, properties));
         } else if (subsurfaceMode == EJakobADipoleBSSRDF) {

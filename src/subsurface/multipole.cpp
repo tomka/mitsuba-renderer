@@ -22,6 +22,8 @@
 
 MTS_NAMESPACE_BEGIN
 
+typedef std::vector<Spectrum> LUTType;
+
 /**
  * Computes the combined diffuse radiant exitance 
  * caused by a number of dipole sources
@@ -110,37 +112,46 @@ struct IsotropicDipoleQuery {
  */
 struct IsotropicMultipoleQuery {
 //#if !defined(MTS_SSE) || (SPECTRUM_SAMPLES != 3)
-	inline IsotropicMultipoleQuery(const Spectrum &zr, const Spectrum &zv, 
+	inline IsotropicMultipoleQuery(const std::vector<Spectrum> &zr, const std::vector<Spectrum> &zv, 
 		const Spectrum &sigmaTr, Float Fdt, const Point &p, const Normal &_ns,
-        const Float _d)
-		: zr(zr), zv(zv), sigmaTr(sigmaTr), result(0.0f), Fdt(Fdt), p(p),
-          ns(_ns), d(_d) {
+        const Float _d, const Float numExtraDipoles)
+		: zrList(zr), zvList(zv), sigmaTr(sigmaTr), result(0.0f), Fdt(Fdt), p(p),
+          ns(_ns), d(_d), numExtraDipoles(numExtraDipoles) {
 		count = 0;
 	}
 
 	inline void operator()(const IrradianceSample &sample) {
 		Spectrum rSqr = Spectrum((p - sample.p).lengthSquared());
-		/* Distance to the real source */
-		Spectrum dr = (rSqr + zr*zr).sqrt();
-		/* Distance to the image point source */
-		Spectrum dv = (rSqr + zv*zv).sqrt();
-		Spectrum C1 = (sigmaTr + Spectrum(1.0f) / dr);
-		Spectrum C2 = (sigmaTr + Spectrum(1.0f) / dv);
 
-		/* Do not include the reduced albedo - will be canceled out later */
-		Spectrum dMoR = Spectrum(0.25f * INV_PI) *
-			 (zr * C1 * ((-sigmaTr * dr).exp()) / (dr * dr)
-			+ zv * C2 * ((-sigmaTr * dv).exp()) / (dv * dv));
+        Spectrum dMoR(0.0f);
+        for (int i=-numExtraDipoles; i<=numExtraDipoles; ++i) {
+            int idx = i + numExtraDipoles;
 
-		//Spectrum dMoT = Spectrum(0.25f * INV_PI) *
-		//	 ((d - zr) * C1 * ((-sigmaTr * dr).exp()) / (dr * dr)
-		//	- (d + zv) * C2 * ((-sigmaTr * dv).exp()) / (dv * dv));
+            const Spectrum &zr = zrList[idx];
+            const Spectrum &zv = zvList[idx];
 
-        /* combine Mo based on R and Mo based on T to a new
-         * Mo based on a combined profile P. */
-        //Float cosN = dot(ns, sample.n);
-        //Spectrum dMoP = 0.5 * (cosN + 1) * dMoR
-        //    + 0.5 * (1 - cosN) * dMoT;
+            /* Distance to the real source */
+            Spectrum dr = (rSqr + zr*zr).sqrt();
+            /* Distance to the image point source */
+            Spectrum dv = (rSqr + zv*zv).sqrt();
+            Spectrum C1 = (sigmaTr + Spectrum(1.0f) / dr);
+            Spectrum C2 = (sigmaTr + Spectrum(1.0f) / dv);
+
+            /* Do not include the reduced albedo - will be canceled out later */
+            dMoR += Spectrum(0.25f * INV_PI) *
+                    (  zr * C1 * ((-sigmaTr * dr).exp()) / (dr * dr)
+                     + zv * C2 * ((-sigmaTr * dv).exp()) / (dv * dv));
+
+            //Spectrum dMoT = Spectrum(0.25f * INV_PI) *
+            //	 ((d - zr) * C1 * ((-sigmaTr * dr).exp()) / (dr * dr)
+            //	- (d + zv) * C2 * ((-sigmaTr * dv).exp()) / (dv * dv));
+
+            /* combine Mo based on R and Mo based on T to a new
+             * Mo based on a combined profile P. */
+            //Float cosN = dot(ns, sample.n);
+            //Spectrum dMoP = 0.5 * (cosN + 1) * dMoR
+            //    + 0.5 * (1 - cosN) * dMoT;
+        }
 
 		//result += dMoP * sample.E * (sample.area * Fdt);
 		result += dMoR * sample.E * (sample.area * Fdt);
@@ -152,7 +163,9 @@ struct IsotropicMultipoleQuery {
 		return result;
 	}
 
-	Spectrum zr, zv, sigmaTr, result;
+	const std::vector<Spectrum> &zrList, &zvList;
+    Spectrum sigmaTr, result;
+
 //#else
 //	inline IsotropicMUltipoleQuery(const Spectrum &_zr, const Spectrum &_zv, 
 //		const Spectrum &_sigmaTr, Float Fdt, const Point &p, const Normal &_ns,
@@ -201,17 +214,66 @@ struct IsotropicMultipoleQuery {
 	Point p;
     Normal ns;
     Spectrum d;
+    int numExtraDipoles;
 };
+
+/**
+ * Computes the combined diffuse radiant exitance caused by a number of
+ * dipole sources. It is meant to be used with a look-up-table (LUT)
+ * for dMoR which is indexed with the distance. ToDo: Index with squared
+ * distance to save one sqrt().
+ */
+struct IsotropicLUTMultipoleQuery {
+	inline IsotropicLUTMultipoleQuery(const LUTType &lut, Float _res, Float _Fdt, const Point &_p)
+        : dMoR_LUT(lut), entries(lut.size()), resolution(_res),
+          result(0.0f), Fdt(_Fdt), p(_p), count(0) {
+	}
+
+	inline void operator()(const IrradianceSample &sample) {
+	    //Float rSqr = (p - sample.p).lengthSquared();
+	    Float r = (p - sample.p).length();
+        /* Look up dMoR for the distance. As in the normal query,
+         * the reduced albedo is not included. It will be canceled
+         * out later. */
+        int index = (int) (r * resolution);
+        if (index < entries) {
+            Spectrum dMoR = dMoR_LUT[index];
+
+            /* combine Mo based on R and Mo based on T to a new
+             * Mo based on a combined profile P. */
+            result += dMoR * sample.E * (sample.area * Fdt);
+        }
+     
+		count++;
+	}
+
+	inline const Spectrum &getResult() const {
+		return result;
+	}
+
+    /* a reference to a dMoR look-up-table */
+    const LUTType &dMoR_LUT;
+    int entries;
+    Float resolution;
+	Spectrum result;
+	Float Fdt;
+	Point p;
+	int count;
+};
+
 
 static ref<Mutex> irrOctreeMutex = new Mutex();
 static int irrOctreeIndex = 0;
 
 /**
  * Subsurface scattering integrator using Jensen's fast hierarchical 
- * dipole approximation scheme.
+ * dipole approximation scheme with his and Donner's multipole approach.
  *
  * ("A Rapid Hierarhical Rendering Technique for Translucent 
  *   Materials" by Herik Wann Jensen and Juan Buhler, in SIGGRAPH 02)
+ *
+ * ("Light Diffusion in Multi-Layered Tranclucent Materials", in ACM
+ *   Transactions on Graphics 24)
  */
 class IsotropicMultipole : public Subsurface {
 public:
@@ -236,6 +298,9 @@ public:
 		m_extraDipoles = props.getInteger("extraDipoles", 0);
         m_slabThickness = props.getFloat("slabThickness", 1.0f);
         m_useMartelliD = props.getBoolean("useMartelliDC", true);
+        m_useRdLookUpTable = props.getBoolean("useLookUpTable", true);
+        m_errThreshold = props.getFloat("errorThreshold", 0.01);
+        m_lutResolution = props.getFloat("lutResolution", 0.01);
 
         if (m_extraDipoles == 0) {
             Log(EInfo, "Using standard dipole model");
@@ -258,6 +323,8 @@ public:
 		m_maxDepth = stream->readInt();
 		m_octreeIndex = stream->readInt();
         m_useMartelliD = stream->readBool();
+        m_useRdLookUpTable = stream->readBool();
+        m_errThreshold = stream->readFloat();
 		m_ready = false;
 		m_octreeResID = -1;
 		configure();
@@ -282,6 +349,8 @@ public:
 		stream->writeInt(m_maxDepth);
 		stream->writeInt(m_octreeIndex);
         stream->writeBool(m_useMartelliD);
+        stream->writeBool(m_useRdLookUpTable);
+        stream->writeFloat(m_errThreshold);
 	}
 
 	Spectrum Lo(const Scene *scene, const Intersection &its, const Vector &d) const {
@@ -296,20 +365,21 @@ public:
                 IsotropicDipoleQuery query(m_zr[0], m_zv[0], m_sigmaTr, m_Fdt, its.p);
                 m_octree->execute(query);
                 // compute combined radiant exitance
-                Mo += query.getResult();
+                Mo = query.getResult();
         } else {
-            for (int i=-m_extraDipoles; i<=m_extraDipoles; ++i) {
-                int idx = i + m_extraDipoles;
+            if (m_useRdLookUpTable) {
+                IsotropicLUTMultipoleQuery query(m_RdLookUpTable, m_lutResolution, m_Fdt, its.p);
+                m_octree->execute(query);
+                Mo = query.getResult();
+            } else {
                 // calulate diffuse reflectance and transmittance
-                IsotropicMultipoleQuery query(m_zr[idx], m_zv[idx], m_sigmaTr, m_Fdt, its.p, n, m_slabThickness);
+                IsotropicMultipoleQuery query(m_zr, m_zv, m_sigmaTr, m_Fdt, its.p, n, m_slabThickness, m_extraDipoles);
                 m_octree->execute(query);
 
                 // compute combined radiant exitance
                 Mo += query.getResult();
-//std::cerr << i << ": " <<  query.count << std::endl;
             }
         }
-
 
 		if (m_eta == 1.0f) {
 			return Mo * m_ssFactor * INV_PI;
@@ -384,7 +454,115 @@ public:
             m_zr.push_back( basicDist + m_mfp );
             m_zv.push_back( basicDist - m_mfp - 2 * zb );
         }
+
+        /* Create look-up-table for dMoR (if requested) that is indexed
+         * by the squared distance to the sample. The Monte Carlo
+         * is currently done with 10k samples. This could be done more
+         * dynamic. */
+        if (m_useRdLookUpTable) {
+            const Spectrum invSigmaTr = 1.0f / m_sigmaTr;
+            const Float inv4Pi = 1.0f / (4 * M_PI);
+            ref<Random> random = new Random();
+
+            /* Find Rd for the whole area by monte carlo integration. The
+             * sampling area is calculated from the max. mean free path.
+             * A square area around with edge length 2 * maxMFP is used
+             * for this. Hene, the sampling area is 4 * maxMFP * maxMFP. */
+            const int numSamples = 10000;
+            Spectrum Rd_A = Spectrum(0.0f);
+            for (int n = 0; n < numSamples; ++n) {
+                /* do importance sampling by choosing samples distributed
+                 * with sigmaTr^2 * e^(-sigmaTr * r). */
+                Spectrum r = invSigmaTr * -std::log( random->nextFloat() );
+                Rd_A += getRd(r);
+            }
+            Float A = 4 * invSigmaTr.max() * invSigmaTr.max();
+            Rd_A = A * Rd_A * m_alphaPrime * inv4Pi / (Float)(numSamples - 1);
+            Log(EDebug, "After %i MC integration iterations, Rd seems to be %s", numSamples, Rd_A.toString().c_str());
+
+            /* Since we now have Rd integrated over the whole surface we can find a valid rmax
+             * for the given threshold. */
+            const Float step = m_lutResolution;
+            Float rMax = 0.0f;
+            Spectrum err(std::numeric_limits<Float>::max());
+            while (err.max() > m_errThreshold) {
+                rMax += step;
+                /* Again, do MC integration, but with r clamped at rmax. */
+                Spectrum Rd_APrime(0.0f);
+                for (int n = 0; n < numSamples; ++n) {
+                    /* do importance sampling by choosing samples distributed
+                     * with sigmaTr^2 * e^(-sigmaTr * r). */
+                    Spectrum r = invSigmaTr * -std::log( random->nextFloat() );
+                    // clamp samples to rMax
+                    for (int s=0; s<SPECTRUM_SAMPLES; ++s) {
+                        r[s] = std::min(rMax, r[s]);
+                    }
+                    Rd_APrime += getRd(r);
+                }
+                Float APrime = 4 * rMax * rMax;
+                Rd_APrime = APrime * Rd_APrime * m_alphaPrime * inv4Pi / (Float)(numSamples - 1);
+                err = (Rd_A - Rd_APrime) / Rd_A;
+            }
+            m_rMax = rMax;
+            Log(EDebug, "Maximum distance for sampling surface is %f with an error of %f", m_rMax, m_errThreshold);
+
+            /* Create the actual look-up-table */
+            const int numEntries = (int) (m_rMax / step) + 1;
+            m_RdLookUpTable.resize(numEntries);
+            for (int i=0; i<numEntries; ++i) {
+                m_RdLookUpTable[i] = getdMoR(i * step);
+            }
+            Log(EDebug, "Created Rd look-up-table with %i entries.", numEntries);
+        }
 	}
+
+    /// Calculate Rd based on all dipoles and the requested distance
+    Spectrum getRd(Spectrum r) {
+        const Spectrum one(1.0f);
+        const Spectrum negSigmaTr = m_sigmaTr * (-1.0f);
+		const Spectrum rSqr = r * r;
+
+        Spectrum Rd = Spectrum(0.0f);
+        for (int i=-m_extraDipoles; i<=m_extraDipoles; ++i) {
+            int idx = i + m_extraDipoles;
+            // calulate diffuse reflectance and transmittance
+            Spectrum zri = m_zr[idx];
+		    Spectrum dri = (rSqr + zri*zri).sqrt();
+            Spectrum zvi = m_zv[idx];
+		    Spectrum dvi = (rSqr + zvi*zvi).sqrt();
+
+            // the change in Rd
+            Rd +=   (zri * (one + m_sigmaTr * dri) * (negSigmaTr * dri).exp() / (dri * dri * dri))
+                  + (zvi * (one + m_sigmaTr * dvi) * (negSigmaTr * dvi).exp() / (dvi * dvi * dvi));
+        }
+        return Rd;
+    }
+
+    Spectrum getdMoR(Float r) {
+		Spectrum rSqr = Spectrum(r * r);
+
+        Spectrum dMoR(0.0f);
+        for (int i=-m_extraDipoles; i<=m_extraDipoles; ++i) {
+            int idx = i + m_extraDipoles;
+
+            Spectrum zri = m_zr[idx];
+            Spectrum zvi = m_zv[idx];
+
+            /* Distance to the real source */
+		    Spectrum dri = (rSqr + zri*zri).sqrt();
+            /* Distance to the image point source */
+		    Spectrum dvi = (rSqr + zvi*zvi).sqrt();
+
+            Spectrum C1 = (m_sigmaTr + Spectrum(1.0f) / dri);
+            Spectrum C2 = (m_sigmaTr + Spectrum(1.0f) / dvi);
+
+            /* Do not include the reduced albedo - will be canceled out later */
+            dMoR += Spectrum(0.25f * INV_PI) *
+                 (zri * C1 * ((-m_sigmaTr * dri).exp()) / (dri * dri)
+                + zvi * C2 * ((-m_sigmaTr * dvi).exp()) / (dvi * dvi));
+        }
+        return dMoR;
+    }
 
 	/// Unpolarized fresnel reflection term for dielectric materials
 	Float fresnel(Float cosThetaI) const {
@@ -490,6 +668,16 @@ private:
     int m_extraDipoles;
     /* The slab thickness */
     Float m_slabThickness;
+    /* Indicates if a look-up-table should be created and used for Rd */
+    bool m_useRdLookUpTable;
+    /* Look-up-table for Rd, indexed by the distance r. */
+    LUTType m_RdLookUpTable;
+    /* the maximum distance stored in the LUT */
+    Float m_rMax;
+    /* error threshold for rmax */
+    Float m_errThreshold;
+    /* resolution of the dMoR LUT */
+    Float m_lutResolution;
 };
 
 MTS_IMPLEMENT_CLASS_S(IsotropicMultipole, false, Subsurface)
