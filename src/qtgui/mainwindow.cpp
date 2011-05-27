@@ -242,6 +242,8 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_multipoleSettings->slabThicknessSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_multipoleSettings->singleScatteringCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_multipoleSettings->martelliDCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_multipoleSettings->useLutCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_multipoleSettings->lutResolutionSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_adipoleSettings->subsurfaceSizeSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_adipoleSettings->subsurfaceSampleFactorSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_adipoleSettings->sigmaTnSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
@@ -943,6 +945,8 @@ void MainWindow::onSnowRenderModelChange() {
     srs.multipoleSlabThickness = m_multipoleSettings->slabThicknessSpinBox->value();
     srs.multipoleUseSingleScattering = m_multipoleSettings->singleScatteringCheckBox->isChecked();
     srs.multipoleMartelliDC = m_multipoleSettings->martelliDCheckBox->isChecked();
+    srs.multipoleUseLut = m_multipoleSettings->useLutCheckBox->isChecked();
+    srs.multipoleLutResolution = m_multipoleSettings->lutResolutionSpinBox->value();
 
     srs.adipoleDensityFactor = m_adipoleSettings->subsurfaceSizeSpinBox->value();
     srs.adipoleSampleFactor = m_adipoleSettings->subsurfaceSampleFactorSpinBox->value();
@@ -1503,6 +1507,8 @@ void MainWindow::updateSnowRenderingComponents() {
     m_multipoleSettings->slabThicknessSpinBox->blockSignals(true);
     m_multipoleSettings->singleScatteringCheckBox->blockSignals(true);
     m_multipoleSettings->martelliDCheckBox->blockSignals(true);
+    m_multipoleSettings->useLutCheckBox->blockSignals(true);
+    m_multipoleSettings->lutResolutionSpinBox->blockSignals(true);
     m_adipoleSettings->subsurfaceSizeSpinBox->blockSignals(true);
     m_adipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(true);
     m_adipoleSettings->sigmaTnSpinBox->blockSignals(true);
@@ -1560,9 +1566,11 @@ void MainWindow::updateSnowRenderingComponents() {
     m_multipoleSettings->subsurfaceSizeSpinBox->setValue(multipoleDensityFactor);
     m_multipoleSettings->subsurfaceSampleFactorSpinBox->setValue(multipoleSampleFactor);
     m_multipoleSettings->extraDipolesSpinBox->setValue(multipoleExtraDipoles);
-    m_multipoleSettings->slabThicknessSpinBox->setValue(multipoleSlabThickness );
+    m_multipoleSettings->slabThicknessSpinBox->setValue(multipoleSlabThickness);
     m_multipoleSettings->singleScatteringCheckBox->setChecked(multipoleUseSingleScattering );
     m_multipoleSettings->martelliDCheckBox->setChecked(multipoleUseMartelliDC);
+    m_multipoleSettings->useLutCheckBox->setChecked(srs.multipoleUseLut);
+    m_multipoleSettings->lutResolutionSpinBox->setValue(srs.multipoleLutResolution);
 
     // Jakob anisotropic multipole
     Float adipoleDensityFactor = srs.adipoleDensityFactor;
@@ -1599,6 +1607,8 @@ void MainWindow::updateSnowRenderingComponents() {
     m_multipoleSettings->slabThicknessSpinBox->blockSignals(false);
     m_multipoleSettings->singleScatteringCheckBox->blockSignals(false);
     m_multipoleSettings->martelliDCheckBox->blockSignals(false);
+    m_multipoleSettings->useLutCheckBox->blockSignals(false);
+    m_multipoleSettings->lutResolutionSpinBox->blockSignals(false);
     m_adipoleSettings->subsurfaceSizeSpinBox->blockSignals(false);
     m_adipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(false);
     m_adipoleSettings->sigmaTnSpinBox->blockSignals(false);
