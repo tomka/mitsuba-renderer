@@ -16,13 +16,15 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <mitsuba/render/subsurface.h>
 #include <mitsuba/render/scene.h>
 #include <mitsuba/core/plugin.h>
 #include "irrtree.h"
 
 MTS_NAMESPACE_BEGIN
 
-typedef std::vector<Spectrum> LUTType;
+typedef SubsurfaceMaterialManager::LUTType LUTType;
+typedef SubsurfaceMaterialManager::LUTRecord LUTRecord;
 
 /**
  * Computes the combined diffuse radiant exitance 
@@ -224,8 +226,8 @@ struct IsotropicMultipoleQuery {
  * distance to save one sqrt().
  */
 struct IsotropicLUTMultipoleQuery {
-	inline IsotropicLUTMultipoleQuery(const LUTType &lut, Float _res, Float _Fdt, const Point &_p)
-        : dMoR_LUT(lut), entries(lut.size()), resolution(_res),
+	inline IsotropicLUTMultipoleQuery(const ref<LUTType> &lut, Float _res, Float _Fdt, const Point &_p)
+        : dMoR_LUT(lut), entries(lut->size()), resolution(_res),
           result(0.0f), Fdt(_Fdt), p(_p), count(0) {
 	}
 
@@ -237,7 +239,7 @@ struct IsotropicLUTMultipoleQuery {
          * out later. */
         int index = (int) (r * resolution);
         if (index < entries) {
-            Spectrum dMoR = dMoR_LUT[index];
+            Spectrum dMoR = dMoR_LUT->at(index);
 
             /* combine Mo based on R and Mo based on T to a new
              * Mo based on a combined profile P. */
@@ -252,7 +254,7 @@ struct IsotropicLUTMultipoleQuery {
 	}
 
     /* a reference to a dMoR look-up-table */
-    const LUTType &dMoR_LUT;
+    const ref<LUTType> &dMoR_LUT;
     int entries;
     Float resolution;
 	Spectrum result;
@@ -298,6 +300,7 @@ public:
 		m_extraDipoles = props.getInteger("extraDipoles", 0);
         m_slabThickness = props.getFloat("slabThickness", 1.0f);
         m_useMartelliD = props.getBoolean("useMartelliDC", true);
+        /* look-up-table */
         m_useRdLookUpTable = props.getBoolean("useLookUpTable", true);
         m_errThreshold = props.getFloat("errorThreshold", 0.01);
         m_lutResolution = props.getFloat("lutResolution", 0.01);
@@ -325,6 +328,7 @@ public:
         m_useMartelliD = stream->readBool();
         m_useRdLookUpTable = stream->readBool();
         m_errThreshold = stream->readFloat();
+        m_lutResolution = stream->readFloat();
 		m_ready = false;
 		m_octreeResID = -1;
 		configure();
@@ -351,6 +355,7 @@ public:
         stream->writeBool(m_useMartelliD);
         stream->writeBool(m_useRdLookUpTable);
         stream->writeFloat(m_errThreshold);
+        stream->writeFloat(m_lutResolution);
 	}
 
 	Spectrum Lo(const Scene *scene, const Intersection &its, const Vector &d) const {
@@ -460,59 +465,72 @@ public:
          * is currently done with 10k samples. This could be done more
          * dynamic. */
         if (m_useRdLookUpTable) {
-            const Spectrum invSigmaTr = 1.0f / m_sigmaTr;
-            const Float inv4Pi = 1.0f / (4 * M_PI);
-            ref<Random> random = new Random();
+            ref<SubsurfaceMaterialManager> smm = SubsurfaceMaterialManager::getInstance();
+            std::string lutHash = smm->getMultipoleLUTHash(m_lutResolution, m_errThreshold,
+                m_sigmaTr, m_alphaPrime, m_extraDipoles, m_zr, m_zv);
+            if (smm->hasLUT(lutHash)) {
+                LUTRecord lutR = smm->getLUT(lutHash);
+                m_RdLookUpTable = lutR.lut;
+                AssertEx(lutR.resolution == m_lutResolution, "Cached LUT does not have requested resolution!");
+            } else {
+                const Spectrum invSigmaTr = 1.0f / m_sigmaTr;
+                const Float inv4Pi = 1.0f / (4 * M_PI);
+                ref<Random> random = new Random();
 
-            /* Find Rd for the whole area by monte carlo integration. The
-             * sampling area is calculated from the max. mean free path.
-             * A square area around with edge length 2 * maxMFP is used
-             * for this. Hene, the sampling area is 4 * maxMFP * maxMFP. */
-            const int numSamples = 10000;
-            Spectrum Rd_A = Spectrum(0.0f);
-            for (int n = 0; n < numSamples; ++n) {
-                /* do importance sampling by choosing samples distributed
-                 * with sigmaTr^2 * e^(-sigmaTr * r). */
-                Spectrum r = invSigmaTr * -std::log( random->nextFloat() );
-                Rd_A += getRd(r);
-            }
-            Float A = 4 * invSigmaTr.max() * invSigmaTr.max();
-            Rd_A = A * Rd_A * m_alphaPrime * inv4Pi / (Float)(numSamples - 1);
-            Log(EDebug, "After %i MC integration iterations, Rd seems to be %s", numSamples, Rd_A.toString().c_str());
-
-            /* Since we now have Rd integrated over the whole surface we can find a valid rmax
-             * for the given threshold. */
-            const Float step = m_lutResolution;
-            Float rMax = 0.0f;
-            Spectrum err(std::numeric_limits<Float>::max());
-            while (err.max() > m_errThreshold) {
-                rMax += step;
-                /* Again, do MC integration, but with r clamped at rmax. */
-                Spectrum Rd_APrime(0.0f);
+                /* Find Rd for the whole area by monte carlo integration. The
+                 * sampling area is calculated from the max. mean free path.
+                 * A square area around with edge length 2 * maxMFP is used
+                 * for this. Hene, the sampling area is 4 * maxMFP * maxMFP. */
+                const int numSamples = 10000;
+                Spectrum Rd_A = Spectrum(0.0f);
                 for (int n = 0; n < numSamples; ++n) {
                     /* do importance sampling by choosing samples distributed
                      * with sigmaTr^2 * e^(-sigmaTr * r). */
                     Spectrum r = invSigmaTr * -std::log( random->nextFloat() );
-                    // clamp samples to rMax
-                    for (int s=0; s<SPECTRUM_SAMPLES; ++s) {
-                        r[s] = std::min(rMax, r[s]);
-                    }
-                    Rd_APrime += getRd(r);
+                    Rd_A += getRd(r);
                 }
-                Float APrime = 4 * rMax * rMax;
-                Rd_APrime = APrime * Rd_APrime * m_alphaPrime * inv4Pi / (Float)(numSamples - 1);
-                err = (Rd_A - Rd_APrime) / Rd_A;
-            }
-            m_rMax = rMax;
-            Log(EDebug, "Maximum distance for sampling surface is %f with an error of %f", m_rMax, m_errThreshold);
+                Float A = 4 * invSigmaTr.max() * invSigmaTr.max();
+                Rd_A = A * Rd_A * m_alphaPrime * inv4Pi / (Float)(numSamples - 1);
+                Log(EDebug, "After %i MC integration iterations, Rd seems to be %s", numSamples, Rd_A.toString().c_str());
 
-            /* Create the actual look-up-table */
-            const int numEntries = (int) (m_rMax / step) + 1;
-            m_RdLookUpTable.resize(numEntries);
-            for (int i=0; i<numEntries; ++i) {
-                m_RdLookUpTable[i] = getdMoR(i * step);
+                /* Since we now have Rd integrated over the whole surface we can find a valid rmax
+                 * for the given threshold. */
+                const Float step = m_lutResolution;
+                Float rMax = 0.0f;
+                Spectrum err(std::numeric_limits<Float>::max());
+                while (err.max() > m_errThreshold) {
+                    rMax += step;
+                    /* Again, do MC integration, but with r clamped at rmax. */
+                    Spectrum Rd_APrime(0.0f);
+                    for (int n = 0; n < numSamples; ++n) {
+                        /* do importance sampling by choosing samples distributed
+                         * with sigmaTr^2 * e^(-sigmaTr * r). */
+                        Spectrum r = invSigmaTr * -std::log( random->nextFloat() );
+                        // clamp samples to rMax
+                        for (int s=0; s<SPECTRUM_SAMPLES; ++s) {
+                            r[s] = std::min(rMax, r[s]);
+                        }
+                        Rd_APrime += getRd(r);
+                    }
+                    Float APrime = 4 * rMax * rMax;
+                    Rd_APrime = APrime * Rd_APrime * m_alphaPrime * inv4Pi / (Float)(numSamples - 1);
+                    err = (Rd_A - Rd_APrime) / Rd_A;
+                }
+                m_rMax = rMax;
+                Log(EDebug, "Maximum distance for sampling surface is %f with an error of %f", m_rMax, m_errThreshold);
+
+                /* Create the actual look-up-table */
+                const int numEntries = (int) (m_rMax / step) + 1;
+                m_RdLookUpTable = new LUTType(numEntries);
+                for (int i=0; i<numEntries; ++i) {
+                    m_RdLookUpTable->at(i) = getdMoR(i * step);
+                }
+                /* Create new LUTRecord and store this LUT */
+                LUTRecord lutRec(m_RdLookUpTable, m_lutResolution);
+                smm->addLUT(lutHash, lutRec);
+                AssertEx(smm->hasLUT(lutHash), "LUT is not available, but it should be!");
+                Log(EDebug, "Created Rd look-up-table with %i entries.", numEntries);
             }
-            Log(EDebug, "Created Rd look-up-table with %i entries.", numEntries);
         }
 	}
 
@@ -671,7 +689,7 @@ private:
     /* Indicates if a look-up-table should be created and used for Rd */
     bool m_useRdLookUpTable;
     /* Look-up-table for Rd, indexed by the distance r. */
-    LUTType m_RdLookUpTable;
+    ref<LUTType> m_RdLookUpTable;
     /* the maximum distance stored in the LUT */
     Float m_rMax;
     /* error threshold for rmax */
