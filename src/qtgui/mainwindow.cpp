@@ -235,6 +235,8 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_dipoleSettings->irrDumpCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_dipoleSettings->irrDumpPathEdit, SIGNAL(textChanged(const QString&)), this, SLOT(onSnowRenderModelChange()));
     connect(m_dipoleSettings->irrDumpPathButton, SIGNAL(pressed()), this, SLOT(onDipoleIrrtrrDumpPathRequest()));
+    connect(m_dipoleSettings->useLutCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_dipoleSettings->lutResolutionSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
 
     connect(m_multipoleSettings->subsurfaceSizeSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_multipoleSettings->subsurfaceSampleFactorSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
@@ -938,6 +940,8 @@ void MainWindow::onSnowRenderModelChange() {
     srs.dipoleMartelliDC = m_dipoleSettings->martelliDCheckBox->isChecked();
     srs.dipoleDumpIrrtree = m_dipoleSettings->irrDumpCheckBox->isChecked();
     srs.dipoleDumpIrrtreePath = m_dipoleSettings->irrDumpPathEdit->text().toStdString();
+    srs.dipoleUseLut = m_dipoleSettings->useLutCheckBox->isChecked();
+    srs.dipoleLutResolution = m_dipoleSettings->lutResolutionSpinBox->value();
 
     srs.multipoleDensityFactor = m_multipoleSettings->subsurfaceSizeSpinBox->value();
     srs.multipoleSampleFactor = m_multipoleSettings->subsurfaceSampleFactorSpinBox->value();
@@ -1501,6 +1505,8 @@ void MainWindow::updateSnowRenderingComponents() {
     m_dipoleSettings->textureVSpinBox->blockSignals(true);
     m_dipoleSettings->irrDumpCheckBox->blockSignals(true);
     m_dipoleSettings->irrDumpPathEdit->blockSignals(true);
+    m_dipoleSettings->useLutCheckBox->blockSignals(true);
+    m_dipoleSettings->lutResolutionSpinBox->blockSignals(true);
     m_multipoleSettings->subsurfaceSizeSpinBox->blockSignals(true);
     m_multipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(true);
     m_multipoleSettings->extraDipolesSpinBox->blockSignals(true);
@@ -1554,6 +1560,8 @@ void MainWindow::updateSnowRenderingComponents() {
     m_dipoleSettings->textureVSpinBox->setValue(srs.dipoleTextureVScaling);
     m_dipoleSettings->irrDumpCheckBox->setChecked(srs.dipoleDumpIrrtree);
     m_dipoleSettings->irrDumpPathEdit->setText(QString::fromStdString(srs.dipoleDumpIrrtreePath));
+    m_dipoleSettings->useLutCheckBox->setChecked(srs.dipoleUseLut);
+    m_dipoleSettings->lutResolutionSpinBox->setValue(srs.dipoleLutResolution);
 
     // Jensen multipole
     Float multipoleDensityFactor = srs.multipoleDensityFactor;
@@ -1601,6 +1609,8 @@ void MainWindow::updateSnowRenderingComponents() {
     m_dipoleSettings->textureVSpinBox->blockSignals(false);
     m_dipoleSettings->irrDumpCheckBox->blockSignals(false);
     m_dipoleSettings->irrDumpPathEdit->blockSignals(false);
+    m_dipoleSettings->useLutCheckBox->blockSignals(false);
+    m_dipoleSettings->lutResolutionSpinBox->blockSignals(false);
     m_multipoleSettings->subsurfaceSizeSpinBox->blockSignals(false);
     m_multipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(false);
     m_multipoleSettings->extraDipolesSpinBox->blockSignals(false);

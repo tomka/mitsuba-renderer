@@ -88,6 +88,8 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
                 properties.setFloat("texUScaling", srs.dipoleTextureUScaling);
                 properties.setFloat("texVScaling", srs.dipoleTextureVScaling);
             }
+            properties.setBoolean("useLookUpTable", srs.dipoleUseLut);
+            properties.setFloat("lutResolution", srs.dipoleLutResolution);
             subsurface = static_cast<Subsurface *> (pluginManager->createObject(
                 Subsurface::m_theClass, properties));
         } else if (subsurfaceMode == EJensenMultipoleBSSRDF) {
@@ -227,8 +229,8 @@ std::string SnowMaterialManager::toString() {
                 Subsurface* subsurface = s->getSubsurface();
 
                 oss << "  " << s->getName() << ":" << std::endl
-                << "    BSDF: " << std::endl << (bsdf == NULL ? "None" : bsdf->toString()) << std::endl
-                << "    Subsurface: " << std::endl << (subsurface == NULL ? "None" : subsurface->toString()) << std::endl;
+                << "    BSDF: " << std::endl << (bsdf == NULL ? "None" : indent(bsdf->toString(), 3)) << std::endl
+                << "    Subsurface: " << std::endl << (subsurface == NULL ? "None" : indent(subsurface->toString(), 3)) << std::endl;
             }
         }
 		oss	<< "]";
