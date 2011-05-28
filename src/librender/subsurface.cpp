@@ -94,5 +94,51 @@ void Subsurface::serialize(Stream *stream, InstanceManager *manager) const {
 		manager->serialize(stream, m_shapes[i]);
 }
 
+ref<SubsurfaceMaterialManager> SubsurfaceMaterialManager::m_instance = new SubsurfaceMaterialManager();
+
+bool SubsurfaceMaterialManager::hasLUT(const std::string &hash) const {
+   return m_lutRecords.find(hash) != m_lutRecords.end();
+} 
+
+void SubsurfaceMaterialManager::addLUT(const std::string &hash, const LUTRecord &lutRec) {
+    if (!hasLUT(hash))
+        m_lutRecords[hash] = LUTRecord(lutRec.lut, lutRec.resolution);
+}
+
+SubsurfaceMaterialManager::LUTRecord SubsurfaceMaterialManager::getLUT(const std::string &hash) const {
+    return m_lutRecords.find(hash)->second;
+}
+
+std::string SubsurfaceMaterialManager::getMultipoleLUTHash(Float resolution, Float errorThreshold,
+        const Spectrum &sigmaTr, const Spectrum &alphaPrime, int numExtraDipoles,
+        const std::vector<Spectrum> &zrList, const std::vector<Spectrum> &zvList) const {
+    std::ostringstream oss;
+    // set precision to get around floating point rounding issues
+    oss.precision(5);
+    oss << "multipole" << resolution << "," << errorThreshold << "," << sigmaTr.toString() << ","
+        << alphaPrime.toString() << "," << numExtraDipoles;
+
+    for (std::vector<Spectrum>::const_iterator it=zrList.begin(); it!=zrList.end(); ++it)
+        oss << it->toString();
+    for (std::vector<Spectrum>::const_iterator it=zvList.begin(); it!=zvList.end(); ++it)
+        oss << it->toString();
+
+    return oss.str();
+}
+
+std::string SubsurfaceMaterialManager::getDipoleLUTHash(Float resolution, Float errorThreshold,
+    const Spectrum &sigmaTr, const Spectrum &alphaPrime, 
+    const Spectrum &zr, const Spectrum &zv) const {
+    std::ostringstream oss;
+    // set precision to get around floating point rounding issues
+    oss.precision(5);
+    oss << "multipole" << resolution << "," << errorThreshold << "," << sigmaTr.toString() << ","
+        << alphaPrime.toString() << "," << zr.toString() << "," << zv.toString();
+    return oss.str();
+}
+
+SubsurfaceMaterialManager::~SubsurfaceMaterialManager() { }
+
+MTS_IMPLEMENT_CLASS(SubsurfaceMaterialManager, false, Object)
 MTS_IMPLEMENT_CLASS(Subsurface, true, NetworkedObject)
 MTS_NAMESPACE_END

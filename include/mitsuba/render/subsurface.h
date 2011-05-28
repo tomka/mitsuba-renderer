@@ -24,6 +24,73 @@
 MTS_NAMESPACE_BEGIN
 
 /**
+ * A storage place for material properties for the subsurface
+ * integrators in use. It is implemented as a singlton object
+ * and offers speed-ups when used e.g. for LUT storage.
+ * ToDo: Add mutex.
+ */
+class MTS_EXPORT_RENDER SubsurfaceMaterialManager : public Object {
+
+    /* private constructor */
+    SubsurfaceMaterialManager( ) { }
+
+public:
+    typedef std::vector<Spectrum> LUTType;
+
+    /**
+     * Small data structure to store information about a look-up-table.
+     */
+    struct LUTRecord {
+        Float resolution;
+        ref<LUTType> lut;
+
+        /* create invalid LUTRecord */
+        LUTRecord()
+                : resolution(-1), lut(NULL) { }
+
+        LUTRecord(ref<LUTType> _lut, Float res)
+                : resolution(res) {
+            lut = _lut;
+        }
+    };
+
+	MTS_DECLARE_CLASS()
+public:
+    bool hasLUT(const std::string &hash) const;
+
+    void addLUT(const std::string &hash, const LUTRecord &lutRec);
+
+    LUTRecord getLUT(const std::string &hash) const;
+
+    std::string getMultipoleLUTHash(Float resolution, Float errorThreshold,
+        const Spectrum &sigmaTr, const Spectrum &alphaPrime, int numExtraDipoles,
+        const std::vector<Spectrum> &zrList, const std::vector<Spectrum> &zvList) const;
+
+    std::string getDipoleLUTHash(Float resolution, Float errorThreshold,
+        const Spectrum &sigmaTr, const Spectrum &alphaPrime, 
+        const Spectrum &zr, const Spectrum &zv) const;
+
+    static SubsurfaceMaterialManager* getInstance() {
+        if (m_instance.get() == NULL) {
+            m_instance = new SubsurfaceMaterialManager();
+        }
+        return m_instance;
+    }
+
+protected:
+    typedef std::map<std::string, LUTRecord> StorageType;
+
+    /* singlton instance */
+    static ref<SubsurfaceMaterialManager> m_instance;
+
+    /* lut map */
+    StorageType m_lutRecords;
+
+	/* Virtual destructor */
+	virtual ~SubsurfaceMaterialManager();
+};
+
+/**
  * Abstract subsurface integrator -- can be attached to an arbitrary 
  * shape to compute exitant radiance due to internal scattering.
  */
