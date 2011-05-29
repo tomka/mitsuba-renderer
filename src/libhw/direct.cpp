@@ -197,12 +197,10 @@ void DirectShaderManager::init() {
         "  float lightIntensity = dot(normalize(normal), surfToLightNorm);\n"
         "  vec3 surfAlbedo  = sqrt(texture2D( albedoTex, gl_TexCoord[0].st ).rgb);\n" //sqrt because light is musplipied two time by albedo
         "  float spot = clamp( (dot(normalize(lightDir),-surfToLightNorm)-lightAperture)/(1.0-lightAperture) ,0.0,1.0);\n" //spot extinction
-        "  gl_FragData[0] = vec4(0.5, 0.5, 0.5, 0.0);\n" //splat origin
-        "  gl_FragData[1] = vec4(lightColor, 0.0);\n" //splat origin
+        "  gl_FragData[0] = vec4(surfPos, 0.0);\n" //splat origin
+        "  gl_FragData[1] = vec4(lightColor*spot*lightIntensity*surfAlbedo, 0.0);\n"  //splat center color
         "}\n"
     );
-        //"  gl_FragData[0] = vec4(surfPos, 0.0);\n" //splat origin
-        //"  gl_FragData[1] = vec4(lightColor*spot*lightIntensity*surfAlbedo, 0.0);\n"  //splat center color
 
     // upload the program
     m_lightViewProgram->init();
