@@ -355,6 +355,16 @@ public:
 	// =============================================================
 
 	MTS_DECLARE_CLASS()
+public:
+    /* These methos are currenlty the only way to easily get this
+     * information out of a spot luminaire. They are not meant to be
+     * given out out it, though. This is needed for the real time
+     * subsurface scattering implementation.
+     */
+    Transform getLuminaireToWorld() const { return m_luminaireToWorld; }
+
+    Float getAperture() const { return 60.0f; }
+    
 protected:
     /// Create a new luminaire
     Luminaire(const Properties &props);
