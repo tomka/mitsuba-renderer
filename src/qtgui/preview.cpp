@@ -891,19 +891,15 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
         fboLightView->bindColorTexture(1);
         glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_FLOAT, splatColors);
         glDisable(GL_TEXTURE_2D);
+        /*
+        // save images of light view maps
         if (!imgWrite[j]) {
             imgWrite[j] = true;
-            std::stringstream name;
-            name << "img" << j << ".exr";
-            ref<Bitmap> bmp = new Bitmap(fboSplatSize, fboSplatSize, 128);
-            for(int i=0; i < fboSplatSize*fboSplatSize; i+=1) {
-                bmp->getFloatData()[i*4] = splatOrigins[i*3];
-                bmp->getFloatData()[i*4+1] = splatOrigins[i*3+1];
-                bmp->getFloatData()[i*4+2] = splatOrigins[i*3+2];
-                bmp->getFloatData()[i*4+3] = 1.0f; 
-            }
-            bmp->save(Bitmap::EEXR, new FileStream(name.str(), FileStream::ETruncWrite) );
+            std::ostringstream name; name << "img-obj" << j;
+            fboLightView->saveToDisk(0, name.str().append("splat-o.exr"));
+            fboLightView->saveToDisk(1, name.str().append("splat-c.exr"));
         }
+        */
         splats.clear();
         Vector3 o;
         Splat s;

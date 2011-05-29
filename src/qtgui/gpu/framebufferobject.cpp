@@ -18,6 +18,10 @@
 #include <GL/glew.h>
 #endif
 #include "framebufferobject.h"
+#include <mitsuba/core/bitmap.h>
+#include <mitsuba/core/mstream.h>
+#include <mitsuba/core/fstream.h>
+#include <mitsuba/core/fresolver.h>
 
 MTS_NAMESPACE_BEGIN
 
@@ -340,11 +344,23 @@ unsigned int FrameBufferObject::getHeight() const
 	return this->height;
 }
 
-void FrameBufferObject::saveToDisk(const unsigned int colorBufferNum, const char* filepath) const
-{
+void FrameBufferObject::saveToDisk(const unsigned int colorBufferNum, const std::string &path) const {
 	if(this->nbColorAttachement>0 && (int)colorBufferNum<this->nbColorAttachement)
 	{
-		//TextureToDisk(filepath,GL_TEXTURE_2D,this->colorTextures[colorBufferNum]);
+        float data[width*height*3];
+        glEnable(GL_TEXTURE_2D);
+        bindColorTexture(colorBufferNum);
+        glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_FLOAT, data);
+        glDisable(GL_TEXTURE_2D);
+
+        ref<Bitmap> bmp = new Bitmap(width, height, 128);
+            for(int i=0; i < width*height; i+=1) {
+                bmp->getFloatData()[i*4] = data[i*3];
+                bmp->getFloatData()[i*4+1] = data[i*3+1];
+                bmp->getFloatData()[i*4+2] = data[i*3+2];
+                bmp->getFloatData()[i*4+3] = 1.0f;
+            }
+         bmp->save(Bitmap::EEXR, new FileStream(path, FileStream::ETruncWrite) );
 	}
 }
 

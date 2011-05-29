@@ -149,7 +149,7 @@ public:
 	 * @param colorBufferNum : the number of the color buffer texture to bind. If the number is invalid, we return.
 	 * @param filepath : the path of the bitmap file.
 	 */
-	void saveToDisk(const unsigned int colorBufferNum, const char* filepath) const;
+	void saveToDisk(const unsigned int colorBufferNum, const std::string &path) const;
 
     MTS_DECLARE_CLASS();
 	/**
