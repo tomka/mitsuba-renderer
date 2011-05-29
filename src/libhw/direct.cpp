@@ -154,8 +154,107 @@ void DirectShaderManager::init() {
         m_backgroundDependencies.recursiveResolve(m_backgroundProgram, id);
     }
 
+    /* light view program */
+    m_lightViewProgram = m_renderer->createGPUProgram("SplatSSS LightView Program");
+    m_lightViewProgram->setSource(GPUProgram::EVertexProgram,
+        "#version 120\n"
+        "uniform vec3 lightPos;\n"
+        "uniform vec3 lightColor;\n"
+        "uniform vec3 lightDir;\n"
+        "uniform float lightAperture;\n"
+        "uniform sampler2D albedoTex;\n"
+        "\n"
+        "varying vec3 surfPos;\n"
+        "varying vec3 normal;\n"
+        "varying vec3 surfToLight;\n"
+        "\n"
+        "void main() {\n"
+        "  vec4 vMV = gl_ModelViewMatrix * gl_Vertex;\n" //vertex position in camera space
+        "  vec4 vMVP = gl_ProjectionMatrix * vMV;\n" //vertex position in clip space
+        "  surfPos = (gl_TextureMatrix[0]*gl_Vertex).xyz;\n"
+        "  surfToLight = lightPos-surfPos.xyz;\n"
+        "\n"
+        "  gl_TexCoord[0] = gl_MultiTexCoord0;\n" //out
+        "  normal = gl_Normal;\n"
+        "  gl_Position = vMVP;\n"
+        "}\n"
+    );
+
+    m_lightViewProgram->setSource(GPUProgram::EFragmentProgram,
+        "#version 120\n"
+        "uniform vec3 lightPos;\n"
+        "uniform vec3 lightColor;\n"
+        "uniform vec3 lightDir;\n"
+        "uniform float lightAperture;\n"
+        "uniform sampler2D albedoTex;\n"
+        "\n"
+        "varying vec3 surfPos;\n"
+        "varying vec3 normal;\n"
+        "varying vec3 surfToLight;\n"
+        "\n"
+        "void main() {\n"
+        "  vec3 surfToLightNorm = normalize(surfToLight);\n"
+        "  float lightIntensity = dot(normalize(normal), surfToLightNorm);\n"
+        "  vec3 surfAlbedo  = sqrt(texture2D( albedoTex, gl_TexCoord[0].st ).rgb);\n" //sqrt because light is musplipied two time by albedo
+        "  float spot = clamp( (dot(normalize(lightDir),-surfToLightNorm)-lightAperture)/(1.0-lightAperture) ,0.0,1.0);\n" //spot extinction
+        "  gl_FragData[0] = vec4(0.5, 0.5, 0.5, 0.0);\n" //splat origin
+        "  gl_FragData[1] = vec4(lightColor, 0.0);\n" //splat origin
+        "}\n"
+    );
+        //"  gl_FragData[0] = vec4(surfPos, 0.0);\n" //splat origin
+        //"  gl_FragData[1] = vec4(lightColor*spot*lightIntensity*surfAlbedo, 0.0);\n"  //splat center color
+
+    // upload the program
+    m_lightViewProgram->init();
+    // configure parameters
+    param_lightPos = m_lightViewProgram->getParameterID("lightPos", false);
+    param_lightColor = m_lightViewProgram->getParameterID("lightColor", false);
+    param_lightDir = m_lightViewProgram->getParameterID("lightDir", false);
+    param_lightAperture = m_lightViewProgram->getParameterID("lightAperture", false);
+    param_lightAlbedoTex = m_lightViewProgram->getParameterID("albedoTex", false);
+
     m_initialized = true;
 }
+
+void DirectShaderManager::configure(const BSDF *bsdf,
+            const Luminaire *luminaire, const Point &camPos, bool faceNormals) {
+    Shader *bsdfShader = m_renderer->getShaderForResource(bsdf);
+    Shader *lumShader = (luminaire == NULL) ? NULL
+        : m_renderer->getShaderForResource(luminaire);
+    Shader *subsurfaceShader = bsdfShader;
+
+    std::ostringstream oss;
+
+    if (bsdfShader == NULL || (luminaire != NULL && lumShader == NULL)) {
+        /* Unsupported! */
+        m_renderer->setColor(Spectrum(0.0f));
+        return;
+    }
+
+    bool anisotropic = bsdf->getType() & BSDF::EAnisotropic;
+
+    m_targetConfig = DirectProgramConfiguration(); //subsurfaceShader, bsdfShader, lumShader, faceNormals);
+    m_targetConfig.toString(oss);
+    std::string configName = oss.str();
+    std::map<std::string, ProgramAndConfiguration>::iterator it =
+        m_programs.find(configName);
+    GPUProgram* program = NULL;
+
+    if (it != m_programs.end()) {
+        /* A program for this configuration has been created previously */
+        m_current = (*it).second;
+        program = m_current.program;
+    } else {
+        /* No program for this particular combination exists -- create one */
+        program = m_renderer->createGPUProgram(configName);
+
+        // ToDo: Shadow program
+    }
+
+    program->bind();
+    //m_shadowMap->bind();
+}
+
 
 void DirectShaderManager::drawBackground(const Transform &clipToWorld, const Point &camPos) {
     if (m_backgroundProgram == NULL)

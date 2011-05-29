@@ -35,9 +35,9 @@ public:
 	/// To be called once before use
 	void init();
 
-	/// Prepare for rendering a material with BSDF 'bsdf' illuminated by VPL 'vpl'.
-//	void configure(const VPL &vpl, const BSDF *bsdf, 
-//		const Luminaire *luminaire, const Point &camPos, bool faceNormals);
+	/// Prepare for rendering a material with BSDF 'bsdf'
+	void configure(const BSDF *bsdf, const Luminaire *luminaire,
+            const Point &camPos, bool faceNormals);
 
 	/// Draw the background if there is an environment luminaire
 	void drawBackground(const Transform &clipToWorld, const Point &camPos);
@@ -156,6 +156,37 @@ private:
         }
     };
 
+    struct DirectProgramConfiguration {
+        int param_lightPos, param_lightDir, param_lightColor;
+        int param_lightAperture;
+
+        inline void toString(std::ostringstream &oss) const {
+            oss << "vpl=";
+            //vpl.toString(oss);
+            oss << ", bsdf=";
+            //bsdf.toString(oss);
+            //if (hasLuminaire) {
+            //    oss << ", luminaire=";
+            //    luminaire.toString(oss);
+            //}
+            //if (faceNormals)
+            //    oss << ", faceNormals";
+        }
+    };
+
+    struct ProgramAndConfiguration {
+        GPUProgram *program;
+        DirectProgramConfiguration config;
+
+        inline ProgramAndConfiguration() : program(NULL) {
+        }
+
+        inline ProgramAndConfiguration(GPUProgram *program, 
+            const DirectProgramConfiguration &config)
+            : program(program), config(config) {
+        }
+    };
+
 	/* General */
 	ref<const Scene> m_scene;
 	ref<Renderer> m_renderer;
@@ -177,9 +208,17 @@ private:
 	bool m_diffuseReceivers;
 
 	/* Rendering related */
+    std::map<std::string, ProgramAndConfiguration> m_programs;
+    ProgramAndConfiguration m_current;
+    DirectProgramConfiguration m_targetConfig;
 	ref<GPUProgram> m_backgroundProgram;
     DirectDependencyNode m_backgroundDependencies; 
 	std::vector<const TriMesh *> m_meshes;
+
+public:
+    ref<GPUProgram> m_lightViewProgram;
+    int param_lightPos, param_lightDir, param_lightColor;
+    int param_lightAperture, param_lightAlbedoTex;
 };
 
 
