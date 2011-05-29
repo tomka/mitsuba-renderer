@@ -32,6 +32,8 @@ using namespace mitsuba;
 
 struct SceneContext;
 
+#define SSSDEBUG
+
 /**
  * Asynchronous preview rendering thread
  */
@@ -80,10 +82,15 @@ protected:
     void oglRenderNormals(const std::vector<const TriMesh *> meshes);
 	/// Render a single VPL using real-time coherent ray tracing
 	void rtrtRenderVPL(PreviewQueueEntry &target, const VPL &vpl);
+
+    /* realtime sss */
+
     /// Render a multi-pass OpenGL visalisation that supports realtime SSS
     void oglRender(PreviewQueueEntry &target);
     /// check for OpenGL errors
     void oglErrorCheck();
+    /// calc splat positon and colors
+    void calcSplatPositions(const TriMesh* mesh);
 
 private:
 	ref<Session> m_session;
@@ -125,12 +132,24 @@ private:
         Vector3 c;
     } Splat;
 
+    typedef struct
+    {       
+        Point pos;        //splat origin
+        Vector dir;        //direction of spot
+        Float aperture;     //spot aperture
+        Spectrum color;      //diffuse light color
+        Vector3 specularColor;//specular light color
+    } SpotLight;
+
+
     ref<FrameBufferObject> fboLightView;
     ref<FrameBufferObject> fboView;
     ref<FrameBufferObject> fboViewExpand;
     ref<FrameBufferObject> fboCumulSplat;
     ref<FrameBufferObject> fboTmp;
     ref<GPUTexture> albedoMap;
+
+    SpotLight m_currentSpot;
     std::vector<Splat> splats;
 
     //light view subsurface data buffer size (square for a spot with constant aperture)
@@ -141,6 +160,8 @@ private:
 
     float splatOrigins[fboSplatSize * fboSplatSize * 3];
     float splatColors[fboSplatSize * fboSplatSize * 3];
+
+    std::vector<const TriMesh*> m_exportedMeshes;
 };
 
 #endif /* __PREVIEW_H */
