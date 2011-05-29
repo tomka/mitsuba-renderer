@@ -26,6 +26,7 @@
 #include <mitsuba/render/preview.h>
 #include "common.h"
 #include "preview_proc.h"
+#include "gpu/framebufferobject.h"
 
 using namespace mitsuba;
 
@@ -81,6 +82,8 @@ protected:
 	void rtrtRenderVPL(PreviewQueueEntry &target, const VPL &vpl);
     /// Render a multi-pass OpenGL visalisation that supports realtime SSS
     void oglRender(PreviewQueueEntry &target);
+    /// check for OpenGL errors
+    void oglErrorCheck();
 
 private:
 	ref<Session> m_session;
@@ -112,6 +115,32 @@ private:
 	Float m_backgroundScaleFactor;
 	bool m_quit, m_sleep, m_motion, m_useSync;
 	bool m_refreshScene;
+
+    /* realtime sss related */
+    typedef struct 
+    {
+        /* Splat origin */
+        Vector3 o;
+        /* Incident color */
+        Vector3 c;
+    } Splat;
+
+    ref<FrameBufferObject> fboLightView;
+    ref<FrameBufferObject> fboView;
+    ref<FrameBufferObject> fboViewExpand;
+    ref<FrameBufferObject> fboCumulSplat;
+    ref<FrameBufferObject> fboTmp;
+    ref<GPUTexture> albedoMap;
+    std::vector<Splat> splats;
+
+    //light view subsurface data buffer size (square for a spot with constant aperture)
+    const static int fboSplatSize = 48;
+    //cumulative splat buffer resolution to accelerate the rendering
+    const static int fboCumulSplatWidth = 100;
+    const static int fboCumulSplatHeight = 75;
+
+    float splatOrigins[fboSplatSize * fboSplatSize * 3];
+    float splatColors[fboSplatSize * fboSplatSize * 3];
 };
 
 #endif /* __PREVIEW_H */

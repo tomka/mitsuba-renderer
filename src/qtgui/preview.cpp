@@ -16,9 +16,16 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <GL/glew.h>
+
 #include "glwidget.h"
-#include "preview.h"
 #include <mitsuba/core/timer.h>
+#include "preview.h"
+#include <mitsuba/hw/gltexture.h>
+#include <mitsuba/core/bitmap.h>
+#include <mitsuba/core/mstream.h>
+#include <mitsuba/core/fstream.h>
+#include <mitsuba/core/fresolver.h>
 
 PreviewThread::PreviewThread(Device *parentDevice, Renderer *parentRenderer)
 	: Thread("prev"), m_parentDevice(parentDevice), m_parentRenderer(parentRenderer), 
@@ -62,6 +69,22 @@ PreviewThread::PreviewThread(Device *parentDevice, Renderer *parentRenderer)
 		m_recycleQueue.push_back(PreviewQueueEntry(m_queueEntryIndex++));
 	
 	m_random = new Random();
+
+    /* create FBOs for realtime SSS */
+    fboLightView  = new FrameBufferObject(2);
+    fboView  = new FrameBufferObject(1);
+    fboViewExpand  = new FrameBufferObject(1);
+    fboCumulSplat = new FrameBufferObject(1);
+    fboTmp = new FrameBufferObject(1);
+
+    /* albedo texture */
+    std::string albedoTexPath = "/home/tom/diplom/Scenes/images/translucency1.bmp";
+    ref<FileStream> fs = new FileStream(albedoTexPath, FileStream::EReadOnly);
+    ref<Bitmap> bitmap = new Bitmap(Bitmap::EBMP, fs);
+    albedoMap = new GLTexture("Albedo Map", bitmap);
+    albedoMap->setFilterType(GPUTexture::ELinear);
+    albedoMap->setMipMapped(false);
+    albedoMap->init();
 
 	MTS_AUTORELEASE_END()
 }
@@ -380,7 +403,31 @@ void PreviewThread::run() {
 					m_framebuffer->setFrameBufferType(GPUTexture::EColorBuffer);
 					m_framebuffer->setMipMapped(false);
 					m_framebuffer->init();
-				}
+
+                    unsigned int intColFormRGBF[] = {GL_RGB16F_ARB, GL_RGB16F_ARB};
+                    unsigned int intColFormRGBAF[] = {GL_RGBA16F_ARB, GL_RGBA16F_ARB};
+                    unsigned int filter[] = {GL_NEAREST, GL_NEAREST};
+                    unsigned int filterL[] = {GL_LINEAR, GL_LINEAR};
+                    unsigned int wrap[] = {GL_CLAMP, GL_CLAMP};
+                    unsigned int wrapE[] = {GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE};
+
+                    fboLightView = new FrameBufferObject(2);
+                    fboView = new FrameBufferObject(1);
+                    fboViewExpand = new FrameBufferObject(1);
+                    fboCumulSplat = new FrameBufferObject(1);
+                    fboTmp = new FrameBufferObject(1);
+
+                    fboLightView->init(fboSplatSize,fboSplatSize,intColFormRGBAF,
+                          wrapE,wrapE,filterL,filterL,FBO_DepthBufferType_TEXTURE,GL_NEAREST,GL_NEAREST,GL_CLAMP,GL_CLAMP);
+                    fboView->init(fboCumulSplatWidth,fboCumulSplatHeight,intColFormRGBAF,
+                        wrap,wrap,filter,filter,FBO_DepthBufferType_TEXTURE,GL_NEAREST,GL_NEAREST,GL_CLAMP,GL_CLAMP);
+                    fboViewExpand->init(fboCumulSplatWidth,fboCumulSplatHeight,intColFormRGBAF,
+                        wrap,wrap,filter,filter,FBO_DepthBufferType_TEXTURE,GL_NEAREST,GL_NEAREST,GL_CLAMP,GL_CLAMP);
+                    fboCumulSplat->init(fboCumulSplatWidth,fboCumulSplatHeight,intColFormRGBAF,
+                        wrap,wrap,filterL,filterL,FBO_DepthBufferType_NONE,0,0,0,0);
+                    fboTmp->init(fboCumulSplatWidth,fboCumulSplatHeight,intColFormRGBF,
+                        wrap,wrap,filterL,filterL,FBO_DepthBufferType_NONE,0,0,0,0);
+                }
 
 				m_directShaderManager->setShadowMapResolution(m_context->shadowMapResolution);
 				m_directShaderManager->setClamping(m_context->clamping);
@@ -684,92 +731,280 @@ void PreviewThread::rtrtRenderVPL(PreviewQueueEntry &target, const VPL &vpl) {
 	m_accumBuffer = target.buffer;
 }
 
+static bool singleCheck = true;
+
+void PreviewThread::oglErrorCheck() {
+    GLenum errCode;
+    const GLubyte *errString;
+
+    if (singleCheck) {
+        singleCheck = false;
+        if ((errCode = glGetError()) != GL_NO_ERROR) {
+            errString = gluErrorString(errCode);
+           fprintf (stderr, "OpenGL Error: %s\n", errString);
+        } else {
+           std::cerr << "No OpenGL errer" << std::endl;
+        }
+    }
+}
+
+static bool imgWrite[] = {false, false, false, false, false};
+
 void PreviewThread::oglRender(PreviewQueueEntry &target) {
 	const std::vector<const TriMesh *> meshes = m_directShaderManager->getMeshes();
 
 	Point2 jitter(.5f, .5f);
-	if (!m_motion && !m_context->showKDTree)
-		jitter -= Vector2(m_random->nextFloat(), m_random->nextFloat());
+	//if (!m_motion && !m_context->showKDTree)
+	//	jitter -= Vector2(m_random->nextFloat(), m_random->nextFloat());
 
-	m_mutex->lock();
-	const ProjectiveCamera *camera = static_cast<const ProjectiveCamera *>
-		(m_context->scene->getCamera());
-	Transform projectionTransform = camera->getGLProjectionTransform(jitter);
-	m_renderer->setCamera(projectionTransform.getMatrix(), m_camViewTransform.getMatrix());
-	Transform clipToWorld = m_camViewTransform.inverse() 
-		* Transform::scale(Vector(1, 1, -1)) * projectionTransform.inverse();
+	//m_mutex->lock();
+	//const ProjectiveCamera *camera = static_cast<const ProjectiveCamera *>
+	//	(m_context->scene->getCamera());
+	//Transform projectionTransform = camera->getGLProjectionTransform(jitter);
+	//m_renderer->setCamera(projectionTransform.getMatrix(), m_camViewTransform.getMatrix());
+	//Transform clipToWorld = m_camViewTransform.inverse() 
+	//	* Transform::scale(Vector(1, 1, -1)) * projectionTransform.inverse();
 
-	Point camPos = m_camPos;
-	m_mutex->unlock();
+	//Point camPos = m_camPos;
+	//m_mutex->unlock();
 
-    // bind and init FBO
-	m_framebuffer->activateTarget();
-	m_framebuffer->clear();
+    // expect for now only one spot light
+    std::vector<Luminaire *> luminaires = m_context->scene->getLuminaires();
+    if (luminaires.size() != 1)
+        return;
+    Luminaire *spot = luminaires[0];
 
-	m_renderer->beginDrawingMeshes();
+    Transform spotTransform = spot->getLuminaireToWorld();
+    Float spotAperture = spot->getAperture();
+    Point spotPos = spotTransform(Point(0, 0, 0));
+    Vector spotDir =  spotTransform(Vector(0.0f, 0.0f, 1.0f));
+    Spectrum spotColor = Spectrum(0.5f);
+
+    //glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE); /* Allow writing to depth buffer */
+    glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
+
+    glEnable(GL_TEXTURE_2D);
+
+    int width = fboSplatSize;
+    int height = fboSplatSize;
+
 	for (size_t j=0; j<meshes.size(); j++) {
-		//m_directShaderManager->configure(vpl, meshes[j]->getBSDF(), 
-		//	meshes[j]->getLuminaire(), camPos, !meshes[j]->hasVertexNormals());
-		m_renderer->drawTriMesh(meshes[j]);
-        // unbind potentially bound data due to prev. configuring
-		//m_directShaderManager->unbind();
+
+        // Setup spot light view space.
+        glMatrixMode(GL_PROJECTION);
+        glPushMatrix();
+        glLoadIdentity();
+        gluPerspective(spotAperture, 1.0f, 0.01f, 1000.0f);
+        glMatrixMode(GL_MODELVIEW);
+        glPushMatrix();
+        glLoadIdentity();
+        gluLookAt(spotPos.x, spotPos.y, spotPos.z,
+            spotPos.x + spotDir.x, spotPos.y + spotDir.y, spotPos.z + spotDir.z,
+            0.0f,1.0f,0.0f);
+        GPUProgram *lightViewProgram = m_directShaderManager->m_lightViewProgram;
+
+        fboLightView->saveAndSetViewPort();
+
+        GLenum drawBuffers[2] = {GL_COLOR_ATTACHMENT0_EXT, GL_COLOR_ATTACHMENT1_EXT};
+        fboLightView->enableRenderToColorAndDepth_MRT(2, drawBuffers);
+
+        // Mark places where no objects are with 999.0
+        glClearColor(999.0f, 999.0f, 999.0f, 999.0f);
+        glColor3f(0.5f,0.0f,0.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
+
+        //glActiveTexture(GL_TEXTURE0);
+
+        /*
+        lightViewProgram->bind();
+        albedoMap->bind(0);
+        lightViewProgram->setParameter(m_directShaderManager->param_lightPos, spotPos);
+        lightViewProgram->setParameter(m_directShaderManager->param_lightColor, spotColor);
+        lightViewProgram->setParameter(m_directShaderManager->param_lightDir, spotDir);
+        lightViewProgram->setParameter(m_directShaderManager->param_lightAperture, degToRad(spotAperture * 0.5f));
+        lightViewProgram->setParameter(m_directShaderManager->param_lightAlbedoTex, albedoMap);
+        */
+
+        //glMatrixMode(GL_TEXTURE);//model matrix
+        //glPushMatrix();
+        //glLoadIdentity();
+        //curObj->getPosition(top);
+        //glTranslatef(top.x,top.y,top.z);
+        //glMatrixMode(GL_MODELVIEW);
+        //glPushMatrix();
+        //glTranslatef(top.x,top.y,top.z);
+
+            //render the current translucent object
+    	    m_renderer->beginDrawingMeshes();
+
+            // needs tex coord and normal
+		    m_renderer->drawTriMesh(meshes[j]);
+
+    	    m_renderer->endDrawingMeshes();
+
+        //glPopMatrix();
+        //glMatrixMode(GL_TEXTURE);
+        //glPopMatrix();
+        //glMatrixMode(GL_MODELVIEW);
+
+        // unbind light view program
+        //lightViewProgram->unbind();
+        fboLightView->disableRenderToColorDepth();
+
+        //render occluders
+        fboLightView->enableRenderToColorAndDepth(0);
+        glDisable(GL_TEXTURE_2D);
+        glColor3f(999.0f, 999.0f, 999.0f);
+
+	    for (size_t k=0; k<meshes.size(); k++) {
+            continue;
+            // don't render the current object as an ocluder
+            if (meshes[j] == meshes[k])
+                continue;
+
+            glMatrixMode(GL_MODELVIEW);
+            glPushMatrix();
+            //(*ito)->getPosition(top);
+            //glTranslatef(top.x,top.y,top.z);
+
+            // no need for text coords and normal
+	        m_renderer->beginDrawingMeshes();
+		    m_renderer->drawTriMesh(meshes[k]);
+	        m_renderer->endDrawingMeshes();
+
+            glPopMatrix();
+        }
+
+        glPopMatrix();
+        glMatrixMode(GL_PROJECTION);
+        glPopMatrix();
+        glMatrixMode(GL_MODELVIEW);
+        
+        fboLightView->restoreViewPort();
+        fboLightView->disableRenderToColorDepth();
+
+        /* compute splat origin and intensity */
+        glEnable(GL_TEXTURE_2D);
+        fboLightView->bindColorTexture(0);
+        glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_FLOAT, splatOrigins);
+        fboLightView->bindColorTexture(1);
+        glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_FLOAT, splatColors);
+        glDisable(GL_TEXTURE_2D);
+        if (!imgWrite[j]) {
+            imgWrite[j] = true;
+            std::stringstream name;
+            name << "img" << j << ".exr";
+            ref<Bitmap> bmp = new Bitmap(fboSplatSize, fboSplatSize, 128);
+            for(int i=0; i < fboSplatSize*fboSplatSize; i+=1) {
+                bmp->getFloatData()[i*4] = splatOrigins[i*3];
+                bmp->getFloatData()[i*4+1] = splatOrigins[i*3+1];
+                bmp->getFloatData()[i*4+2] = splatOrigins[i*3+2];
+                bmp->getFloatData()[i*4+3] = 1.0f; 
+            }
+            bmp->save(Bitmap::EEXR, new FileStream(name.str(), FileStream::ETruncWrite) );
+        }
+        splats.clear();
+        Vector3 o;
+        Splat s;
+        for(int i=0; i < fboSplatSize*fboSplatSize*3; i+=3) {
+std::cerr << "[" << splatOrigins[i] << " " <<  splatOrigins[i+1] << " " << splatOrigins[i+2] << "] ";
+            if(   (splatOrigins[i] < 990.0f && splatOrigins[i+1] < 990.0f && splatOrigins[i+2] < 990.0f)
+               && (splatColors[i] + splatColors[i+1] + splatColors[i+2]) > 0.0f )
+            {
+                s.c[0] = splatColors[i+0]; s.c[1] = splatColors[i+1]; s.c[2] = splatColors[i+2];
+                // origin are in world space
+                s.o[0] = splatOrigins[i+0]; s.o[1] = splatOrigins[i+1]; s.o[2] = splatOrigins[i+2];
+                //std::cerr << "c: " << s.c.toString() << " o: " << s.o.toString() << std::endl;
+                splats.push_back(s);
+            }
+        }
+std::cerr << std::endl;
 	}
-	m_renderer->endDrawingMeshes();
+oglErrorCheck();
+    glDisable(GL_TEXTURE_2D);
 
-    if (m_context->showNormals)
-        oglRenderNormals(meshes);
-	m_directShaderManager->drawBackground(clipToWorld, camPos);
-    // unbind FBO
-	m_framebuffer->releaseTarget();
+return;
 
-    /* Get framebuffer result to the target buffer. Either by direct
-     * blitting or with the help of an accumulation program to combine
-     * different results. Depth masking and depth testing is not needed
-     * for this and hence is disabled. */
-
-    // bind target buffer FBO
-	target.buffer->activateTarget();
-	m_renderer->setDepthMask(false);
-	m_renderer->setDepthTest(false);
-    // bind framebuffer FBO to texture unit 0
-	m_framebuffer->bind(0);
-
-    // for this rendering method, an accumulation buffer is actually not needed
-	if (m_accumBuffer == NULL) {
-        // blit rendering result into target buffer 
-		target.buffer->clear();
-		m_renderer->blitTexture(m_framebuffer, true);
-	} else {
-        // bind already present data to texture unit 1
-		m_accumBuffer->bind(1);
-		m_accumProgram->bind();
-        // set sounce parameters (uniforms) for accum. program
-		m_accumProgram->setParameter(m_accumProgramParam_source1, m_accumBuffer);
-		m_accumProgram->setParameter(m_accumProgramParam_source2, m_framebuffer);
-        // create screeen quad on which the accum. program works
-		m_renderer->blitQuad(true);
-		m_accumProgram->unbind();
-		m_accumBuffer->unbind();
-	}
-	m_framebuffer->unbind();
-	m_renderer->setDepthMask(true);
-	m_renderer->setDepthTest(true);
-	target.buffer->releaseTarget();
-    // make render target FBO the new accum. buffer
-	m_accumBuffer = target.buffer;
-
-	static int i=0;
-	if ((++i % 4) == 0 || m_motion) {
-		/* Don't let the queue get too large -- this makes
-		   the whole system unresponsive */
-		m_renderer->finish();
-	} else {
-		if (m_useSync) {
-			m_renderer->flush();
-		} else {
-			/* No sync objects available - we have to wait 
-			   for everything to finish */
-			m_renderer->finish();
-		}
-	}
+//    // assume we are working with OpenGL
+//    GLTexture* fb = static_cast<GLTexture*>(m_framebuffer.get());
+//    // bind and init FBO
+//	fb->activateTarget();
+//	fb->clear();
+//
+//	for (size_t j=0; j<meshes.size(); j++) {
+//	    m_renderer->beginDrawingMeshes();
+//		//m_directShaderManager->configure(meshes[j]->getBSDF(), 
+//		//	meshes[j]->getLuminaire(), camPos, !meshes[j]->hasVertexNormals());
+//		//m_renderer->drawTriMesh(meshes[j]);
+//        // unbind potentially bound data due to prev. configuring
+//		//m_directShaderManager->unbind();
+//
+//        /* Render from light view. The positions and colors will be
+//         * rendered in two different textures. */
+//	    m_renderer->endDrawingMeshes();
+//
+//        GLenum drawBuffers[2] = {GL_COLOR_ATTACHMENT0_EXT,GL_COLOR_ATTACHMENT1_EXT};
+//        // expect the framebuffer to be bound. Make it render in two buffers
+//        //fb->activateTarget(2, drawBuffers);
+////std::cerr << fb->getMaxColorAttachments() << std::endl;
+//        // Mark places where no objects are with 999.0
+//        glClearColor(999.0f,999.0f,999.0f,999.0f);
+//        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT); 
+//	}
+//
+//	m_directShaderManager->drawBackground(clipToWorld, camPos);
+//    // unbind FBO
+//	m_framebuffer->releaseTarget();
+//
+//    /* Get framebuffer result to the target buffer. Either by direct
+//     * blitting or with the help of an accumulation program to combine
+//     * different results. Depth masking and depth testing is not needed
+//     * for this and hence is disabled. */
+//
+//    // bind target buffer FBO
+//	target.buffer->activateTarget();
+//	m_renderer->setDepthMask(false);
+//	m_renderer->setDepthTest(false);
+//    // bind framebuffer FBO to texture unit 0
+//	m_framebuffer->bind(0);
+//
+//    // for this rendering method, an accumulation buffer is actually not needed
+//	if (m_accumBuffer == NULL) {
+//        // blit rendering result into target buffer 
+//		target.buffer->clear();
+//		m_renderer->blitTexture(m_framebuffer, true);
+//	} else {
+//        // bind already present data to texture unit 1
+//		m_accumBuffer->bind(1);
+//		m_accumProgram->bind();
+//        // set sounce parameters (uniforms) for accum. program
+//		m_accumProgram->setParameter(m_accumProgramParam_source1, m_accumBuffer);
+//		m_accumProgram->setParameter(m_accumProgramParam_source2, m_framebuffer);
+//        // create screeen quad on which the accum. program works
+//		m_renderer->blitQuad(true);
+//		m_accumProgram->unbind();
+//		m_accumBuffer->unbind();
+//	}
+//	m_framebuffer->unbind();
+//	m_renderer->setDepthMask(true);
+//	m_renderer->setDepthTest(true);
+//	target.buffer->releaseTarget();
+//    // make render target FBO the new accum. buffer
+//	m_accumBuffer = target.buffer;
+//
+//	static int i=0;
+//	if ((++i % 4) == 0 || m_motion) {
+//		/* Don't let the queue get too large -- this makes
+//		   the whole system unresponsive */
+//		m_renderer->finish();
+//	} else {
+//		if (m_useSync) {
+//			m_renderer->flush();
+//		} else {
+//			/* No sync objects available - we have to wait 
+//			   for everything to finish */
+//			m_renderer->finish();
+//		}
+//	}
 }
