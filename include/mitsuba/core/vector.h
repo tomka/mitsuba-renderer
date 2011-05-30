@@ -224,7 +224,12 @@ template <typename T> struct TVector3 {
 	typedef T          value_type;
 	typedef TPoint3<T> point_type;
 
-	T x, y, z;
+    union {
+        T data[3];
+        struct {
+            T x, y, z;
+        };
+    };
 	
 	/// Number of dimensions
 	const static int dim = 3;
