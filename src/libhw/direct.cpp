@@ -354,6 +354,87 @@ void DirectShaderManager::init() {
     param_renderSplatsBillboardRadius = m_renderSplatsProgram->getParameterID("billboardRadius", false);
 
 
+    /* final contribution program */
+    m_finalContributionProgram = m_renderer->createGPUProgram("SplatSSS Final Rendering Program");
+    m_finalContributionProgram->setSource(GPUProgram::EVertexProgram,
+        "#version 120\n"
+        "//uniform sampler2D subSurf;\n"
+        "//uniform sampler2D albedoTex;\n"
+        "uniform float sampleScale;\n"
+        "uniform vec3 lightPos;\n"
+        "uniform vec3 lightSpecColor;\n"
+        "uniform vec3 lightDir;\n"
+        "uniform float lightAperture;\n"
+        "\n"
+        "varying vec4 pixelProj;\n"
+        "varying vec3 normal;\n"
+        "varying vec3 surfPos;\n"
+        "varying vec3 surfToLight;\n"
+        "varying vec3 halfVec;\n"
+        "\n"
+        "void main() {\n"
+        "  vec4 vMV = gl_ModelViewMatrix * gl_Vertex;\n" //vertex position in camera space
+        "  vec4 vMVP = gl_ProjectionMatrix * vMV;\n" //vertex position in clip space
+        "  \n"
+        "  pixelProj = vMVP;\n"
+        "  surfPos = gl_Vertex.xyz;\n"
+        "  surfToLight = lightPos-gl_Vertex.xyz;\n"
+        "  vec3 surfToView = gl_ModelViewMatrixInverse[3].xyz-gl_Vertex.xyz;\n"
+        "  halfVec = ((surfToView+surfToLight)/2.0);\n" //half vector to compute blinn specular
+        "  normal = gl_Normal;\n" // out
+        "  gl_TexCoord[0] = gl_MultiTexCoord0;\n"
+        "  gl_Position = vMVP;\n"
+        "}\n"
+    );
+
+    m_finalContributionProgram->setSource(GPUProgram::EFragmentProgram,
+        "#version 120\n"
+        "uniform sampler2D subSurf;\n"
+        "uniform sampler2D albedoTex;\n"
+        "uniform float sampleScale;\n"
+        "uniform vec3 lightPos;\n"
+        "uniform vec3 lightSpecColor;\n"
+        "uniform vec3 lightDir;\n"
+        "uniform float lightAperture;\n"
+        "\n"
+        "varying vec4 pixelProj;\n"
+        "varying vec3 normal;\n"
+        "varying vec3 surfPos;\n"
+        "varying vec3 surfToLight;\n"
+        "varying vec3 halfVec;\n"
+        "\n"
+        "void main() {\n"
+        "  \n" //visible surfaces"
+        "  vec4 subsurfaceContrib = texture2D( subSurf, (0.5 + 0.5*pixelProj.st/pixelProj.ww) );\n" //subsuyrface light
+        "  vec3 surfaceAlbedo = sqrt(texture2D( albedoTex, gl_TexCoord[0].st ).rgb);\n" //sqrt because light is musplipied two time by albedo
+        "  \n" //compute some data for spot ligth specular"
+        "  vec3 normalNorm = normalize(normal);\n"
+        "  vec3 halfVecNorm = normalize(halfVec);\n"
+        "  vec3 surfToLightNorm = normalize(surfToLight);\n"
+        "  float specIntensity = clamp(dot(normalNorm, halfVecNorm),0.0,1.0);\n"
+        "  float dot3SpotCone = dot(lightDir,-surfToLightNorm);\n"
+        "  float spotCone = clamp( (dot3SpotCone-lightAperture)/(1.0-lightAperture) ,0.0,1.0);\n"
+        "  float dot3lamb = dot(normal,surfToLightNorm);\n"
+        "  float specContrib = clamp(dot3lamb*10.0,0.0,1.0);\n"
+        "  \n"  //specular component
+        "  vec3 specular = specIntensity*surfaceAlbedo*lightSpecColor*specContrib*spotCone*pow(specIntensity,64.0);\n"
+        "  \n"  //final color
+        "  gl_FragColor = vec4(specular + surfaceAlbedo*subsurfaceContrib.rgb/sampleScale,0.0);\n"
+        "}\n"
+    );
+
+    // upload the program
+    m_finalContributionProgram->init();
+    // configure parameters
+    param_finalContribSubSurf = m_finalContributionProgram->getParameterID("subSurf", false);
+    param_finalContribAlbedoTex = m_finalContributionProgram->getParameterID("albedoTex", false);
+    param_finalContribSampleScale = m_finalContributionProgram->getParameterID("sampleScale", false);
+    param_finalContribLightAperture = m_finalContributionProgram->getParameterID("lightAperture", false);
+    param_finalContribLightSpecColor = m_finalContributionProgram->getParameterID("lightSpecColor", false);
+    param_finalContribLightDir = m_finalContributionProgram->getParameterID("lightDir", false);
+    param_finalContribLightPos = m_finalContributionProgram->getParameterID("lightPos", false);
+
+
     m_initialized = true;
 }
 

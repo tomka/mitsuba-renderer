@@ -227,6 +227,11 @@ public:
     ref<GPUProgram> m_renderSplatsProgram;
     int param_renderSplatsBillboardOffset, param_renderSplatsViewSurfacePos;
     int param_renderSplatsTranslucencyTex, param_renderSplatsBillboardRadius;
+    ref<GPUProgram> m_finalContributionProgram;
+    int param_finalContribSubSurf, param_finalContribAlbedoTex,
+        param_finalContribSampleScale, param_finalContribLightAperture,
+        param_finalContribLightSpecColor, param_finalContribLightDir,
+        param_finalContribLightPos;
 };
 
 
