@@ -303,7 +303,7 @@ void DirectShaderManager::init() {
     param_expandViewTex = m_expandSilhouetteProgram->getParameterID("viewSubScatTex", false);
 
 
-    /* splat rendering  program */
+    /* splat rendering program */
     m_renderSplatsProgram = m_renderer->createGPUProgram("SplatSSS Splat Rendering Program");
     m_renderSplatsProgram->setSource(GPUProgram::EVertexProgram,
         "#version 120\n"
@@ -348,7 +348,7 @@ void DirectShaderManager::init() {
     // upload the program
     m_renderSplatsProgram->init();
     // configure parameters
-    param_renderSplatsBillboardOffset = m_renderSplatsProgram->getParameterID("billboardOffset", false);
+    attrib_renderSplatsBillboardOffset = m_renderSplatsProgram->getAttributeID("billboardOffset", false);
     param_renderSplatsViewSurfacePos = m_renderSplatsProgram->getParameterID("viewSurfPos", false);
     param_renderSplatsTranslucencyTex = m_renderSplatsProgram->getParameterID("translucencyTex", false);
     param_renderSplatsBillboardRadius = m_renderSplatsProgram->getParameterID("billboardRadius", false);

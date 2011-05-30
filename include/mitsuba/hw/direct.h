@@ -217,16 +217,17 @@ private:
 
 public:
     ref<GPUProgram> m_lightViewProgram;
-    int param_lightPos, param_lightDir, param_lightColor;
-    int param_lightAperture, param_lightAlbedoTex;
+    int param_lightPos, param_lightDir, param_lightColor,
+        param_lightAperture, param_lightAlbedoTex;
     
     ref<GPUProgram> m_cameraViewProgram;
     ref<GPUProgram> m_expandSilhouetteProgram;
     int param_expandViewTex;
 
     ref<GPUProgram> m_renderSplatsProgram;
-    int param_renderSplatsBillboardOffset, param_renderSplatsViewSurfacePos;
-    int param_renderSplatsTranslucencyTex, param_renderSplatsBillboardRadius;
+    int attrib_renderSplatsBillboardOffset, param_renderSplatsViewSurfacePos,
+        param_renderSplatsTranslucencyTex, param_renderSplatsBillboardRadius;
+
     ref<GPUProgram> m_finalContributionProgram;
     int param_finalContribSubSurf, param_finalContribAlbedoTex,
         param_finalContribSampleScale, param_finalContribLightAperture,
