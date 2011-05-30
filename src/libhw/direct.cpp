@@ -238,6 +238,71 @@ void DirectShaderManager::init() {
     // upload the program
     m_cameraViewProgram->init();
 
+
+    /* silhouette expansion program */
+     m_expandSilhouetteProgram = m_renderer->createGPUProgram("SplatSSS Silhouette Expansion Program");
+     m_expandSilhouetteProgram->setSource(GPUProgram::EVertexProgram,
+        "#version 120\n"
+        "//uniform sampler2D viewSubScatTex;\n"
+        "\n"
+        "varying vec2 offset;\n"
+        "\n"
+        "void main() {\n"
+        "  vec4 vMV = gl_ModelViewMatrix * gl_Vertex;\n" //vertex position in camera space
+        "  vec4 vMVP = gl_ProjectionMatrix * vMV;\n" //vertex position in clip space
+        "  offset = gl_MultiTexCoord0.zw;\n"
+        "\n"
+        "  gl_TexCoord[0] = gl_MultiTexCoord0;\n" // out, contains tex coord in xy and tap offset in zw
+        "  gl_Position = vMVP;\n"
+        "}\n"
+    );
+
+    m_expandSilhouetteProgram->setSource(GPUProgram::EFragmentProgram,
+        "#version 120\n"
+        "uniform sampler2D viewSubScatTex;\n"
+        "\n"
+        "varying vec2 offset;\n"
+        "\n"
+        "void main() {\n"
+        "  vec4 center = texture2D( viewSubScatTex, gl_TexCoord[0].xy );\n"
+        "  vec4 tap1   = texture2D( viewSubScatTex, gl_TexCoord[0].xy + offset );\n"
+        "  vec4 tap2   = texture2D( viewSubScatTex, gl_TexCoord[0].xy - offset );\n"
+        "\n"
+        "  vec3 sum=vec3(0.0);\n"
+        "  float weight=0.0;\n"
+        "  if(center.a>0.99) {\n"
+        "    sum+=center.rgb;\n"
+        "    weight++;\n"
+        "  }\n"
+        "  if(tap1.a>0.99) {\n"
+        "    sum+=tap1.rgb;\n"
+        "    weight++;\n"
+        "  }\n"
+        "  if(tap2.a>0.99) {\n"
+        "    sum+=tap2.rgb;\n"
+        "    weight++;\n"
+        "  }\n"
+        "\n"
+        " /*  sum+=center.rgb*center.a;\n"
+        "     weight+=center.a;\n"
+        "     sum+=tap1.rgb*tap1.a;\n"
+        "     weight+=tap1.a;\n"
+        "     sum+=tap2.rgb*tap2.a;\n"
+        "     weight+=tap2.a;*/\n"
+        "\n"
+        "  if(center.a>0.9)\n"
+        "    gl_FragColor = center;\n"  //we ouput the center pixel if it is not a empty edge
+        "  else\n"
+        "    gl_FragColor = vec4(sum/weight,min(weight,1.0));\n" //else weighted mean of neighbourhood
+        "}\n"
+    );
+
+    // upload the program
+    m_expandSilhouetteProgram->init();
+    // configure parameters
+    param_expandViewTex = m_expandSilhouetteProgram->getParameterID("viewSubScatTex", false);
+
+
     m_initialized = true;
 }
 

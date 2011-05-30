@@ -221,6 +221,8 @@ public:
     int param_lightAperture, param_lightAlbedoTex;
     
     ref<GPUProgram> m_cameraViewProgram;
+    ref<GPUProgram> m_expandSilhouetteProgram;
+    int param_expandViewTex;
 };
 
 
