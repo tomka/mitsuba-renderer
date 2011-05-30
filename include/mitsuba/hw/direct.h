@@ -219,6 +219,8 @@ public:
     ref<GPUProgram> m_lightViewProgram;
     int param_lightPos, param_lightDir, param_lightColor;
     int param_lightAperture, param_lightAlbedoTex;
+    
+    ref<GPUProgram> m_cameraViewProgram;
 };
 
 

@@ -211,6 +211,33 @@ void DirectShaderManager::init() {
     param_lightAperture = m_lightViewProgram->getParameterID("lightAperture", false);
     param_lightAlbedoTex = m_lightViewProgram->getParameterID("albedoTex", false);
 
+
+    /* camere view program */
+    m_cameraViewProgram = m_renderer->createGPUProgram("SplatSSS CameraView Program");
+    m_cameraViewProgram->setSource(GPUProgram::EVertexProgram,
+        "#version 120\n"
+        "varying vec3 surfPos;\n"
+        "\n"
+        "void main() {\n"
+        "  vec4 vMV = gl_ModelViewMatrix * gl_Vertex;\n" //vertex position in camera space
+        "  vec4 vMVP = gl_ProjectionMatrix * vMV;\n" //vertex position in clip space
+        "  surfPos = (gl_TextureMatrix[0]*gl_Vertex).xyz;\n"  //vertex * modelMatrix
+        " gl_Position = vMVP;\n" // out
+        "}\n"
+    );
+
+    m_cameraViewProgram->setSource(GPUProgram::EFragmentProgram,
+        "#version 120\n"
+        "varying vec3 surfPos;\n"
+        "\n"
+        "void main() {\n"
+        "  gl_FragColor = vec4(surfPos, 1.0);\n"  //1.0 to enable silhouette expand (to avoid black silhouette artifact)
+        "}\n"
+    );
+
+    // upload the program
+    m_cameraViewProgram->init();
+
     m_initialized = true;
 }
 
