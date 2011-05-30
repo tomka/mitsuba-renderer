@@ -223,6 +223,10 @@ public:
     ref<GPUProgram> m_cameraViewProgram;
     ref<GPUProgram> m_expandSilhouetteProgram;
     int param_expandViewTex;
+
+    ref<GPUProgram> m_renderSplatsProgram;
+    int param_renderSplatsBillboardOffset, param_renderSplatsViewSurfacePos;
+    int param_renderSplatsTranslucencyTex, param_renderSplatsBillboardRadius;
 };
 
 

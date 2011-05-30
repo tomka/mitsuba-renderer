@@ -303,6 +303,57 @@ void DirectShaderManager::init() {
     param_expandViewTex = m_expandSilhouetteProgram->getParameterID("viewSubScatTex", false);
 
 
+    /* splat rendering  program */
+    m_renderSplatsProgram = m_renderer->createGPUProgram("SplatSSS Splat Rendering Program");
+    m_renderSplatsProgram->setSource(GPUProgram::EVertexProgram,
+        "#version 120\n"
+        "attribute vec2 billboardOffset;\n"
+        "//uniform sampler2D viewSurfPos;\n"
+        "//uniform sampler2D translucencyTex;\n"
+        "uniform float billboardRadius;\n"
+        "\n"
+        "varying vec3 splatOrigin;\n"
+        "varying vec4 pixelProj;\n"
+        "\n"
+        "void main() {\n"
+        "  vec4 vMV = gl_ModelViewMatrix * gl_Vertex;\n" //vertex position in camera space
+        "  vMV.xy += billboardOffset*billboardRadius; //*length(gl_MultiTexCoord0.xyz);\n" //current offset to generate the billboard
+        "  vec4 vMVP = gl_ProjectionMatrix * vMV;\n" //vertex position in clip space
+        "  splatOrigin = gl_Vertex.xyz;\n"
+        "  pixelProj = vMVP;\n"
+        "\n"
+        "  gl_TexCoord[0] = gl_MultiTexCoord0;\n" //out, contains splat color
+        "  gl_Position = vMVP;\n"
+        "}\n"
+    );
+
+    m_renderSplatsProgram->setSource(GPUProgram::EFragmentProgram,
+        "#version 120\n"
+        "uniform sampler2D viewSurfPos;\n"
+        "uniform sampler2D translucencyTex;\n"
+        "uniform float billboardRadius;\n"
+        "\n"
+        "varying vec3 splatOrigin;\n" //corresponds to a light source in the dipole theory
+        "varying vec4 pixelProj;\n" //pixel projected texture coordinate
+        "\n"
+        "void main() {\n"
+        "  vec3 visSurfPos = texture2D( viewSurfPos, 0.5 + 0.5*pixelProj.st/pixelProj.ww ).rgb;\n" //visible surfaces
+        "  float dist = length(visSurfPos-splatOrigin);\n" //distance from the splat center
+        "  float dist2splatCenter = dist/(billboardRadius); //*length(gl_TexCoord[0].xyz)\n" //coordinate in the translucency texture texture
+        "  vec3 finalPixelColor=gl_TexCoord[0].xyz*texture2D( translucencyTex, vec2(dist2splatCenter,0.5)).rgb;\n" //gl_TexCoord[0].xyz contains the splat color at origin
+        "  gl_FragColor = vec4(finalPixelColor, 0.0);\n"
+        "}\n"
+    );
+
+    // upload the program
+    m_renderSplatsProgram->init();
+    // configure parameters
+    param_renderSplatsBillboardOffset = m_renderSplatsProgram->getParameterID("billboardOffset", false);
+    param_renderSplatsViewSurfacePos = m_renderSplatsProgram->getParameterID("viewSurfPos", false);
+    param_renderSplatsTranslucencyTex = m_renderSplatsProgram->getParameterID("translucencyTex", false);
+    param_renderSplatsBillboardRadius = m_renderSplatsProgram->getParameterID("billboardRadius", false);
+
+
     m_initialized = true;
 }
 
