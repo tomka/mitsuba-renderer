@@ -47,6 +47,9 @@ public:
 	/// Determine the ID number of a named parameter
 	int getParameterID(const std::string &name, bool failIfMissing = true) const;
 	
+	/// Determine the ID number of a named parameter
+	int getAttributeID(const std::string &name, bool failIfMissing = true) const;
+
 	/// Set a boolean parameter
 	void setParameter(int id, bool value);
 

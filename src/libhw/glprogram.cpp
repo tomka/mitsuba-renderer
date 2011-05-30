@@ -162,6 +162,13 @@ int GLProgram::getParameterID(const std::string &name, bool failIfMissing) const
 	return id;
 }
 
+int GLProgram::getAttributeID(const std::string &name, bool failIfMissing) const {
+	int id = glGetAttribLocation(m_program, name.c_str());
+	if (id == -1 && failIfMissing)
+		Log(EError, "Unable to find the attribute named \"%s\"", name.c_str());
+	return id;
+}
+
 void GLProgram::setParameter(int id, bool value) {
 	if (id == -1)
 		return;

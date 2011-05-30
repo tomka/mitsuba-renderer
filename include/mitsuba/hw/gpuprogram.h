@@ -66,6 +66,9 @@ public:
 	/// Determine the ID number of a named parameter
 	virtual int getParameterID(const std::string &name, bool failIfMissing = true) const = 0;
 	
+	/// Determine the ID number of a vertex attribute
+	virtual int getAttributeID(const std::string &name, bool failIfMissing = true) const = 0;
+
 	/// Set a boolean parameter by name
 	inline void setParameter(const std::string &name, bool value, 
 		bool failIfMissing = true) {
