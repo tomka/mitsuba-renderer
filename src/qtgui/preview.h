@@ -89,8 +89,10 @@ protected:
     void oglRender(PreviewQueueEntry &target);
     /// check for OpenGL errors
     void oglErrorCheck();
-    /// calc splat positon and colors
+    /// calculate splat positon and colors in light view
     void calcSplatPositions(const TriMesh* mesh);
+    /// calculate in view space
+    void calcVisiblePositions(const TriMesh *mesh);
 
 private:
 	ref<Session> m_session;
@@ -161,7 +163,10 @@ private:
     float splatOrigins[fboSplatSize * fboSplatSize * 3];
     float splatColors[fboSplatSize * fboSplatSize * 3];
 
+#ifdef SSSDEBUG
     std::vector<const TriMesh*> m_exportedMeshes;
+    std::vector<const TriMesh*> m_camViewImages;
+#endif
 };
 
 #endif /* __PREVIEW_H */

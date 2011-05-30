@@ -783,7 +783,33 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
     glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
 
 	for (size_t i=0; i<meshes.size(); i++) {
-        calcSplatPositions(meshes[i]);
+        const TriMesh *mesh = meshes[i];
+        calcSplatPositions(mesh);
+
+        //view point modelview matrix (from view space)
+        //glPushMatrix();
+        //glLoadIdentity();
+        //    cam.multOpenGLMatrix();
+        calcVisiblePositions(mesh);
+            //this->splatSubScatInView(*ito, toc);
+        //glPopMatrix();
+
+#ifdef SSSDEBUG 
+        // save images of light view maps
+        if (find(m_exportedMeshes.begin(), m_exportedMeshes.end(), mesh) == m_exportedMeshes.end()) {
+            m_exportedMeshes.push_back(mesh);
+            std::ostringstream name; name << "img-obj" << mesh->getName();
+            fboLightView->saveToDisk(0, name.str().append("-splat-o.exr"));
+            fboLightView->saveToDisk(1, name.str().append("-splat-c.exr"));
+        }
+
+        // save images of light view maps
+        if (find(m_camViewImages.begin(), m_camViewImages.end(), mesh) == m_camViewImages.end()) {
+            m_camViewImages.push_back(mesh);
+            std::ostringstream name; name << "img-obj" << mesh->getName() << "-camView.exr";
+            fboView->saveToDisk(0, name.str());
+        }
+#endif
     }
 }
 
@@ -891,15 +917,7 @@ void PreviewThread::calcSplatPositions(const TriMesh* mesh) {
     fboLightView->bindColorTexture(1);
     glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_FLOAT, splatColors);
     glDisable(GL_TEXTURE_2D);
-#ifdef SSSDEBUG 
-    // save images of light view maps
-    if (find(m_exportedMeshes.begin(), m_exportedMeshes.end(), mesh) == m_exportedMeshes.end()) {
-        m_exportedMeshes.push_back(mesh);
-        std::ostringstream name; name << "img-obj" << mesh->getName();
-        fboLightView->saveToDisk(0, name.str().append("splat-o.exr"));
-        fboLightView->saveToDisk(1, name.str().append("splat-c.exr"));
-    }
-#endif
+
     splats.clear();
     Vector3 o;
     Splat s;
@@ -913,4 +931,68 @@ void PreviewThread::calcSplatPositions(const TriMesh* mesh) {
             splats.push_back(s);
         }
     }
+}
+
+void PreviewThread::calcVisiblePositions(const TriMesh *mesh) {
+	const std::vector<const TriMesh *> meshes = m_directShaderManager->getMeshes();
+
+    // Vector3 top;
+    float sOffset = 1.0f / fboView->getWidth();
+    float tOffset = 1.0f / fboView->getHeight();
+
+    // render surface data from view point (pixel position on the current translucent object rendered
+    fboView->enableRenderToColorAndDepth(0);
+    fboView->saveAndSetViewPort();
+    // alpha=0.0 pixel is not on the current object (occluder or void)
+    glClearColor(999.0f,999.0f,999.0f,0.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+
+    GPUProgram *cameraViewProgram = m_directShaderManager->m_cameraViewProgram;
+    cameraViewProgram->bind();
+
+    //render the current translucent object.
+    //glMatrixMode(GL_TEXTURE);//model matrix
+    //glPushMatrix();
+    //glLoadIdentity();
+    //curObj->getPosition(top);
+    //glTranslatef(top.x,top.y,top.z);
+    //glMatrixMode(GL_MODELVIEW);
+    //glPushMatrix();
+    //glTranslatef(top.x,top.y,top.z);
+
+    // we need tex coords, but no normals
+    m_renderer->beginDrawingMeshes();
+    m_renderer->drawTriMesh(mesh);
+    m_renderer->endDrawingMeshes();
+
+    //glPopMatrix();
+    //glMatrixMode(GL_TEXTURE);
+    //glPopMatrix();
+    //glMatrixMode(GL_MODELVIEW);
+    cameraViewProgram->unbind();
+
+
+    glDisable(GL_TEXTURE_2D);
+    glColor4f(999.0f,999.0f,999.0f,0.0f);
+    for(std::vector<const TriMesh*>::const_iterator it=meshes.begin(); it!=meshes.end(); ++it)
+    {
+        //we do not render the current translucent object as an ocluder
+        if(mesh==(*it))
+            continue;
+    
+        //glPushMatrix();
+        //(*ito)->getPosition(top);
+        //glTranslatef(top.x,top.y,top.z);
+
+        // we need tex coords, but no normals
+        m_renderer->beginDrawingMeshes();
+        m_renderer->drawTriMesh(*it);
+        m_renderer->endDrawingMeshes();
+
+        //glPopMatrix();
+    }
+
+    fboView->restoreViewPort();
+    fboView->disableRenderToColorDepth();
 }
