@@ -77,24 +77,6 @@ PreviewThread::PreviewThread(Device *parentDevice, Renderer *parentRenderer)
     fboCumulSplat = new FrameBufferObject(1);
     fboTmp = new FrameBufferObject(1);
 
-    /* albedo texture */
-    std::string albedoTexPath = "/home/tom/diplom/Scenes/images/white.bmp";
-    ref<FileStream> fs = new FileStream(albedoTexPath, FileStream::EReadOnly);
-    ref<Bitmap> bitmap = new Bitmap(Bitmap::EBMP, fs);
-    albedoMap = new GLTexture("Albedo Map", bitmap);
-    albedoMap->setFilterType(GPUTexture::ELinear);
-    albedoMap->setMipMapped(false);
-    albedoMap->init();
-
-    /* diffusion profile / sub surface scattering texture */
-    std::string diffusionProfilePath = "/home/tom/diplom/Scenes/images/translucency1.bmp";
-    fs = new FileStream(albedoTexPath, FileStream::EReadOnly);
-    bitmap = new Bitmap(Bitmap::EBMP, fs);
-    diffusionMap = new GLTexture("Diffusion profile map", bitmap);
-    diffusionMap->setFilterType(GPUTexture::ELinear);
-    diffusionMap->setMipMapped(false);
-    diffusionMap->init();
-
 	MTS_AUTORELEASE_END()
 }
 
@@ -436,6 +418,24 @@ void PreviewThread::run() {
                         wrap,wrap,filterL,filterL,FBO_DepthBufferType_NONE,0,0,0,0);
                     fboTmp->init(fboCumulSplatWidth,fboCumulSplatHeight,intColFormRGBF,
                         wrap,wrap,filterL,filterL,FBO_DepthBufferType_NONE,0,0,0,0);
+
+                    /* albedo texture */
+                    std::string albedoTexPath = "/home/tom/diplom/Scenes/images/white.bmp";
+                    ref<FileStream> fs = new FileStream(albedoTexPath, FileStream::EReadOnly);
+                    ref<Bitmap> bitmap = new Bitmap(Bitmap::EBMP, fs);
+                    albedoMap = new GLTexture("Albedo Map", bitmap);
+                    albedoMap->setFilterType(GPUTexture::ELinear);
+                    albedoMap->setMipMapped(false);
+                    albedoMap->init();
+
+                    /* diffusion profile / sub surface scattering texture */
+                    std::string diffusionProfilePath = "/home/tom/diplom/Scenes/images/translucency1.bmp";
+                    fs = new FileStream(albedoTexPath, FileStream::EReadOnly);
+                    bitmap = new Bitmap(Bitmap::EBMP, fs);
+                    diffusionMap = new GLTexture("Diffusion profile map", bitmap);
+                    diffusionMap->setFilterType(GPUTexture::ELinear);
+                    diffusionMap->setMipMapped(false);
+                    diffusionMap->init();
                 }
 
 				m_directShaderManager->setShadowMapResolution(m_context->shadowMapResolution);
@@ -443,7 +443,9 @@ void PreviewThread::run() {
 				m_directShaderManager->setSinglePass(m_context->previewMethod == EOpenGLSinglePass);
 				//m_directShaderManager->setDiffuseSources(m_context->diffuseSources);
 				m_directShaderManager->setDiffuseReceivers(m_context->diffuseReceivers);
-                
+
+                m_vplSampleOffset = 0; 
+
                 oglRender(target);
 
 				if (m_useSync)
