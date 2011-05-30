@@ -105,6 +105,9 @@ struct SnowRenderSettings {
     Float adipoleSigmaTn;
     std::string adipoleD;
 
+    /* Shah realtime SSS */
+    bool shahExpandSilhouette;
+
     SnowRenderSettings() :
         surfaceRenderMode(ENoSurface), subsurfaceRenderMode(ENoSubSurface),
         wiscombeDepth(2.0f), hkSingleScatteringFactor(1.0f), hkMultipleScatteringFactor(1.0f),
@@ -117,7 +120,8 @@ struct SnowRenderSettings {
         multipoleUseLut(true), multipoleLutResolution(0.01),
         adipoleDensityFactor(1.0f), adipoleSampleFactor(1.0f), adipoleSigmaTn(1.0f),
         // default to sin^20 flake distribution
-        adipoleD("1.6307, -0.00049, 0.00069, -0.00049, 1.63148, 0.00001, 0.00067, 0.00002, 2.12596")
+        adipoleD("1.6307, -0.00049, 0.00069, -0.00049, 1.63148, 0.00001, 0.00067, 0.00002, 2.12596"),
+        shahExpandSilhouette(true)
     {
         /* try to load last texture paths */
 	    QSettings settings("mitsuba-renderer.org", "qtgui");

@@ -78,13 +78,22 @@ PreviewThread::PreviewThread(Device *parentDevice, Renderer *parentRenderer)
     fboTmp = new FrameBufferObject(1);
 
     /* albedo texture */
-    std::string albedoTexPath = "/home/tom/diplom/Scenes/images/translucency1.bmp";
+    std::string albedoTexPath = "/home/tom/diplom/Scenes/images/white.bmp";
     ref<FileStream> fs = new FileStream(albedoTexPath, FileStream::EReadOnly);
     ref<Bitmap> bitmap = new Bitmap(Bitmap::EBMP, fs);
     albedoMap = new GLTexture("Albedo Map", bitmap);
     albedoMap->setFilterType(GPUTexture::ELinear);
     albedoMap->setMipMapped(false);
     albedoMap->init();
+
+    /* diffusion profile / sub surface scattering texture */
+    std::string diffusionProfilePath = "/home/tom/diplom/Scenes/images/translucency1.bmp";
+    fs = new FileStream(albedoTexPath, FileStream::EReadOnly);
+    bitmap = new Bitmap(Bitmap::EBMP, fs);
+    diffusionMap = new GLTexture("Diffusion profile map", bitmap);
+    diffusionMap->setFilterType(GPUTexture::ELinear);
+    diffusionMap->setMipMapped(false);
+    diffusionMap->init();
 
 	MTS_AUTORELEASE_END()
 }
@@ -782,15 +791,22 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
     glDepthMask(GL_TRUE); /* Allow writing to depth buffer */
     glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
 
+    // ToDo: Make this dynamic
+    TranslucentShape ts;
+    ts.albedoMap = albedoMap;
+    ts.splatRadius = 48;
+     
 	for (size_t i=0; i<meshes.size(); i++) {
         const TriMesh *mesh = meshes[i];
-        calcSplatPositions(mesh);
+        ts.mesh = mesh;
+
+        calcSplatPositions(ts); // in light view
 
         //view point modelview matrix (from view space)
         //glPushMatrix();
         //glLoadIdentity();
         //    cam.multOpenGLMatrix();
-        calcVisiblePositions(mesh);
+        calcVisiblePositions(ts); // in camera view
             //this->splatSubScatInView(*ito, toc);
         //glPopMatrix();
 
@@ -798,7 +814,7 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
         // save images of light view maps
         if (find(m_exportedMeshes.begin(), m_exportedMeshes.end(), mesh) == m_exportedMeshes.end()) {
             m_exportedMeshes.push_back(mesh);
-            std::ostringstream name; name << "img-obj" << mesh->getName();
+            std::ostringstream name; name << "img-obj-" << mesh->getName();
             fboLightView->saveToDisk(0, name.str().append("-splat-o.exr"));
             fboLightView->saveToDisk(1, name.str().append("-splat-c.exr"));
         }
@@ -806,14 +822,14 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
         // save images of light view maps
         if (find(m_camViewImages.begin(), m_camViewImages.end(), mesh) == m_camViewImages.end()) {
             m_camViewImages.push_back(mesh);
-            std::ostringstream name; name << "img-obj" << mesh->getName() << "-camView.exr";
+            std::ostringstream name; name << "img-obj-" << mesh->getName() << "-camView.exr";
             fboView->saveToDisk(0, name.str());
         }
 #endif
     }
 }
 
-void PreviewThread::calcSplatPositions(const TriMesh* mesh) {
+void PreviewThread::calcSplatPositions(const TranslucentShape &ts) {
 	const std::vector<const TriMesh *> meshes = m_directShaderManager->getMeshes();
 
     // Setup spot light view space.
@@ -845,14 +861,14 @@ void PreviewThread::calcSplatPositions(const TriMesh* mesh) {
     glEnable(GL_TEXTURE_2D);
 
     lightViewProgram->bind();
-    albedoMap->bind(0);
+    ts.albedoMap->bind(0);
     lightViewProgram->setParameter(m_directShaderManager->param_lightPos, m_currentSpot.pos);
     lightViewProgram->setParameter(m_directShaderManager->param_lightColor, m_currentSpot.color);
     lightViewProgram->setParameter(m_directShaderManager->param_lightDir, m_currentSpot.dir);
     lightViewProgram->setParameter(m_directShaderManager->param_lightAperture, degToRad(m_currentSpot.aperture * 0.5f));
-    lightViewProgram->setParameter(m_directShaderManager->param_lightAlbedoTex, albedoMap);
+    lightViewProgram->setParameter(m_directShaderManager->param_lightAlbedoTex, ts.albedoMap.get());
 
-    /* It is currently  not necessary to mtrinslade trimeshes around. */
+    /* It is currently  not necessary to translate trimeshes around. */
     //glMatrixMode(GL_TEXTURE);
     //glPushMatrix();
     //glLoadIdentity();
@@ -866,7 +882,7 @@ void PreviewThread::calcSplatPositions(const TriMesh* mesh) {
     m_renderer->beginDrawingMeshes();
 
     // needs tex coord and normal
-    m_renderer->drawTriMesh(mesh);
+    m_renderer->drawTriMesh(ts.mesh);
 
     m_renderer->endDrawingMeshes();
 
@@ -886,7 +902,7 @@ void PreviewThread::calcSplatPositions(const TriMesh* mesh) {
 
     for (size_t i=0; i<meshes.size(); i++) {
         // don't render the current object as an ocluder
-        if (meshes[i] == mesh)
+        if (meshes[i] == ts.mesh)
             continue;
 
         glMatrixMode(GL_MODELVIEW);
@@ -933,7 +949,7 @@ void PreviewThread::calcSplatPositions(const TriMesh* mesh) {
     }
 }
 
-void PreviewThread::calcVisiblePositions(const TriMesh *mesh) {
+void PreviewThread::calcVisiblePositions(const TranslucentShape &ts) {
 	const std::vector<const TriMesh *> meshes = m_directShaderManager->getMeshes();
 
     // Vector3 top;
@@ -963,7 +979,7 @@ void PreviewThread::calcVisiblePositions(const TriMesh *mesh) {
 
     // we need tex coords, but no normals
     m_renderer->beginDrawingMeshes();
-    m_renderer->drawTriMesh(mesh);
+    m_renderer->drawTriMesh(ts.mesh);
     m_renderer->endDrawingMeshes();
 
     //glPopMatrix();
@@ -978,7 +994,7 @@ void PreviewThread::calcVisiblePositions(const TriMesh *mesh) {
     for(std::vector<const TriMesh*>::const_iterator it=meshes.begin(); it!=meshes.end(); ++it)
     {
         //we do not render the current translucent object as an ocluder
-        if(mesh==(*it))
+        if((*it) == ts.mesh)
             continue;
     
         //glPushMatrix();
@@ -993,6 +1009,103 @@ void PreviewThread::calcVisiblePositions(const TriMesh *mesh) {
         //glPopMatrix();
     }
 
+    fboView->restoreViewPort();
+    fboView->disableRenderToColorDepth();
+
+    /* Silhouette expanding extension (by Sébastien Hillaire) */
+
+    if (!(m_context->snowRenderSettings.shahExpandSilhouette))
+        return;
+
+    /* s expansion */
+
+    glClientActiveTexture(GL_TEXTURE0);
+    glActiveTexture(GL_TEXTURE0);
+    glEnable(GL_TEXTURE_2D);
+    fboView->bindColorTexture(0);
+    //expand view subsurface scattering data on s axis
+    fboViewExpand->enableRenderToColorAndDepth(0);
+    fboViewExpand->saveAndSetViewPort();
+
+    GPUProgram *expansionProgram = m_directShaderManager->m_expandSilhouetteProgram;
+    expansionProgram->bind();
+
+    // ToDo: Wrap FBO implementation in sub class of GLProgram
+    //expansionProgram->setParameter(m_directShaderManager->param_expandViewTex, fboView);
+    glUniform1i(m_directShaderManager->param_expandViewTex, 0);
+
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    glOrtho(0.0,1.0,0.0,1.0,-1.0,1.0);
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
+
+    glBegin(GL_QUADS);
+        glTexCoord4f(0.0f, 0.0f, sOffset, 0.0f);
+        glVertex2f(0.0f, 0.0f);
+        glTexCoord4f(1.0f, 0.0f, sOffset, 0.0f);
+        glVertex2f(1.0f, 0.0f);
+        glTexCoord4f(1.0f, 1.0f, sOffset, 0.0f);
+        glVertex2f(1.0f, 1.0f);
+        glTexCoord4f(0.0f, 1.0f, sOffset, 0.0f);
+        glVertex2f(0.0f, 1.0f);
+    glEnd();
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
+    expansionProgram->unbind();
+    fboViewExpand->restoreViewPort();
+    fboViewExpand->disableRenderToColorDepth();
+
+    /* t expansion */
+
+    fboViewExpand->bindColorTexture(0);
+    //expand view subsurface scattering data on t axis
+    fboView->enableRenderToColorAndDepth(0);
+    fboView->saveAndSetViewPort();
+    expansionProgram->bind();
+    // ToDo: Wrap FBO implementation in sub class of GLProgram
+    //expansionProgram->setParameter(m_directShaderManager->param_expandViewTex, fboViewExpand);
+    glUniform1i(m_directShaderManager->param_expandViewTex, 0);
+
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    glOrtho(0.0,1.0,0.0,1.0,-1.0,1.0);
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
+
+    glBegin(GL_QUADS);
+        glTexCoord4f(0.0f, 0.0f, 0.0f, tOffset);
+        glVertex2f(0.0f, 0.0f);
+        glTexCoord4f(1.0f, 0.0f, 0.0f, tOffset);
+        glVertex2f(1.0f, 0.0f);
+        glTexCoord4f(1.0f, 1.0f, 0.0f, tOffset);
+        glVertex2f(1.0f, 1.0f);
+        glTexCoord4f(0.0f, 1.0f, 0.0f, tOffset);
+        glVertex2f(0.0f, 1.0f);
+    glEnd();
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
+    expansionProgram->unbind();
     fboView->restoreViewPort();
     fboView->disableRenderToColorDepth();
 }

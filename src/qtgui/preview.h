@@ -40,6 +40,35 @@ struct SceneContext;
 class PreviewThread : public QObject, public Thread {
 	Q_OBJECT
 public:
+    /* realime sss related structures */
+    typedef struct {
+        /* Splat origin */
+        Vector3 o;
+        /* Incident color */
+        Vector3 c;
+    } Splat;
+
+    typedef struct {
+        /* splat origin */
+        Point pos;
+        /* direction of spot */
+        Vector dir;
+        /* spot aperture */
+        Float aperture;
+        /* diffuse light color */
+        Spectrum color;
+        /* specular light color */
+        Vector3 specularColor;
+    } SpotLight;
+
+    typedef struct {
+        const TriMesh* mesh;
+        ref<GPUTexture> albedoMap;
+        ref<GPUTexture> diffusionMap;
+        Float splatRadius;
+    } TranslucentShape;
+
+public:
 	PreviewThread(Device *parentDevice, Renderer *parentRenderer);
 
 	/**
@@ -90,9 +119,9 @@ protected:
     /// check for OpenGL errors
     void oglErrorCheck();
     /// calculate splat positon and colors in light view
-    void calcSplatPositions(const TriMesh* mesh);
+    void calcSplatPositions(const TranslucentShape &ts);
     /// calculate in view space
-    void calcVisiblePositions(const TriMesh *mesh);
+    void calcVisiblePositions(const TranslucentShape &ts);
 
 private:
 	ref<Session> m_session;
@@ -126,29 +155,15 @@ private:
 	bool m_refreshScene;
 
     /* realtime sss related */
-    typedef struct 
-    {
-        /* Splat origin */
-        Vector3 o;
-        /* Incident color */
-        Vector3 c;
-    } Splat;
-
-    typedef struct
-    {       
-        Point pos;        //splat origin
-        Vector dir;        //direction of spot
-        Float aperture;     //spot aperture
-        Spectrum color;      //diffuse light color
-        Vector3 specularColor;//specular light color
-    } SpotLight;
-
 
     ref<FrameBufferObject> fboLightView;
     ref<FrameBufferObject> fboView;
     ref<FrameBufferObject> fboViewExpand;
     ref<FrameBufferObject> fboCumulSplat;
     ref<FrameBufferObject> fboTmp;
+    /* One diffusion map per mesh would be needed for multiple SSS configurations
+     * in one scene. For now, support only one. */
+    ref<GPUTexture> diffusionMap;
     ref<GPUTexture> albedoMap;
 
     SpotLight m_currentSpot;
