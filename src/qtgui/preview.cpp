@@ -766,16 +766,15 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
 	//if (!m_motion && !m_context->showKDTree)
 	//	jitter -= Vector2(m_random->nextFloat(), m_random->nextFloat());
 
-	//m_mutex->lock();
-	//const ProjectiveCamera *camera = static_cast<const ProjectiveCamera *>
-	//	(m_context->scene->getCamera());
-	//Transform projectionTransform = camera->getGLProjectionTransform(jitter);
-	//m_renderer->setCamera(projectionTransform.getMatrix(), m_camViewTransform.getMatrix());
-	//Transform clipToWorld = m_camViewTransform.inverse() 
-	//	* Transform::scale(Vector(1, 1, -1)) * projectionTransform.inverse();
+	m_mutex->lock();
+	const ProjectiveCamera *camera = static_cast<const ProjectiveCamera *>
+		(m_context->scene->getCamera());
+	Transform projectionTransform = camera->getGLProjectionTransform(jitter);
+	Transform clipToWorld = m_camViewTransform.inverse() 
+		* Transform::scale(Vector(1, 1, -1)) * projectionTransform.inverse();
 
-	//Point camPos = m_camPos;
-	//m_mutex->unlock();
+	Point camPos = m_camPos;
+	m_mutex->unlock();
 
     // expect for now only one spot light
     std::vector<Luminaire *> luminaires = m_context->scene->getLuminaires();
@@ -787,30 +786,35 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
     m_currentSpot.aperture = spot->getAperture();
     m_currentSpot.pos = spotTransform(Point(0, 0, 0));
     m_currentSpot.dir =  spotTransform(Vector(0.0f, 0.0f, 1.0f));
-    m_currentSpot.color = Spectrum(0.5f);
-
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE); /* Allow writing to depth buffer */
-    glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
+    m_currentSpot.color = Spectrum(1.0f);
+    m_currentSpot.specularColor = Spectrum(0.5f);
+    //glEnable(GL_DEPTH_TEST);
+    //glDepthMask(GL_TRUE); /* Allow writing to depth buffer */
+    //glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
 
     // ToDo: Make this dynamic
     TranslucentShape ts;
     ts.albedoMap = albedoMap;
-    ts.splatRadius = 48;
+    ts.diffusionMap = diffusionMap;
+    ts.splatRadius = 0.09f;
      
+	m_renderer->setCamera(projectionTransform.getMatrix(), m_camViewTransform.getMatrix());
+	m_framebuffer->activateTarget();
+    m_framebuffer->clear();
+
+    // back up color buffer attriabutes
+    glPushAttrib(GL_COLOR_BUFFER_BIT);
+
 	for (size_t i=0; i<meshes.size(); i++) {
         const TriMesh *mesh = meshes[i];
         ts.mesh = mesh;
 
         calcSplatPositions(ts); // in light view
 
-        //view point modelview matrix (from view space)
-        //glPushMatrix();
-        //glLoadIdentity();
-        //    cam.multOpenGLMatrix();
+        // view matrix must have been set here
         calcVisiblePositions(ts); // in camera view
-            //this->splatSubScatInView(*ito, toc);
-        //glPopMatrix();
+
+        combineSplats(ts); // in camera view
 
 #ifdef SSSDEBUG 
         // save images of light view maps
@@ -827,8 +831,74 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
             std::ostringstream name; name << "img-obj-" << mesh->getName() << "-camView.exr";
             fboView->saveToDisk(0, name.str());
         }
+
+        // save images of light view maps
+        if (find(m_expansionImages.begin(), m_expansionImages.end(), mesh) == m_expansionImages.end()) {
+            m_expansionImages.push_back(mesh);
+            std::ostringstream name; name << "img-obj-" << mesh->getName() << "-expansion.exr";
+            fboViewExpand->saveToDisk(0, name.str());
+        }
+
+        // save images of light view maps
+        if (find(m_expansionImages.begin(), m_expansionImages.end(), mesh) == m_expansionImages.end()) {
+            m_expansionImages.push_back(mesh);
+            std::ostringstream name; name << "img-obj-" << mesh->getName() << "-cumulated.exr";
+            fboViewExpand->saveToDisk(0, name.str());
+        }
+
+        // save images of light view maps
+        if (find(m_finalImages.begin(), m_finalImages.end(), mesh) == m_finalImages.end()) {
+            m_finalImages.push_back(mesh);
+            Point3i size = m_framebuffer->getSize();
+            ref<Bitmap> bitmap = new Bitmap(size.x, size.y, 128);
+            m_framebuffer->download(bitmap);
+            std::ostringstream name; name << "img-obj-" << mesh->getName() << "-final.exr";
+            bitmap->save(Bitmap::EEXR, new FileStream(name.str(), FileStream::ETruncWrite));
+        }
 #endif
     }
+
+    // restore color data
+    glPopAttrib();
+	//m_shaderManager->drawBackground(clipToWorld, camPos);
+	m_framebuffer->releaseTarget();
+
+	target.buffer->activateTarget();
+	m_renderer->setDepthMask(false);
+	m_renderer->setDepthTest(false);
+	m_framebuffer->bind(0);
+	if (m_accumBuffer == NULL) { 
+		target.buffer->clear();
+		m_renderer->blitTexture(m_framebuffer, true);
+	} else {
+		m_accumBuffer->bind(1);
+		m_accumProgram->bind();
+		m_accumProgram->setParameter(m_accumProgramParam_source1, m_accumBuffer);
+		m_accumProgram->setParameter(m_accumProgramParam_source2, m_framebuffer);
+		m_renderer->blitQuad(true);
+		m_accumProgram->unbind();
+		m_accumBuffer->unbind();
+	}
+	m_framebuffer->unbind();
+	m_renderer->setDepthMask(true);
+	m_renderer->setDepthTest(true);
+	target.buffer->releaseTarget();
+	m_accumBuffer = target.buffer;
+
+	static int i=0;
+	if ((++i % 4) == 0 || m_motion) {
+		/* Don't let the queue get too large -- this makes
+		   the whole system unresponsive */
+		m_renderer->finish();
+	} else {
+		if (m_useSync) {
+			m_renderer->flush();
+		} else {
+			/* No sync objects available - we have to wait 
+			   for everything to finish */
+			m_renderer->finish();
+		}
+	}
 }
 
 void PreviewThread::calcSplatPositions(const TranslucentShape &ts) {
@@ -836,17 +906,19 @@ void PreviewThread::calcSplatPositions(const TranslucentShape &ts) {
 
     // Setup spot light view space.
     glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
+    glPushMatrix(); // 1
     glLoadIdentity();
-    gluPerspective(m_currentSpot.aperture, 1.0f, 0.01f, 1000.0f);
+    gluPerspective(m_currentSpot.aperture, 1.0f, 0.01f, 100.0f);
+
     glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
+    glPushMatrix(); // 2
     glLoadIdentity();
     gluLookAt(m_currentSpot.pos.x, m_currentSpot.pos.y, m_currentSpot.pos.z,
         m_currentSpot.pos.x + m_currentSpot.dir.x,
         m_currentSpot.pos.y + m_currentSpot.dir.y,
         m_currentSpot.pos.z + m_currentSpot.dir.z,
         0.0f,1.0f,0.0f);
+
     GPUProgram *lightViewProgram = m_directShaderManager->m_lightViewProgram;
 
     fboLightView->saveAndSetViewPort();
@@ -907,8 +979,8 @@ void PreviewThread::calcSplatPositions(const TranslucentShape &ts) {
         if (meshes[i] == ts.mesh)
             continue;
 
-        glMatrixMode(GL_MODELVIEW);
-        glPushMatrix();
+        //glMatrixMode(GL_MODELVIEW);
+        //glPushMatrix();
         //(*ito)->getPosition(top);
         //glTranslatef(top.x,top.y,top.z);
 
@@ -917,12 +989,12 @@ void PreviewThread::calcSplatPositions(const TranslucentShape &ts) {
         m_renderer->drawTriMesh(meshes[i]);
         m_renderer->endDrawingMeshes();
 
-        glPopMatrix();
+        //glPopMatrix();
     }
 
-    glPopMatrix();
+    glPopMatrix(); // 2
     glMatrixMode(GL_PROJECTION);
-    glPopMatrix();
+    glPopMatrix(); // 1
     glMatrixMode(GL_MODELVIEW);
     
     fboLightView->restoreViewPort();
@@ -1015,7 +1087,6 @@ void PreviewThread::calcVisiblePositions(const TranslucentShape &ts) {
     fboView->disableRenderToColorDepth();
 
     /* Silhouette expanding extension (by Sébastien Hillaire) */
-
     if (!(m_context->snowRenderSettings.shahExpandSilhouette))
         return;
 
@@ -1031,7 +1102,6 @@ void PreviewThread::calcVisiblePositions(const TranslucentShape &ts) {
 
     GPUProgram *expansionProgram = m_directShaderManager->m_expandSilhouetteProgram;
     expansionProgram->bind();
-
     // ToDo: Wrap FBO implementation in sub class of GLProgram
     //expansionProgram->setParameter(m_directShaderManager->param_expandViewTex, fboView);
     glUniform1i(m_directShaderManager->param_expandViewTex, 0);
@@ -1059,11 +1129,13 @@ void PreviewThread::calcVisiblePositions(const TranslucentShape &ts) {
 
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
+
     glMatrixMode(GL_MODELVIEW);
     glPopMatrix();
     glMatrixMode(GL_PROJECTION);
     glPopMatrix();
     glMatrixMode(GL_MODELVIEW);
+
     expansionProgram->unbind();
     fboViewExpand->restoreViewPort();
     fboViewExpand->disableRenderToColorDepth();
@@ -1074,6 +1146,7 @@ void PreviewThread::calcVisiblePositions(const TranslucentShape &ts) {
     //expand view subsurface scattering data on t axis
     fboView->enableRenderToColorAndDepth(0);
     fboView->saveAndSetViewPort();
+
     expansionProgram->bind();
     // ToDo: Wrap FBO implementation in sub class of GLProgram
     //expansionProgram->setParameter(m_directShaderManager->param_expandViewTex, fboViewExpand);
@@ -1102,12 +1175,125 @@ void PreviewThread::calcVisiblePositions(const TranslucentShape &ts) {
 
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
+
     glMatrixMode(GL_MODELVIEW);
     glPopMatrix();
     glMatrixMode(GL_PROJECTION);
     glPopMatrix();
     glMatrixMode(GL_MODELVIEW);
+
     expansionProgram->unbind();
     fboView->restoreViewPort();
     fboView->disableRenderToColorDepth();
 }
+
+void PreviewThread::combineSplats(const TranslucentShape &ts) {
+    //Vector3 top;
+
+    //splatting
+    glActiveTexture(GL_TEXTURE0);
+    glEnable(GL_TEXTURE_2D);
+    // Bind camera view image to texture unit 0.
+    fboView->bindColorTexture(0);
+
+    glActiveTexture(GL_TEXTURE1);
+    glEnable(GL_TEXTURE_2D);
+    /* For SSS configurations per object, each mesh would need to
+     * its own albedo map. Bind the current one to texture unit 1. */
+    ts.diffusionMap->bind(1);
+
+    glActiveTexture(GL_TEXTURE0);
+    // No need for depth testing and depth buffer writing here 
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
+    /* Blending is needed for combining the different splat
+     * contributions. Use additive blending. */
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE,GL_ONE);
+
+    // prepare output buffer and save/set viewport
+    fboCumulSplat->enableRenderToColorAndDepth(0);
+    fboCumulSplat->saveAndSetViewPort();
+    glClearColor(0.0f,0.0f,0.0f,0.0f);
+    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+
+    GPUProgram *renderSplatsProgram = m_directShaderManager->m_renderSplatsProgram;
+    renderSplatsProgram->bind();
+    // ToDo: Wrap FBO implementation in sub class of GLProgram
+    //renderSplatsProgram->setParameter(m_directShaderManager->param_renderSplatsViewSurfacePos, fboView);
+    glUniform1i(m_directShaderManager->param_renderSplatsViewSurfacePos, 0);
+    renderSplatsProgram->setParameter(m_directShaderManager->param_renderSplatsTranslucencyTex, ts.diffusionMap.get());
+    renderSplatsProgram->setParameter(m_directShaderManager->param_renderSplatsBillboardRadius, ts.splatRadius);
+    const int attrib_bbOffset = m_directShaderManager->attrib_renderSplatsBillboardOffset;
+    
+    //cumul each splat in the cumul fbo
+    glBegin(GL_QUADS);
+    std::vector<Splat>::iterator it;
+    for(it=splats.begin(); it!=splats.end(); it++)
+    {
+        // push ponter to splat color as tex coord
+        glTexCoord3fv(&(it->c.x));
+    
+        glVertexAttrib2fARB(attrib_bbOffset,-1.0f,-1.0f);
+        glVertex3fv(&(it->o.x));
+        
+        glVertexAttrib2fARB(attrib_bbOffset, 1.0f,-1.0f);
+        glVertex3fv(&(it->o.x));
+        
+        glVertexAttrib2fARB(attrib_bbOffset, 1.0f, 1.0f);
+        glVertex3fv(&(it->o.x));
+        
+        glVertexAttrib2fARB(attrib_bbOffset,-1.0f, 1.0f);
+        glVertex3fv(&(it->o.x));
+    }   
+    glEnd();
+
+    renderSplatsProgram->unbind();
+    fboCumulSplat->restoreViewPort();
+    fboCumulSplat->disableRenderToColorDepth();
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+
+    /* Add contribution to view space by rendering the
+     * 3D object again, but with the cumul FBO projected on it */
+    glActiveTexture(GL_TEXTURE0);
+    glEnable(GL_TEXTURE_2D);
+    fboCumulSplat->bindColorTexture(0);
+
+    glActiveTexture(GL_TEXTURE1);
+    glEnable(GL_TEXTURE_2D);
+    ts.albedoMap->bind(1);
+
+	m_framebuffer->activateTarget();
+    //m_framebuffer->clear();
+ 
+    GPUProgram *finalContribProgram = m_directShaderManager->m_finalContributionProgram;
+    finalContribProgram->bind();
+    finalContribProgram->setParameter(m_directShaderManager->param_finalContribSampleScale, (Float) splats.size());
+    finalContribProgram->setParameter(m_directShaderManager->param_finalContribLightPos, m_currentSpot.pos);
+    finalContribProgram->setParameter(m_directShaderManager->param_finalContribLightDir, m_currentSpot.dir);
+    finalContribProgram->setParameter(m_directShaderManager->param_finalContribLightSpecColor, m_currentSpot.specularColor);
+    finalContribProgram->setParameter(m_directShaderManager->param_finalContribLightAperture, degToRad(m_currentSpot.aperture * 0.5f));
+    // ToDo: Wrap FBO implementation in sub class of GLProgram
+    //finalContribProgram->setParameter(m_directShaderManager->param_finalContribSubSurf, fboCumulSplat);
+    glUniform1i(m_directShaderManager->param_finalContribSubSurf, 0);
+    finalContribProgram->setParameter(m_directShaderManager->param_finalContribAlbedoTex, ts.albedoMap.get());
+
+    //glPushMatrix();
+    //curObj->getPosition(top);
+    //glTranslatef(top.x,top.y,top.z);
+    // render the current translucent object
+    m_renderer->beginDrawingMeshes();
+    // needs tex coord and normal
+    m_renderer->drawTriMesh(ts.mesh);
+    m_renderer->endDrawingMeshes();
+
+    //glPopMatrix();
+
+    finalContribProgram->unbind();
+    glActiveTexture(GL_TEXTURE1);
+    glDisable(GL_TEXTURE_2D);
+    glActiveTexture(GL_TEXTURE0);
+}
+

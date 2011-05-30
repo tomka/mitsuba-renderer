@@ -58,7 +58,7 @@ public:
         /* diffuse light color */
         Spectrum color;
         /* specular light color */
-        Vector3 specularColor;
+        Spectrum specularColor;
     } SpotLight;
 
     typedef struct {
@@ -122,6 +122,8 @@ protected:
     void calcSplatPositions(const TranslucentShape &ts);
     /// calculate in view space
     void calcVisiblePositions(const TranslucentShape &ts);
+    /// build the splats und accumulate them in view space
+    void combineSplats(const TranslucentShape &ts);
 
 private:
 	ref<Session> m_session;
@@ -181,6 +183,8 @@ private:
 #ifdef SSSDEBUG
     std::vector<const TriMesh*> m_exportedMeshes;
     std::vector<const TriMesh*> m_camViewImages;
+    std::vector<const TriMesh*> m_expansionImages;
+    std::vector<const TriMesh*> m_finalImages;
 #endif
 };
 
