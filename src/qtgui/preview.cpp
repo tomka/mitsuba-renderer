@@ -430,7 +430,7 @@ void PreviewThread::run() {
 
                     /* diffusion profile / sub surface scattering texture */
                     std::string diffusionProfilePath = "/home/tom/diplom/Scenes/images/translucency1.bmp";
-                    fs = new FileStream(albedoTexPath, FileStream::EReadOnly);
+                    fs = new FileStream(diffusionProfilePath, FileStream::EReadOnly);
                     bitmap = new Bitmap(Bitmap::EBMP, fs);
                     diffusionMap = new GLTexture("Diffusion profile map", bitmap);
                     diffusionMap->setFilterType(GPUTexture::ELinear);
@@ -973,8 +973,9 @@ void PreviewThread::calcSplatPositions(const TranslucentShape &ts) {
     //glPopMatrix();
     //glMatrixMode(GL_MODELVIEW);
 
-    // unbind light view program
+    // unbind light view program and clean up
     lightViewProgram->unbind();
+    ts.albedoMap->unbind();
     fboLightView->disableRenderToColorDepth();
 
     //render occluders
@@ -1100,7 +1101,7 @@ void PreviewThread::calcVisiblePositions(const TranslucentShape &ts) {
 
     /* s expansion */
 
-    glClientActiveTexture(GL_TEXTURE0);
+    //glClientActiveTexture(GL_TEXTURE0);
     glActiveTexture(GL_TEXTURE0);
     glEnable(GL_TEXTURE_2D);
     fboView->bindColorTexture(0);
@@ -1286,7 +1287,8 @@ void PreviewThread::combineSplats(const TranslucentShape &ts) {
     // ToDo: Wrap FBO implementation in sub class of GLProgram
     //finalContribProgram->setParameter(m_directShaderManager->param_finalContribSubSurf, fboCumulSplat);
     glUniform1i(m_directShaderManager->param_finalContribSubSurf, 0);
-    finalContribProgram->setParameter(m_directShaderManager->param_finalContribAlbedoTex, ts.albedoMap.get());
+    //finalContribProgram->setParameter(m_directShaderManager->param_finalContribAlbedoTex, ts.albedoMap.get());
+    glUniform1i(m_directShaderManager->param_finalContribAlbedoTex, 1);
 
     //glPushMatrix();
     //curObj->getPosition(top);
@@ -1299,7 +1301,9 @@ void PreviewThread::combineSplats(const TranslucentShape &ts) {
 
     //glPopMatrix();
 
+    // clean up
     finalContribProgram->unbind();
+    ts.albedoMap->unbind();
     glActiveTexture(GL_TEXTURE1);
     glDisable(GL_TEXTURE_2D);
     glActiveTexture(GL_TEXTURE0);
