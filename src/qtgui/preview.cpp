@@ -444,6 +444,14 @@ void PreviewThread::run() {
 				//m_directShaderManager->setDiffuseSources(m_context->diffuseSources);
 				m_directShaderManager->setDiffuseReceivers(m_context->diffuseReceivers);
 
+				if (m_timer->getMilliseconds() > 1000) {
+					Float count = m_vplsPerSecond / (Float) m_timer->getMilliseconds() * 1000;
+					if (!m_motion)
+						emit statusMessage(QString(formatString("%.1f Frames/sec", count).c_str()));
+					m_vplsPerSecond = 0;
+					m_timer->reset();
+				}
+
                 m_vplSampleOffset = 0; 
 
                 oglRender(target);
