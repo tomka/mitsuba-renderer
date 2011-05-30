@@ -27,6 +27,7 @@
 #include "ui_dipoleBSSRDFWidget.h"
 #include "ui_multipoleBSSRDFWidget.h"
 #include "ui_adipoleBSSRDFWidget.h"
+#include "ui_shahRealtimeWidget.h"
 #include "sceneloader.h"
 #include "logwidget.h"
 #include "aboutdlg.h"
@@ -67,7 +68,8 @@ MainWindow::MainWindow(QWidget *parent) :
     m_hkWidget(new QGroupBox()), m_hkSettings(new Ui_HanrahanKruegerBRDFSettings()),
     m_dipoleWidget(new QGroupBox()), m_dipoleSettings(new Ui_DipoleBSSRDFSettings()),
     m_multipoleWidget(new QGroupBox()), m_multipoleSettings(new Ui_MultipoleBSSRDFSettings()),
-    m_adipoleWidget(new QGroupBox()), m_adipoleSettings(new Ui_AdipoleBSSRDFSettings()) {
+    m_adipoleWidget(new QGroupBox()), m_adipoleSettings(new Ui_AdipoleBSSRDFSettings()),
+    m_shahRTWidget(new QGroupBox()), m_shahRTSettings(new Ui_ShahRealtimeSettings()) {
 	Logger *logger = Thread::getThread()->getLogger();
 
 #if defined(__OSX__)
@@ -204,6 +206,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->wl700SpinBox, SIGNAL(valueChanged(double)), this, SLOT(on700nmCoeffChanged(double)));
 
     /* snow render mode */
+    m_shahRTSettings->setupUi(m_shahRTWidget);
     m_wiscombeSettings->setupUi(m_wiscombeWidget);
     m_hkSettings->setupUi(m_hkWidget);
     m_dipoleSettings->setupUi(m_dipoleWidget);
@@ -211,12 +214,14 @@ MainWindow::MainWindow(QWidget *parent) :
     m_adipoleSettings->setupUi(m_adipoleWidget);
 
     ui->materialSettingsLayout->setAlignment(Qt::AlignTop);
+    ui->materialSettingsLayout->addWidget(m_shahRTWidget);
     ui->materialSettingsLayout->addWidget(m_wiscombeWidget);
     ui->materialSettingsLayout->addWidget(m_hkWidget);
     ui->materialSettingsLayout->addWidget(m_dipoleWidget);
     ui->materialSettingsLayout->addWidget(m_multipoleWidget);
     ui->materialSettingsLayout->addWidget(m_adipoleWidget);
 
+    connect(ui->renderModeComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(ui->surfaceComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(ui->subsurfaceComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_wiscombeSettings->depthSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
@@ -579,7 +584,8 @@ void MainWindow::setNormalScaling(Float scaling) {
 
 void MainWindow::resetPreview(SceneContext* context) {
 	if (context->previewMethod != EOpenGL &&
-		context->previewMethod != EOpenGLSinglePass)
+		context->previewMethod != EOpenGLSinglePass &&
+		context->previewMethod != EOpenGLRealtime)
 		ui->glView->setPreviewMethod(EOpenGL);
 	else
 		ui->glView->resetPreview();
@@ -898,11 +904,23 @@ void MainWindow::onSnowRenderModelChange() {
 		return;
 	SceneContext *context = m_context[currentIndex];
 
+    int generalIdx = ui->renderModeComboBox->currentIndex();
     int surfaceIdx = ui->surfaceComboBox->currentIndex();
     int subsurfaceIdx = ui->subsurfaceComboBox->currentIndex();
 
     // save proberties;
     SnowRenderSettings &srs = context->snowRenderSettings;
+
+    EGeneralRenderMode generalRenderMode;
+    if (generalIdx == 0) {
+        generalRenderMode = ERealtime;
+        context->previewMethod = EOpenGLRealtime;
+    } else {
+        generalRenderMode = EOffline;
+        context->previewMethod = EOpenGL;
+    }
+
+    srs.generalRenderMode = generalRenderMode;
 
     ESurfaceRenderMode surfaceRenderMode;
     if (surfaceIdx == 1) {
@@ -1435,13 +1453,16 @@ void MainWindow::updateSnowRenderingComponents() {
 	bool hasTab = (index != -1);
     SceneContext *context = hasTab ? m_context[index] : NULL;
 	bool hasScene = hasTab && context->scene != NULL;
-   
+ 
+    ui->renderModeLabel->setEnabled(hasScene); 
+    ui->renderModeComboBox->setEnabled(hasScene);
     ui->surfaceLabel->setEnabled(hasScene);
     ui->surfaceComboBox->setEnabled(hasScene);
     ui->subsurfaceLabel->setEnabled(hasScene);
     ui->subsurfaceComboBox->setEnabled(hasScene);
 
     /* Hide all material widgets */
+    m_shahRTWidget->hide();
     m_wiscombeWidget->hide();
     m_hkWidget->hide();
     m_dipoleWidget->hide();
@@ -1452,42 +1473,54 @@ void MainWindow::updateSnowRenderingComponents() {
         return;
 
     // get current modes
+    EGeneralRenderMode generalRenderMode
+        = context->snowRenderSettings.generalRenderMode;
     ESurfaceRenderMode surfaceRenderMode
         = context->snowRenderSettings.surfaceRenderMode;
     ESubSurfaceRenderMode subsurfaceRenderMode
         = context->snowRenderSettings.subsurfaceRenderMode;
 
+    int generalIdx = -1;
     int surfaceIdx = -1;
     int subsurfaceIdx = -1;
 
     // save proberties;
+    if (generalRenderMode == ERealtime) {
+        generalIdx = 0;
+        m_shahRTWidget->show();
+    } else if (generalRenderMode == EOffline) {
+        generalIdx = 1;
+    }
+    bool offlineRendering = (generalIdx == 1);
+
     if (surfaceRenderMode == ENoSurface)
         surfaceIdx = 0;
     else if (surfaceRenderMode == EWiscombeWarrenAlbedo) {
         surfaceIdx = 1;
-        m_wiscombeWidget->show();
+        if (offlineRendering) m_wiscombeWidget->show();
     } else if (surfaceRenderMode == EWiscombeWarrenBRDF) {
         surfaceIdx = 2;
-        m_wiscombeWidget->show();
+        if (offlineRendering) m_wiscombeWidget->show();
     } else if (surfaceRenderMode == EHanrahanKruegerBRDF) {
         surfaceIdx = 3;
-        m_hkWidget->show();
+        if (offlineRendering) m_hkWidget->show();
     }
 
     if (subsurfaceRenderMode == ENoSubSurface)
         subsurfaceIdx = 0;
     else if (subsurfaceRenderMode == EJensenDipoleBSSRDF) {
         subsurfaceIdx = 1;
-        m_dipoleWidget->show();
+        if (offlineRendering) m_dipoleWidget->show();
     } else if (subsurfaceRenderMode == EJensenMultipoleBSSRDF) {
         subsurfaceIdx = 2;
-        m_multipoleWidget->show();
+        if (offlineRendering) m_multipoleWidget->show();
     } else if (subsurfaceRenderMode == EJakobADipoleBSSRDF) {
         subsurfaceIdx = 3;
-        m_adipoleWidget->show();
+        if (offlineRendering) m_adipoleWidget->show();
     }
 
     /* block signals to avoid endless loop */
+    ui->renderModeComboBox->blockSignals(true);
     ui->surfaceComboBox->blockSignals(true);
     ui->subsurfaceComboBox->blockSignals(true);
     m_wiscombeSettings->depthSpinBox->blockSignals(true);
@@ -1528,6 +1561,13 @@ void MainWindow::updateSnowRenderingComponents() {
     if (subsurfaceIdx != -1)
         ui->subsurfaceComboBox->setCurrentIndex(subsurfaceIdx);
 
+    ui->subsurfaceComboBox->setEnabled(offlineRendering);
+    ui->subsurfaceLabel->setEnabled(offlineRendering);
+    ui->surfaceComboBox->setEnabled(offlineRendering);
+    ui->surfaceLabel->setEnabled(offlineRendering);
+
+    // Shah
+    
     // Wiscombe
     Float wiscombeDepth = srs.wiscombeDepth;
     m_wiscombeSettings->depthSpinBox->setValue(wiscombeDepth);
@@ -1592,6 +1632,7 @@ void MainWindow::updateSnowRenderingComponents() {
     m_adipoleSettings->dLineEdit->setText(adipoleD);
 
     /* unblock signals */
+    ui->renderModeComboBox->blockSignals(false);
     ui->surfaceComboBox->blockSignals(false);
     ui->subsurfaceComboBox->blockSignals(false);
     m_wiscombeSettings->depthSpinBox->blockSignals(false);

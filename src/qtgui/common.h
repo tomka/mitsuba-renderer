@@ -44,6 +44,11 @@ enum ESelectionMode {
 	EScene
 }
 
+enum EGeneralRenderMode {
+    ERealtime = 0,
+    EOffline
+};
+
 /* Different surface rendering modes */
 enum ESurfaceRenderMode {
     ENoSurface = 0,
@@ -63,6 +68,7 @@ enum ESubSurfaceRenderMode {
 Q_DECLARE_METATYPE( Shape * );
 
 struct SnowRenderSettings {
+    EGeneralRenderMode generalRenderMode;
     ESurfaceRenderMode surfaceRenderMode;
     ESubSurfaceRenderMode subsurfaceRenderMode;
 
@@ -109,7 +115,7 @@ struct SnowRenderSettings {
     bool shahExpandSilhouette;
 
     SnowRenderSettings() :
-        surfaceRenderMode(ENoSurface), subsurfaceRenderMode(ENoSubSurface),
+        generalRenderMode(EOffline), surfaceRenderMode(ENoSurface), subsurfaceRenderMode(ENoSubSurface),
         wiscombeDepth(2.0f), hkSingleScatteringFactor(1.0f), hkMultipleScatteringFactor(1.0f),
         dipoleDensityFactor(1.0f), dipoleSampleFactor(1.0f), dipoleUseSingleScattering(false),
         dipoleMartelliDC(false), dipoleTexture(false), dipoleTextureUScaling(1.0f), dipoleTextureVScaling(1.0f),

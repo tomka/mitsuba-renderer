@@ -40,7 +40,7 @@ class Ui_HanrahanKruegerBRDFSettings;
 class Ui_DipoleBSSRDFSettings;
 class Ui_MultipoleBSSRDFSettings;
 class Ui_AdipoleBSSRDFSettings;
-
+class Ui_ShahRealtimeSettings;
 /**
  * Captures progress notifications from mitsuba and helps to transfer
  * them to the Qt event loop.
@@ -257,6 +257,9 @@ private:
 
     QGroupBox *m_adipoleWidget;
     Ui_AdipoleBSSRDFSettings *m_adipoleSettings;
+
+    QGroupBox *m_shahRTWidget;
+    Ui_ShahRealtimeSettings *m_shahRTSettings;
 };
 
 #endif // MAINWINDOW_H
