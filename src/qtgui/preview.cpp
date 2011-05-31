@@ -822,7 +822,7 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
     TranslucentShape ts;
     ts.albedoMap = albedoMap;
     ts.diffusionMap = diffusionMap;
-    ts.splatRadius = 0.09f;
+    ts.splatRadius = srs.shahRmax;
      
 	m_renderer->setCamera(projectionTransform.getMatrix(), m_camViewTransform.getMatrix());
 	m_framebuffer->activateTarget();

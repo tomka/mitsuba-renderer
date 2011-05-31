@@ -996,7 +996,16 @@ void MainWindow::onSnowRenderModelChange() {
             mStream->write(res.data(), res.size());
             mStream->setPos(0);
             ref<Bitmap> bitmap = new Bitmap(Bitmap::EBMP, mStream);
-            srs.shahDiffusionProfile = bitmap; 
+            srs.shahDiffusionProfile = bitmap;
+            // Set the appropriate maximum influence distance rMax
+            if (exampleIdx == 1 || exampleIdx == 2)
+                srs.shahRmax = 0.09f;
+            else if (exampleIdx == 2 || exampleIdx == 3)
+                srs.shahRmax = 0.5f;
+            else if (exampleIdx == 4)
+                srs.shahRmax = 0.6f;
+            else
+                srs.shahRmax = 0.4f;
         }
     }
 
