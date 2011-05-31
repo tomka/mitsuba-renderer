@@ -1,0 +1,53 @@
+Kompilieren unter Windows
+=========================
+
+Das Projekt nutzt SCons [1] als Buildsystem. Das ist ein kleines Pythonscript
+und damit wird zusätzlich noch Python benötigt. Python (in der Version 2.7)
+sollte zuerst installiert werden. Außerdem nutzt das Programm das SCM-Werkzeug
+Git [3]. Unter Windows bietet sich der Einsatz von MSysGit [4] und (wenn man
+nicht so gern die Kommandozeilen nutzt) TortoiseGit [5] an (obgleich sich Git
+sehr gut mit der Kommandozeile bedienen lässt).
+
+Im Kern arbeitet Mitsuba [7] als Renderer und Bereitsteller für verschiedene
+Infrastruktur. Damit dies erfolgreich möglich ist, werden weitere Abhängigkeiten
+benötigt. Mittels Mercurial [8] müssen diese (unter Windows und Mac OSX) in
+das den Ordner "dependencies" im Wurzelverzeichnis den Projekts geklont [9]
+werden.
+
+Für die GUI ist es notwendig das QT-Framework [10] zu installieren. Aber danach
+sollte einem nichts mehr im Wege stehen um das Projekt kompilieren zu können.
+
+Schritt für Schritt
+-------------------
+
+1. Python 2.7 [2] installieren
+2. Production-Version von SCons [1] installieren. Beachten, dass sich der
+   Installer nicht um Rechte kümmert. Python wurde aber (vermutlich) als
+   Administrator installiert und da SCons Zugriff auf Python braucht ist es
+   mit den selben (oder mehr) Rechten zu installieren.
+3. Für Git MSysGit [4] installieren (aktuelle Preview-Version) 
+5. Mittels Git das (öffentlich lesbare) Programm-Repository [6] klonen
+6. Aus dem Unterordner config eine passende Konfiguration ins Wurzelverzeichnis
+   kopieren und diese in "config.py" umbenennen. (z.B. config-msvc2008-win32.py)
+7. Mercurial [8] installieren, nach belieben mit TortoiseHG
+8. Mittels Merurial (hg), die Abhängigkeiten für Mitsuba auflösen indem das
+   entsprechende Repository [9] in den Ordner "dependencies" im Projektordner
+   geklont wird.
+9. QT [10] installieren.
+10. Mittels einer Kommandozeile in den Projektordnor wechseln und SCons aufrufen.
+    Unter Windows ist dies mit dem installierten Script im Pythonordner
+    "Scripts" zu finden. (z.B. E:\bin\Python26\Scripts\scons.bat)
+
+Referenzen
+----------
+
+[1] http://www.scons.org/
+[2] http://www.python.org/
+[3] http://git-scm.com/
+[4] http://code.google.com/p/msysgit/downloads/list?can=3
+[5] http://code.google.com/p/tortoisegit/
+[6] git://git.assembla.com/mitsuba-renderer.git
+[7] http://www.mitsuba-renderer.org
+[8] http://mercurial.selenic.com/wiki/Download#Windows
+[9] https://www.mitsuba-renderer.org/hg/dependencies
+[10] http://qt.nokia.com/downloads/
