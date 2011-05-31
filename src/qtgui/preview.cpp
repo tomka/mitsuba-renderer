@@ -1362,5 +1362,6 @@ void PreviewThread::combineSplats(const TranslucentShape &ts) {
     glActiveTexture(GL_TEXTURE1);
     glDisable(GL_TEXTURE_2D);
     glActiveTexture(GL_TEXTURE0);
+    glDisable(GL_TEXTURE_2D);
 }
 
