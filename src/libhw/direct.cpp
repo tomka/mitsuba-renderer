@@ -171,7 +171,7 @@ void DirectShaderManager::init() {
         "void main() {\n"
         "  vec4 vMV = gl_ModelViewMatrix * gl_Vertex;\n" //vertex position in camera space
         "  vec4 vMVP = gl_ProjectionMatrix * vMV;\n" //vertex position in clip space
-        "  surfPos = (gl_TextureMatrix[0]*gl_Vertex).xyz;\n"
+        "  surfPos = (gl_TextureMatrix[0] * gl_Vertex).xyz;\n"
         "  surfToLight = lightPos-surfPos.xyz;\n"
         "\n"
         "  gl_TexCoord[0] = gl_MultiTexCoord0;\n" //out
@@ -195,10 +195,12 @@ void DirectShaderManager::init() {
         "void main() {\n"
         "  vec3 surfToLightNorm = normalize(surfToLight);\n"
         "  float lightIntensity = dot(normalize(normal), surfToLightNorm);\n"
-        "  vec3 surfAlbedo  = sqrt(texture2D( albedoTex, gl_TexCoord[0].st ).rgb);\n" //sqrt because light is musplipied two time by albedo
-        "  float spot = clamp( (dot(normalize(lightDir),-surfToLightNorm)-lightAperture)/(1.0-lightAperture) ,0.0,1.0);\n" //spot extinction
+           //sqrt because light is musplipied two time by albedo
+        "  vec3 surfAlbedo  = sqrt(texture2D( albedoTex, gl_TexCoord[0].st ).rgb);\n"
+           //spot extinction
+        "  float spot = clamp( (dot(normalize(lightDir),-surfToLightNorm)-lightAperture)/(1.0-lightAperture) ,0.0,1.0);\n"
         "  gl_FragData[0] = vec4(surfPos, 0.0);\n" //splat origin
-        "  gl_FragData[1] = vec4(lightColor*spot*lightIntensity*surfAlbedo, 0.0);\n"  //splat center color
+        "  gl_FragData[1] = vec4(lightColor * spot * lightIntensity * surfAlbedo, 0.0);\n"  //splat center color
         "}\n"
     );
 
