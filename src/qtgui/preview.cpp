@@ -418,24 +418,6 @@ void PreviewThread::run() {
                         wrap,wrap,filterL,filterL,FBO_DepthBufferType_NONE,0,0,0,0);
                     fboTmp->init(fboCumulSplatWidth,fboCumulSplatHeight,intColFormRGBF,
                         wrap,wrap,filterL,filterL,FBO_DepthBufferType_NONE,0,0,0,0);
-
-                    /* albedo texture */
-                    std::string albedoTexPath = "/home/tom/diplom/Scenes/images/white.bmp";
-                    ref<FileStream> fs = new FileStream(albedoTexPath, FileStream::EReadOnly);
-                    ref<Bitmap> bitmap = new Bitmap(Bitmap::EBMP, fs);
-                    albedoMap = new GLTexture("Albedo Map", bitmap);
-                    albedoMap->setFilterType(GPUTexture::ELinear);
-                    albedoMap->setMipMapped(false);
-                    albedoMap->init();
-
-                    /* diffusion profile / sub surface scattering texture */
-                    std::string diffusionProfilePath = "/home/tom/diplom/Scenes/images/translucency1.bmp";
-                    fs = new FileStream(diffusionProfilePath, FileStream::EReadOnly);
-                    bitmap = new Bitmap(Bitmap::EBMP, fs);
-                    diffusionMap = new GLTexture("Diffusion profile map", bitmap);
-                    diffusionMap->setFilterType(GPUTexture::ELinear);
-                    diffusionMap->setMipMapped(false);
-                    diffusionMap->init();
                 }
 
 				m_directShaderManager->setShadowMapResolution(m_context->shadowMapResolution);
@@ -451,6 +433,40 @@ void PreviewThread::run() {
 					m_vplsPerSecond = 0;
 					m_timer->reset();
 				}
+
+                /* read in new realtime SSS data (if changed) */
+                SnowRenderSettings &srs = m_context->snowRenderSettings;
+                if ((albedoMap == NULL) || (srs.shahAlbedoMap != albedoMap->getBitmap())) {
+                    /* albedo texture */
+                    if (srs.shahAlbedoMap != NULL) {
+                        albedoMap = new GLTexture("Albedo Map", srs.shahAlbedoMap);
+                        albedoMap->setFilterType(GPUTexture::ELinear);
+                        albedoMap->setMipMapped(false);
+                        albedoMap->init();
+                    } else {
+                        albedoMap = NULL;
+                    }
+#ifdef SSSDEBUG
+                    std::string name = (albedoMap == NULL) ? "None" : albedoMap->toString();
+                    std::cerr << "Set new realtime sss albedo map:" << std::endl << name << std::endl;
+#endif
+                }
+                if ((diffusionMap == NULL) || (srs.shahDiffusionProfile != diffusionMap->getBitmap()) ) {
+                    /* diffusion profile / sub surface scattering texture */
+                    if (srs.shahDiffusionProfile != NULL) {
+                        diffusionMap = new GLTexture("Diffusion profile map", srs.shahDiffusionProfile);
+                        diffusionMap->setFilterType(GPUTexture::ELinear);
+                        diffusionMap->setType(GPUTexture::ETexture2D);
+                        diffusionMap->setMipMapped(false);
+                        diffusionMap->init();
+                    } else {
+                        diffusionMap = NULL;
+                    }
+#ifdef SSSDEBUG
+                    std::string name = (diffusionMap == NULL) ? "None" : diffusionMap->toString();
+                    std::cerr << "Set new realtime sss diffusion map:" << std::endl << name << std::endl;
+#endif
+                }
 
                 m_vplSampleOffset = 0; 
 
@@ -810,12 +826,19 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
 	m_framebuffer->activateTarget();
     m_framebuffer->clear();
 
+    bool buildAlbedoMap = (m_context->snowRenderSettings.shahAlbedoMapType == SnowRenderSettings::EWiscombeWarrenAlbedo);
+
     // back up color buffer attriabutes
     glPushAttrib(GL_COLOR_BUFFER_BIT);
 
 	for (size_t i=0; i<meshes.size(); i++) {
         const TriMesh *mesh = meshes[i];
         ts.mesh = mesh;
+
+        /* If required, build en albedo map */
+        if (buildAlbedoMap) {
+            // ToDo:
+        }
 
         calcSplatPositions(ts); // in light view
 
@@ -1231,7 +1254,8 @@ void PreviewThread::combineSplats(const TranslucentShape &ts) {
     // ToDo: Wrap FBO implementation in sub class of GLProgram
     //renderSplatsProgram->setParameter(m_directShaderManager->param_renderSplatsViewSurfacePos, fboView);
     glUniform1i(m_directShaderManager->param_renderSplatsViewSurfacePos, 0);
-    renderSplatsProgram->setParameter(m_directShaderManager->param_renderSplatsTranslucencyTex, ts.diffusionMap.get());
+    //renderSplatsProgram->setParameter(m_directShaderManager->param_renderSplatsTranslucencyTex, ts.diffusionMap.get());
+    glUniform1i(m_directShaderManager->param_renderSplatsTranslucencyTex, 1);
     renderSplatsProgram->setParameter(m_directShaderManager->param_renderSplatsBillboardRadius, ts.splatRadius);
     const int attrib_bbOffset = m_directShaderManager->attrib_renderSplatsBillboardOffset;
     
@@ -1260,6 +1284,7 @@ void PreviewThread::combineSplats(const TranslucentShape &ts) {
     renderSplatsProgram->unbind();
     fboCumulSplat->restoreViewPort();
     fboCumulSplat->disableRenderToColorDepth();
+    ts.diffusionMap->unbind();
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);

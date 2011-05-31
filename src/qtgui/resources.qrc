@@ -1,5 +1,12 @@
 <RCC>
   <qresource prefix="/">
+    <file>resources/snow/diffProfExample1.bmp</file>
+    <file>resources/snow/diffProfExample2.bmp</file>
+    <file>resources/snow/diffProfExample3.bmp</file>
+    <file>resources/snow/diffProfExample4.bmp</file>
+    <file>resources/snow/diffProfExample5.bmp</file>
+    <file>resources/snow/diffProfExample6.bmp</file>
+    <file>resources/snow/white.bmp</file>
     <file>resources/log.png</file>
     <file>resources/play.png</file>
     <file>resources/save16.png</file>

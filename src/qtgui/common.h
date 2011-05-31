@@ -23,6 +23,7 @@
 #include <QtGui>
 #include <mitsuba/render/scene.h>
 #include <mitsuba/render/vpl.h>
+#include <mitsuba/core/mstream.h>
 #include <mitsuba/core/bitmap.h>
 #include "model/snowproperties.h"
 
@@ -112,7 +113,17 @@ struct SnowRenderSettings {
     std::string adipoleD;
 
     /* Shah realtime SSS */
+    enum EShahAlbedoType { EWiscombeWarrenAlbedo = 0, EWhiteAlbedo = 1, ECustomAlbedo = 2};
+    enum EShahDiffusionPrType { ESnowProfile = 0, EExampleProfile = 1};
+
     bool shahExpandSilhouette;
+    EShahAlbedoType shahAlbedoMapType;
+    std::string shahAlbedoMapCustomPath;
+    ref<Bitmap> shahAlbedoMap;
+    EShahDiffusionPrType shahDiffusionProfileType;
+    int shahDiffusionExample;
+    ref<Bitmap> shahDiffusionProfile;
+
 
     SnowRenderSettings() :
         generalRenderMode(EOffline), surfaceRenderMode(ENoSurface), subsurfaceRenderMode(ENoSubSurface),
@@ -127,12 +138,29 @@ struct SnowRenderSettings {
         adipoleDensityFactor(1.0f), adipoleSampleFactor(1.0f), adipoleSigmaTn(1.0f),
         // default to sin^20 flake distribution
         adipoleD("1.6307, -0.00049, 0.00069, -0.00049, 1.63148, 0.00001, 0.00067, 0.00002, 2.12596"),
-        shahExpandSilhouette(true)
+        shahExpandSilhouette(true), shahAlbedoMapType(EWhiteAlbedo),
+        shahDiffusionProfileType(EExampleProfile), shahDiffusionExample(4)
     {
         /* try to load last texture paths */
 	    QSettings settings("mitsuba-renderer.org", "qtgui");
 		dipoleZrTexture = settings.value("lastDipoleZrTexture", "").toString().toStdString();
 		dipoleSigmaTrTexture = settings.value("lastDipoleSigmaTrTexture", "").toString().toStdString();
+        /* load default albedo and diffusion maps for realtime SSS */
+        {   QResource res("/resources/snow/white.bmp");
+            SAssert(res.isValid());
+            ref<Stream> mStream = new MemoryStream(res.size());
+            mStream->write(res.data(), res.size());
+            mStream->setPos(0);
+            ref<Bitmap> bitmap = new Bitmap(Bitmap::EBMP, mStream);
+            shahAlbedoMap = bitmap; }
+        {   std::ostringstream name; name << "/resources/snow/diffProfExample4.bmp";
+            QResource res(name.str().c_str());
+            SAssert(res.isValid());
+            ref<Stream> mStream = new MemoryStream(res.size());
+            mStream->write(res.data(), res.size());
+            mStream->setPos(0);
+            ref<Bitmap> bitmap = new Bitmap(Bitmap::EBMP, mStream);
+            shahDiffusionProfile = bitmap; }
     }
 };
 
