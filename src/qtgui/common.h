@@ -126,6 +126,7 @@ struct SnowRenderSettings {
     int shahDiffusionExample;
     ref<Bitmap> shahDiffusionProfile;
     Float shahRmax;
+    Spectrum shahSpecularColor;
 
 
     SnowRenderSettings() :
@@ -143,7 +144,7 @@ struct SnowRenderSettings {
         adipoleD("1.6307, -0.00049, 0.00069, -0.00049, 1.63148, 0.00001, 0.00067, 0.00002, 2.12596"),
         shahExpandSilhouette(true), shahShowSplatOrigins(false), shahShowLight(false),
         shahAlbedoMapType(EWhiteAlbedo), shahDiffusionProfileType(EExampleProfile), shahDiffusionExample(4),
-        shahRmax(0.5f)
+        shahRmax(0.5f), shahSpecularColor(0.5f)
     {
         /* try to load last texture paths */
 	    QSettings settings("mitsuba-renderer.org", "qtgui");

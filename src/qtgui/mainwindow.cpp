@@ -233,6 +233,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_shahRTSettings->showSplatOriginsCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_shahRTSettings->showLightCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_shahRTSettings->rMaxSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_shahRTSettings->specularSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_wiscombeSettings->depthSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_hkSettings->singleScatteringSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_hkSettings->multipleScatteringSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
@@ -1021,6 +1022,9 @@ void MainWindow::onSnowRenderModelChange() {
     srs.shahExpandSilhouette = m_shahRTSettings->expandSilhouetteCheckBox->isChecked();
     srs.shahShowSplatOrigins = m_shahRTSettings->showSplatOriginsCheckBox->isChecked();
     srs.shahShowLight = m_shahRTSettings->showLightCheckBox->isChecked();
+    for (int i=0; i<SPECTRUM_SAMPLES; ++i)
+        srs.shahSpecularColor[i] = m_shahRTSettings->specularSpinBox->value();
+
     m_shahRTSettings->albedoPathWidget->setEnabled(shahHasCustomAlbedo);
 
     srs.wiscombeDepth = m_wiscombeSettings->depthSpinBox->value();
@@ -1612,6 +1616,7 @@ void MainWindow::updateSnowRenderingComponents() {
     m_shahRTSettings->showSplatOriginsCheckBox->blockSignals(true);
     m_shahRTSettings->showLightCheckBox->blockSignals(true);
     m_shahRTSettings->rMaxSpinBox->blockSignals(true);
+    m_shahRTSettings->specularSpinBox->blockSignals(true);
     m_wiscombeSettings->depthSpinBox->blockSignals(true);
     m_hkSettings->singleScatteringSpinBox->blockSignals(true);
     m_hkSettings->multipleScatteringSpinBox->blockSignals(true);
@@ -1665,6 +1670,7 @@ void MainWindow::updateSnowRenderingComponents() {
     m_shahRTSettings->showSplatOriginsCheckBox->setChecked( srs.shahShowSplatOrigins );
     m_shahRTSettings->showLightCheckBox->setChecked( srs.shahShowLight );
     m_shahRTSettings->rMaxSpinBox->setValue( srs.shahRmax );
+    m_shahRTSettings->specularSpinBox->setValue( srs.shahSpecularColor.average() );
 
     // Wiscombe
     Float wiscombeDepth = srs.wiscombeDepth;
@@ -1739,6 +1745,7 @@ void MainWindow::updateSnowRenderingComponents() {
     m_shahRTSettings->showSplatOriginsCheckBox->blockSignals(false);
     m_shahRTSettings->showLightCheckBox->blockSignals(false);
     m_shahRTSettings->rMaxSpinBox->blockSignals(false);
+    m_shahRTSettings->specularSpinBox->blockSignals(false);
     m_wiscombeSettings->depthSpinBox->blockSignals(false);
     m_hkSettings->singleScatteringSpinBox->blockSignals(false);
     m_hkSettings->multipleScatteringSpinBox->blockSignals(false);

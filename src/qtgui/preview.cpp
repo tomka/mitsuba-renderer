@@ -800,23 +800,28 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
 	Point camPos = m_camPos;
 	m_mutex->unlock();
 
+    const SnowRenderSettings &srs = m_context->snowRenderSettings;
+
     // expect for now only one spot light
     std::vector<Luminaire *> luminaires = m_context->scene->getLuminaires();
     if (luminaires.size() != 1)
         return;
     Luminaire *spot = luminaires[0];
 
+    // Sample emmision informaton on the luminaire
+    EmissionRecord eRec;
+    spot->sampleEmissionArea(eRec, Point2());
+    Float spotR, spotG, spotB;
+
+    // Build light structure
     Transform spotTransform = spot->getLuminaireToWorld();
     m_currentSpot.aperture = spot->getAperture();
     m_currentSpot.pos = spotTransform(Point(0, 0, 0));
     m_currentSpot.dir =  spotTransform(Vector(0.0f, 0.0f, 1.0f));
-    m_currentSpot.color = Vector3(1.0f, 1.0f, 1.0f);
-    m_currentSpot.specularColor = Vector3(0.5f, 0.5f, 0.5f);
-    //glEnable(GL_DEPTH_TEST);
-    //glDepthMask(GL_TRUE); /* Allow writing to depth buffer */
-    //glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
-
-    const SnowRenderSettings &srs = m_context->snowRenderSettings;
+    eRec.P.toLinearRGB(spotR, spotG, spotB);
+    m_currentSpot.color =  Vector3(spotR, spotG, spotB);
+    srs.shahSpecularColor.toLinearRGB(spotR, spotG, spotB);
+    m_currentSpot.specularColor = Vector3(spotR, spotG, spotB);
 
     // ToDo: Make this dynamic
     TranslucentShape ts;
