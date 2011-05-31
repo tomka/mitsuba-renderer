@@ -117,6 +117,8 @@ struct SnowRenderSettings {
     enum EShahDiffusionPrType { ESnowProfile = 0, EExampleProfile = 1};
 
     bool shahExpandSilhouette;
+    bool shahShowSplatOrigins;
+    bool shahShowLight;
     EShahAlbedoType shahAlbedoMapType;
     std::string shahAlbedoMapCustomPath;
     ref<Bitmap> shahAlbedoMap;
@@ -138,8 +140,8 @@ struct SnowRenderSettings {
         adipoleDensityFactor(1.0f), adipoleSampleFactor(1.0f), adipoleSigmaTn(1.0f),
         // default to sin^20 flake distribution
         adipoleD("1.6307, -0.00049, 0.00069, -0.00049, 1.63148, 0.00001, 0.00067, 0.00002, 2.12596"),
-        shahExpandSilhouette(true), shahAlbedoMapType(EWhiteAlbedo),
-        shahDiffusionProfileType(EExampleProfile), shahDiffusionExample(4)
+        shahExpandSilhouette(true), shahShowSplatOrigins(false), shahShowLight(false),
+        shahAlbedoMapType(EWhiteAlbedo), shahDiffusionProfileType(EExampleProfile), shahDiffusionExample(4)
     {
         /* try to load last texture paths */
 	    QSettings settings("mitsuba-renderer.org", "qtgui");

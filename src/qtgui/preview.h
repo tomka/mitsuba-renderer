@@ -52,13 +52,13 @@ public:
         /* splat origin */
         Point pos;
         /* direction of spot */
-        Vector dir;
+        Vector3 dir;
         /* spot aperture */
         Float aperture;
         /* diffuse light color */
-        Spectrum color;
+        Vector3 color;
         /* specular light color */
-        Spectrum specularColor;
+        Vector3 specularColor;
     } SpotLight;
 
     typedef struct {

@@ -202,6 +202,32 @@
     <string>Expand silhouettes</string>
    </property>
   </widget>
+  <widget class="QCheckBox" name="showSplatOriginsCheckBox">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>120</y>
+     <width>131</width>
+     <height>19</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Show splat origins</string>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="showLightCheckBox">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>140</y>
+     <width>81</width>
+     <height>19</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Show light</string>
+   </property>
+  </widget>
  </widget>
  <resources>
   <include location="resources.qrc"/>

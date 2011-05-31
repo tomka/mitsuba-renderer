@@ -230,6 +230,8 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_shahRTSettings->albedoComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_shahRTSettings->diffusionProfileComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_shahRTSettings->expandSilhouetteCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_shahRTSettings->showSplatOriginsCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_shahRTSettings->showLightCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_wiscombeSettings->depthSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_hkSettings->singleScatteringSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_hkSettings->multipleScatteringSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
@@ -999,6 +1001,8 @@ void MainWindow::onSnowRenderModelChange() {
     }
 
     srs.shahExpandSilhouette = m_shahRTSettings->expandSilhouetteCheckBox->isChecked();
+    srs.shahShowSplatOrigins = m_shahRTSettings->showSplatOriginsCheckBox->isChecked();
+    srs.shahShowLight = m_shahRTSettings->showLightCheckBox->isChecked();
     m_shahRTSettings->albedoPathWidget->setEnabled(shahHasCustomAlbedo);
 
     srs.wiscombeDepth = m_wiscombeSettings->depthSpinBox->value();
@@ -1587,6 +1591,8 @@ void MainWindow::updateSnowRenderingComponents() {
     m_shahRTSettings->albedoComboBox->blockSignals(true);
     m_shahRTSettings->diffusionProfileComboBox->blockSignals(true);
     m_shahRTSettings->expandSilhouetteCheckBox->blockSignals(true);
+    m_shahRTSettings->showSplatOriginsCheckBox->blockSignals(true);
+    m_shahRTSettings->showLightCheckBox->blockSignals(true);
     m_wiscombeSettings->depthSpinBox->blockSignals(true);
     m_hkSettings->singleScatteringSpinBox->blockSignals(true);
     m_hkSettings->multipleScatteringSpinBox->blockSignals(true);
@@ -1636,7 +1642,9 @@ void MainWindow::updateSnowRenderingComponents() {
     m_shahRTSettings->albedoComboBox->setCurrentIndex( (int) srs.shahAlbedoMapType );
     m_shahRTSettings->albedoPathEdit->setText( QString::fromStdString(srs.shahAlbedoMapCustomPath ) );
     m_shahRTSettings->diffusionProfileComboBox->setCurrentIndex( (int) srs.shahDiffusionProfileType );
-    m_shahRTSettings->expandSilhouetteCheckBox->setChecked( srs.shahExpandSilhouette);
+    m_shahRTSettings->expandSilhouetteCheckBox->setChecked( srs.shahExpandSilhouette );
+    m_shahRTSettings->showSplatOriginsCheckBox->setChecked( srs.shahShowSplatOrigins );
+    m_shahRTSettings->showLightCheckBox->setChecked( srs.shahShowLight );
 
     // Wiscombe
     Float wiscombeDepth = srs.wiscombeDepth;
@@ -1708,6 +1716,8 @@ void MainWindow::updateSnowRenderingComponents() {
     m_shahRTSettings->albedoComboBox->blockSignals(false);
     m_shahRTSettings->diffusionProfileComboBox->blockSignals(false);
     m_shahRTSettings->expandSilhouetteCheckBox->blockSignals(false);
+    m_shahRTSettings->showSplatOriginsCheckBox->blockSignals(false);
+    m_shahRTSettings->showLightCheckBox->blockSignals(false);
     m_wiscombeSettings->depthSpinBox->blockSignals(false);
     m_hkSettings->singleScatteringSpinBox->blockSignals(false);
     m_hkSettings->multipleScatteringSpinBox->blockSignals(false);

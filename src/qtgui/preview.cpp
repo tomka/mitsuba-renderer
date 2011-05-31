@@ -810,8 +810,8 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
     m_currentSpot.aperture = spot->getAperture();
     m_currentSpot.pos = spotTransform(Point(0, 0, 0));
     m_currentSpot.dir =  spotTransform(Vector(0.0f, 0.0f, 1.0f));
-    m_currentSpot.color = Spectrum(1.0f);
-    m_currentSpot.specularColor = Spectrum(0.5f);
+    m_currentSpot.color = Vector3(1.0f, 1.0f, 1.0f);
+    m_currentSpot.specularColor = Vector3(0.5f, 0.5f, 0.5f);
     //glEnable(GL_DEPTH_TEST);
     //glDepthMask(GL_TRUE); /* Allow writing to depth buffer */
     //glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
@@ -826,7 +826,9 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
 	m_framebuffer->activateTarget();
     m_framebuffer->clear();
 
-    bool buildAlbedoMap = (m_context->snowRenderSettings.shahAlbedoMapType == SnowRenderSettings::EWiscombeWarrenAlbedo);
+    const bool buildAlbedoMap = (m_context->snowRenderSettings.shahAlbedoMapType == SnowRenderSettings::EWiscombeWarrenAlbedo);
+    const bool showSplatOrigins = m_context->snowRenderSettings.shahShowSplatOrigins;
+    const bool showLight = m_context->snowRenderSettings.shahShowLight;
 
     // back up color buffer attriabutes
     glPushAttrib(GL_COLOR_BUFFER_BIT);
@@ -846,6 +848,33 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
         calcVisiblePositions(ts); // in camera view
 
         combineSplats(ts); // in camera view
+
+        /* give some debug output if requested */
+        if (showSplatOrigins) {
+            glPointSize(10.0);
+            glBegin(GL_POINTS);
+            std::vector<Splat>::iterator it;
+            for(it=splats.begin(); it!=splats.end(); it++)
+            {
+                glColor3fv(&(it->c.x));
+                glVertex3fv(&(it->o.x));
+            }
+            glEnd();
+        }
+
+        if (showLight) {
+            glPointSize(10.0);
+            glBegin(GL_POINTS);
+                glColor3fv(&(m_currentSpot.color.x));
+                glVertex3fv(&(m_currentSpot.pos.x));
+            glEnd();
+            glPointSize(1.0);
+            glBegin(GL_LINES);
+                glVertex3fv(&(m_currentSpot.pos.x));
+                Point3 target = m_currentSpot.pos + m_currentSpot.dir;
+                glVertex3fv(&(target.x));
+            glEnd();
+        }
 
 #ifdef SSSDEBUG 
         // save images of light view maps
@@ -1044,6 +1073,7 @@ void PreviewThread::calcSplatPositions(const TranslucentShape &ts) {
     Vector3 o;
     Splat s;
     for(int i=0; i < fboSplatSize*fboSplatSize*3; i+=3) {
+        //std::cerr << splatColors[i] << " " << splatColors[i+1] << " " << splatColors[i+2] << std::endl;
         if(   (splatOrigins[i] < 990.0f && splatOrigins[i+1] < 990.0f && splatOrigins[i+2] < 990.0f)
            && (splatColors[i] + splatColors[i+1] + splatColors[i+2]) > 0.0f )
         {
