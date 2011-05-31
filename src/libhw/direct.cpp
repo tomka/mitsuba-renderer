@@ -339,8 +339,10 @@ void DirectShaderManager::init() {
         "void main() {\n"
         "  vec3 visSurfPos = texture2D( viewSurfPos, 0.5 + 0.5*pixelProj.st/pixelProj.ww ).rgb;\n" //visible surfaces
         "  float dist = length(visSurfPos-splatOrigin);\n" //distance from the splat center
-        "  float dist2splatCenter = dist/(billboardRadius); //*length(gl_TexCoord[0].xyz)\n" //coordinate in the translucency texture texture
-        "  vec3 finalPixelColor=gl_TexCoord[0].xyz*texture2D( translucencyTex, vec2(dist2splatCenter,0.5)).rgb;\n" //gl_TexCoord[0].xyz contains the splat color at origin
+        //coordinate in the translucency texture texture
+        "  float dist2splatCenter = dist/(billboardRadius); //*length(gl_TexCoord[0].xyz)\n"
+        //gl_TexCoord[0].xyz contains the splat color at origin
+        "  vec3 finalPixelColor=gl_TexCoord[0].xyz*texture2D( translucencyTex, vec2(dist2splatCenter,0.5)).rgb;\n"
         "  gl_FragColor = vec4(finalPixelColor, 0.0);\n"
         "}\n"
     );
@@ -405,8 +407,10 @@ void DirectShaderManager::init() {
         "\n"
         "void main() {\n"
         "  \n" //visible surfaces"
-        "  vec4 subsurfaceContrib = texture2D( subSurf, (0.5 + 0.5*pixelProj.st/pixelProj.ww) );\n" //subsuyrface light
-        "  vec3 surfaceAlbedo = sqrt(texture2D( albedoTex, gl_TexCoord[0].st ).rgb);\n" //sqrt because light is musplipied two time by albedo
+          //subsuyrface light
+        "  vec4 subsurfaceContrib = texture2D( subSurf, (0.5 + 0.5 * pixelProj.st / pixelProj.ww) );\n"
+          //sqrt because light is musplipied two time by albedo
+        "  vec3 surfaceAlbedo = sqrt(texture2D( albedoTex, gl_TexCoord[0].st ).rgb);\n"
         "  \n" //compute some data for spot ligth specular"
         "  vec3 normalNorm = normalize(normal);\n"
         "  vec3 halfVecNorm = normalize(halfVec);\n"
