@@ -39,6 +39,7 @@
 #include <QtNetwork>
 #include <mitsuba/core/sched_remote.h>
 #include <mitsuba/core/sstream.h>
+#include <mitsuba/core/mstream.h>
 #include <mitsuba/core/sshstream.h>
 #include <mitsuba/core/plugin.h>
 #include <mitsuba/core/fresolver.h>
@@ -224,6 +225,11 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->renderModeComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(ui->surfaceComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(ui->subsurfaceComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange()));
+
+    
+    connect(m_shahRTSettings->albedoComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_shahRTSettings->diffusionProfileComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_shahRTSettings->expandSilhouetteCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_wiscombeSettings->depthSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_hkSettings->singleScatteringSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_hkSettings->multipleScatteringSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
@@ -946,6 +952,55 @@ void MainWindow::onSnowRenderModelChange() {
 
     srs.subsurfaceRenderMode = subsurfaceRenderMode;
 
+    /* actual material settings */
+    SnowRenderSettings::EShahAlbedoType shahAlbedoType =
+         static_cast<SnowRenderSettings::EShahAlbedoType>(m_shahRTSettings->albedoComboBox->currentIndex());
+
+    bool shahAlbedoTypeChanged = (srs.shahAlbedoMapType != shahAlbedoType);
+    srs.shahAlbedoMapType = shahAlbedoType;
+    bool shahHasCustomAlbedo = false;
+    if (shahAlbedoTypeChanged) {
+        if (srs.shahAlbedoMapType == SnowRenderSettings::EWiscombeWarrenAlbedo) { // Wiscombe-Warren
+            // ToDo, uncomment when albedo maps can be creaded: srs.shahAlbedoMap = NULL; 
+        } else if (srs.shahAlbedoMapType == SnowRenderSettings::EWhiteAlbedo) { // White
+             /* Load a white albedo map */
+            QResource res("/resources/snow/white.bmp");
+            SAssert(res.isValid());
+            ref<Stream> mStream = new MemoryStream(res.size());
+            mStream->write(res.data(), res.size());
+            mStream->setPos(0);
+            ref<Bitmap> bitmap = new Bitmap(Bitmap::EBMP, mStream);
+            srs.shahAlbedoMap = bitmap; 
+        } else { // Custom
+            shahHasCustomAlbedo = true;
+        }
+    }
+        
+    srs.shahDiffusionExample = m_shahRTSettings->diffusionProfileComboBox->currentIndex();
+    SnowRenderSettings::EShahDiffusionPrType shahDiffusionProfile = 
+        static_cast<SnowRenderSettings::EShahDiffusionPrType>( std::max(1, srs.shahDiffusionExample) );
+    bool shahDiffusionProfileChanged = (srs.shahDiffusionProfileType != shahDiffusionProfile);
+    srs.shahDiffusionProfileType = shahDiffusionProfile;
+    if (shahDiffusionProfileChanged) {
+        if (shahDiffusionProfile == SnowRenderSettings::ESnowProfile) {
+            // ToDo
+        } else {
+            // load sample diffusion profile
+            int exampleIdx = srs.shahDiffusionExample; // substract leading snow profile entry
+            std::ostringstream name; name << "/resources/snow/diffProfExample" << exampleIdx << ".bmp";
+            QResource res(name.str().c_str());
+            SAssert(res.isValid());
+            ref<Stream> mStream = new MemoryStream(res.size());
+            mStream->write(res.data(), res.size());
+            mStream->setPos(0);
+            ref<Bitmap> bitmap = new Bitmap(Bitmap::EBMP, mStream);
+            srs.shahDiffusionProfile = bitmap; 
+        }
+    }
+
+    srs.shahExpandSilhouette = m_shahRTSettings->expandSilhouetteCheckBox->isChecked();
+    m_shahRTSettings->albedoPathWidget->setEnabled(shahHasCustomAlbedo);
+
     srs.wiscombeDepth = m_wiscombeSettings->depthSpinBox->value();
 
     srs.hkSingleScatteringFactor = m_hkSettings->singleScatteringSpinBox->value();
@@ -975,7 +1030,13 @@ void MainWindow::onSnowRenderModelChange() {
     srs.adipoleSigmaTn = m_adipoleSettings->sigmaTnSpinBox->value();
     srs.adipoleD = m_adipoleSettings->dLineEdit->text().toStdString();
 
-    updateSnowOnAllShapes(context, true);
+    /* In realtime mode there is no need for this kind of update.
+     * There we only need to restart the preview. The material set
+     * are not yet of relevance there. */ 
+    if (generalRenderMode != ERealtime) {
+        updateSnowOnAllShapes(context, true);
+    }
+
     updateUI();
     resetPreview(context);
 }
@@ -1523,6 +1584,9 @@ void MainWindow::updateSnowRenderingComponents() {
     ui->renderModeComboBox->blockSignals(true);
     ui->surfaceComboBox->blockSignals(true);
     ui->subsurfaceComboBox->blockSignals(true);
+    m_shahRTSettings->albedoComboBox->blockSignals(true);
+    m_shahRTSettings->diffusionProfileComboBox->blockSignals(true);
+    m_shahRTSettings->expandSilhouetteCheckBox->blockSignals(true);
     m_wiscombeSettings->depthSpinBox->blockSignals(true);
     m_hkSettings->singleScatteringSpinBox->blockSignals(true);
     m_hkSettings->multipleScatteringSpinBox->blockSignals(true);
@@ -1556,6 +1620,8 @@ void MainWindow::updateSnowRenderingComponents() {
     /* set new data */
     SnowRenderSettings &srs = context->snowRenderSettings;
 
+    if (generalIdx != -1)
+        ui->renderModeComboBox->setCurrentIndex(generalIdx);
     if (surfaceIdx != -1)
         ui->surfaceComboBox->setCurrentIndex(surfaceIdx);
     if (subsurfaceIdx != -1)
@@ -1567,7 +1633,11 @@ void MainWindow::updateSnowRenderingComponents() {
     ui->surfaceLabel->setEnabled(offlineRendering);
 
     // Shah
-    
+    m_shahRTSettings->albedoComboBox->setCurrentIndex( (int) srs.shahAlbedoMapType );
+    m_shahRTSettings->albedoPathEdit->setText( QString::fromStdString(srs.shahAlbedoMapCustomPath ) );
+    m_shahRTSettings->diffusionProfileComboBox->setCurrentIndex( (int) srs.shahDiffusionProfileType );
+    m_shahRTSettings->expandSilhouetteCheckBox->setChecked( srs.shahExpandSilhouette);
+
     // Wiscombe
     Float wiscombeDepth = srs.wiscombeDepth;
     m_wiscombeSettings->depthSpinBox->setValue(wiscombeDepth);
@@ -1635,6 +1705,9 @@ void MainWindow::updateSnowRenderingComponents() {
     ui->renderModeComboBox->blockSignals(false);
     ui->surfaceComboBox->blockSignals(false);
     ui->subsurfaceComboBox->blockSignals(false);
+    m_shahRTSettings->albedoComboBox->blockSignals(false);
+    m_shahRTSettings->diffusionProfileComboBox->blockSignals(false);
+    m_shahRTSettings->expandSilhouetteCheckBox->blockSignals(false);
     m_wiscombeSettings->depthSpinBox->blockSignals(false);
     m_hkSettings->singleScatteringSpinBox->blockSignals(false);
     m_hkSettings->multipleScatteringSpinBox->blockSignals(false);
