@@ -232,6 +232,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_shahRTSettings->expandSilhouetteCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_shahRTSettings->showSplatOriginsCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_shahRTSettings->showLightCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_shahRTSettings->rMaxSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_wiscombeSettings->depthSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_hkSettings->singleScatteringSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_hkSettings->multipleScatteringSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
@@ -983,6 +984,10 @@ void MainWindow::onSnowRenderModelChange() {
         static_cast<SnowRenderSettings::EShahDiffusionPrType>( std::max(1, srs.shahDiffusionExample) );
     bool shahDiffusionProfileChanged = (srs.shahDiffusionProfileType != shahDiffusionProfile);
     srs.shahDiffusionProfileType = shahDiffusionProfile;
+
+    Float rMax = m_shahRTSettings->rMaxSpinBox->value();
+    bool rMaxManuallyChanged = (rMax != srs.shahRmax);
+
     if (shahDiffusionProfileChanged) {
         if (shahDiffusionProfile == SnowRenderSettings::ESnowProfile) {
             // ToDo
@@ -997,18 +1002,22 @@ void MainWindow::onSnowRenderModelChange() {
             mStream->setPos(0);
             ref<Bitmap> bitmap = new Bitmap(Bitmap::EBMP, mStream);
             srs.shahDiffusionProfile = bitmap;
-            // Set the appropriate maximum influence distance rMax
-            if (exampleIdx == 1 || exampleIdx == 2)
-                srs.shahRmax = 0.09f;
-            else if (exampleIdx == 2 || exampleIdx == 3)
-                srs.shahRmax = 0.5f;
-            else if (exampleIdx == 4)
-                srs.shahRmax = 0.6f;
-            else
-                srs.shahRmax = 0.4f;
+            /* Set the appropriate maximum influence distance rMax.
+             * But do it only if the user did not change the value himself */
+            if (!rMaxManuallyChanged) {
+                if (exampleIdx == 1 || exampleIdx == 2)
+                    rMax = 0.09f;
+                else if (exampleIdx == 2 || exampleIdx == 3)
+                    rMax = 0.5f;
+                else if (exampleIdx == 4)
+                    rMax = 0.6f;
+                else
+                    rMax = 0.4f;
+            }
         }
     }
 
+    srs.shahRmax = rMax;
     srs.shahExpandSilhouette = m_shahRTSettings->expandSilhouetteCheckBox->isChecked();
     srs.shahShowSplatOrigins = m_shahRTSettings->showSplatOriginsCheckBox->isChecked();
     srs.shahShowLight = m_shahRTSettings->showLightCheckBox->isChecked();
@@ -1602,6 +1611,7 @@ void MainWindow::updateSnowRenderingComponents() {
     m_shahRTSettings->expandSilhouetteCheckBox->blockSignals(true);
     m_shahRTSettings->showSplatOriginsCheckBox->blockSignals(true);
     m_shahRTSettings->showLightCheckBox->blockSignals(true);
+    m_shahRTSettings->rMaxSpinBox->blockSignals(true);
     m_wiscombeSettings->depthSpinBox->blockSignals(true);
     m_hkSettings->singleScatteringSpinBox->blockSignals(true);
     m_hkSettings->multipleScatteringSpinBox->blockSignals(true);
@@ -1654,6 +1664,7 @@ void MainWindow::updateSnowRenderingComponents() {
     m_shahRTSettings->expandSilhouetteCheckBox->setChecked( srs.shahExpandSilhouette );
     m_shahRTSettings->showSplatOriginsCheckBox->setChecked( srs.shahShowSplatOrigins );
     m_shahRTSettings->showLightCheckBox->setChecked( srs.shahShowLight );
+    m_shahRTSettings->rMaxSpinBox->setValue( srs.shahRmax );
 
     // Wiscombe
     Float wiscombeDepth = srs.wiscombeDepth;
@@ -1727,6 +1738,7 @@ void MainWindow::updateSnowRenderingComponents() {
     m_shahRTSettings->expandSilhouetteCheckBox->blockSignals(false);
     m_shahRTSettings->showSplatOriginsCheckBox->blockSignals(false);
     m_shahRTSettings->showLightCheckBox->blockSignals(false);
+    m_shahRTSettings->rMaxSpinBox->blockSignals(false);
     m_wiscombeSettings->depthSpinBox->blockSignals(false);
     m_hkSettings->singleScatteringSpinBox->blockSignals(false);
     m_hkSettings->multipleScatteringSpinBox->blockSignals(false);
