@@ -816,6 +816,8 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
     //glDepthMask(GL_TRUE); /* Allow writing to depth buffer */
     //glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
 
+    const SnowRenderSettings &srs = m_context->snowRenderSettings;
+
     // ToDo: Make this dynamic
     TranslucentShape ts;
     ts.albedoMap = albedoMap;
@@ -826,9 +828,9 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
 	m_framebuffer->activateTarget();
     m_framebuffer->clear();
 
-    const bool buildAlbedoMap = (m_context->snowRenderSettings.shahAlbedoMapType == SnowRenderSettings::EWiscombeWarrenAlbedo);
-    const bool showSplatOrigins = m_context->snowRenderSettings.shahShowSplatOrigins;
-    const bool showLight = m_context->snowRenderSettings.shahShowLight;
+    const bool buildAlbedoMap = (srs.shahAlbedoMapType == SnowRenderSettings::EWiscombeWarrenAlbedo);
+    const bool showSplatOrigins = srs.shahShowSplatOrigins;
+    const bool showLight = srs.shahShowLight;
 
     // back up color buffer attriabutes
     glPushAttrib(GL_COLOR_BUFFER_BIT);
@@ -1073,7 +1075,6 @@ void PreviewThread::calcSplatPositions(const TranslucentShape &ts) {
     Vector3 o;
     Splat s;
     for(int i=0; i < fboSplatSize*fboSplatSize*3; i+=3) {
-        //std::cerr << splatColors[i] << " " << splatColors[i+1] << " " << splatColors[i+2] << std::endl;
         if(   (splatOrigins[i] < 990.0f && splatOrigins[i+1] < 990.0f && splatOrigins[i+2] < 990.0f)
            && (splatColors[i] + splatColors[i+1] + splatColors[i+2]) > 0.0f )
         {
@@ -1261,7 +1262,7 @@ void PreviewThread::combineSplats(const TranslucentShape &ts) {
     glActiveTexture(GL_TEXTURE1);
     glEnable(GL_TEXTURE_2D);
     /* For SSS configurations per object, each mesh would need to
-     * its own albedo map. Bind the current one to texture unit 1. */
+     * its own diffusion map. Bind the current one to texture unit 1. */
     ts.diffusionMap->bind(1);
 
     glActiveTexture(GL_TEXTURE0);
@@ -1289,7 +1290,10 @@ void PreviewThread::combineSplats(const TranslucentShape &ts) {
     renderSplatsProgram->setParameter(m_directShaderManager->param_renderSplatsBillboardRadius, ts.splatRadius);
     const int attrib_bbOffset = m_directShaderManager->attrib_renderSplatsBillboardOffset;
     
-    //cumul each splat in the cumul fbo
+    /* Accumulate each splat in the cumulation FBO. A single
+     * splat is rendered as GL_QUAD. It checks for the contribution
+     * at each corner and prints it to screen. Additive alpha
+     * blending is used to add contributions up. */
     glBegin(GL_QUADS);
     std::vector<Splat>::iterator it;
     for(it=splats.begin(); it!=splats.end(); it++)

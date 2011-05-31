@@ -169,8 +169,10 @@ void DirectShaderManager::init() {
         "varying vec3 surfToLight;\n"
         "\n"
         "void main() {\n"
-        "  vec4 vMV = gl_ModelViewMatrix * gl_Vertex;\n" //vertex position in camera space
-        "  vec4 vMVP = gl_ProjectionMatrix * vMV;\n" //vertex position in clip space
+           // Vertex position in camera space
+        "  vec4 vMV = gl_ModelViewMatrix * gl_Vertex;\n"
+           // Vertex position in clip space
+        "  vec4 vMVP = gl_ProjectionMatrix * vMV;\n"
         "  surfPos = (gl_TextureMatrix[0] * gl_Vertex).xyz;\n"
         "  surfToLight = lightPos-surfPos.xyz;\n"
         "\n"
@@ -293,9 +295,11 @@ void DirectShaderManager::init() {
         "     weight+=tap2.a;*/\n"
         "\n"
         "  if(center.a>0.9)\n"
-        "    gl_FragColor = center;\n"  //we ouput the center pixel if it is not a empty edge
+            //we ouput the center pixel if it is not a empty edge
+        "    gl_FragColor = center;\n"
         "  else\n"
-        "    gl_FragColor = vec4(sum/weight,min(weight,1.0));\n" //else weighted mean of neighbourhood
+             //else weighted mean of neighbourhood
+        "    gl_FragColor = vec4(sum/weight,min(weight,1.0));\n"
         "}\n"
     );
 
@@ -318,13 +322,18 @@ void DirectShaderManager::init() {
         "varying vec4 pixelProj;\n"
         "\n"
         "void main() {\n"
-        "  vec4 vMV = gl_ModelViewMatrix * gl_Vertex;\n" //vertex position in camera space
-        "  vMV.xy += billboardOffset*billboardRadius; //*length(gl_MultiTexCoord0.xyz);\n" //current offset to generate the billboard
-        "  vec4 vMVP = gl_ProjectionMatrix * vMV;\n" //vertex position in clip space
+           // Vertex (splat center) position in camera space
+        "  vec4 vMV = gl_ModelViewMatrix * gl_Vertex;\n"
+           // Translate by current offset to generate the billboard
+        "  vMV.xy += billboardOffset*billboardRadius; //*length(gl_MultiTexCoord0.xyz);\n"
+           // Vertex position in clip space
+        "  vec4 vMVP = gl_ProjectionMatrix * vMV;\n"
+           // Give splat origin and screen space coordinates to fragment program
         "  splatOrigin = gl_Vertex.xyz;\n"
         "  pixelProj = vMVP;\n"
         "\n"
-        "  gl_TexCoord[0] = gl_MultiTexCoord0;\n" //out, contains splat color
+           //out, contains splat color
+        "  gl_TexCoord[0] = gl_MultiTexCoord0;\n"
         "  gl_Position = vMVP;\n"
         "}\n"
     );
@@ -335,16 +344,20 @@ void DirectShaderManager::init() {
         "uniform sampler2D translucencyTex;\n"
         "uniform float billboardRadius;\n"
         "\n"
-        "varying vec3 splatOrigin;\n" //corresponds to a light source in the dipole theory
-        "varying vec4 pixelProj;\n" //pixel projected texture coordinate
+         // Corresponds to a light source in the dipole theory
+        "varying vec3 splatOrigin;\n"
+         // Pixel projected texture coordinate
+        "varying vec4 pixelProj;\n"
         "\n"
         "void main() {\n"
-        "  vec3 visSurfPos = texture2D( viewSurfPos, 0.5 + 0.5*pixelProj.st/pixelProj.ww ).rgb;\n" //visible surfaces
-        "  float dist = length(visSurfPos-splatOrigin);\n" //distance from the splat center
-        //coordinate in the translucency texture texture
+           // Calculate visible surfaces
+        "  vec3 visSurfPos = texture2D( viewSurfPos, 0.5 + 0.5*pixelProj.st/pixelProj.ww ).rgb;\n"
+           // Distance from the splat center in screen space
+        "  float dist = length(visSurfPos - splatOrigin);\n"
+           // Texture coordinate in 1D diffusion profile
         "  float dist2splatCenter = dist/(billboardRadius); //*length(gl_TexCoord[0].xyz)\n"
-        //gl_TexCoord[0].xyz contains the splat color at origin
-        "  vec3 finalPixelColor=gl_TexCoord[0].xyz*texture2D( translucencyTex, vec2(dist2splatCenter,0.5)).rgb;\n"
+           // gl_TexCoord[0].xyz contains the splat color at origin
+        "  vec3 finalPixelColor=gl_TexCoord[0].xyz * texture2D( translucencyTex, vec2(dist2splatCenter,0.5)).rgb;\n"
         "  gl_FragColor = vec4(finalPixelColor, 0.0);\n"
         "}\n"
     );
@@ -377,14 +390,17 @@ void DirectShaderManager::init() {
         "varying vec3 halfVec;\n"
         "\n"
         "void main() {\n"
-        "  vec4 vMV = gl_ModelViewMatrix * gl_Vertex;\n" //vertex position in camera space
-        "  vec4 vMVP = gl_ProjectionMatrix * vMV;\n" //vertex position in clip space
+           // Vertex position in camera space
+        "  vec4 vMV = gl_ModelViewMatrix * gl_Vertex;\n"
+           // Vertex position in clip space
+        "  vec4 vMVP = gl_ProjectionMatrix * vMV;\n"
         "  \n"
         "  pixelProj = vMVP;\n"
         "  surfPos = gl_Vertex.xyz;\n"
-        "  surfToLight = lightPos-gl_Vertex.xyz;\n"
-        "  vec3 surfToView = gl_ModelViewMatrixInverse[3].xyz-gl_Vertex.xyz;\n"
-        "  halfVec = ((surfToView+surfToLight)/2.0);\n" //half vector to compute blinn specular
+        "  surfToLight = lightPos - gl_Vertex.xyz;\n"
+        "  vec3 surfToView = gl_ModelViewMatrixInverse[3].xyz - gl_Vertex.xyz;\n"
+           // Half vector to compute Blinn specular
+        "  halfVec = ((surfToView+surfToLight)/2.0);\n"
         "  normal = gl_Normal;\n" // out
         "  gl_TexCoord[0] = gl_MultiTexCoord0;\n"
         "  gl_Position = vMVP;\n"
@@ -408,12 +424,14 @@ void DirectShaderManager::init() {
         "varying vec3 halfVec;\n"
         "\n"
         "void main() {\n"
-        "  \n" //visible surfaces"
-          //subsuyrface light
+           // Visible surfaces
+        "  \n"
+          // Subsurface light
         "  vec4 subsurfaceContrib = texture2D( subSurf, (0.5 + 0.5 * pixelProj.st / pixelProj.ww) );\n"
-          //sqrt because light is musplipied two time by albedo
+          // Sqrt because light is musplipied two times by albedo
         "  vec3 surfaceAlbedo = sqrt(texture2D( albedoTex, gl_TexCoord[0].st ).rgb);\n"
-        "  \n" //compute some data for spot ligth specular"
+        "  \n"
+           // Compute some data for spot ligth specular"
         "  vec3 normalNorm = normalize(normal);\n"
         "  vec3 halfVecNorm = normalize(halfVec);\n"
         "  vec3 surfToLightNorm = normalize(surfToLight);\n"
@@ -422,9 +440,11 @@ void DirectShaderManager::init() {
         "  float spotCone = clamp( (dot3SpotCone-lightAperture)/(1.0-lightAperture) ,0.0,1.0);\n"
         "  float dot3lamb = dot(normal,surfToLightNorm);\n"
         "  float specContrib = clamp(dot3lamb*10.0,0.0,1.0);\n"
-        "  \n"  //specular component
-        "  vec3 specular = specIntensity*surfaceAlbedo*lightSpecColor*specContrib*spotCone*pow(specIntensity,64.0);\n"
-        "  \n"  //final color
+        "  \n"
+           // Specular component
+        "  vec3 specular = specIntensity * surfaceAlbedo * lightSpecColor * specContrib * spotCone * pow(specIntensity,64.0);\n"
+        "  \n"
+           // Final color
         "  gl_FragColor = vec4(specular + surfaceAlbedo*subsurfaceContrib.rgb/sampleScale,0.0);\n"
         "}\n"
     );
