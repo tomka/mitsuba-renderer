@@ -27,7 +27,11 @@
 #include <mitsuba/core/fstream.h>
 #include <mitsuba/core/fresolver.h>
 
-extern GLEWContext *glewGetContext();
+GLEWContext glewContext;
+
+GLEWContext *glewGetContext() {
+    return &glewContext;
+}
 
 PreviewThread::PreviewThread(Device *parentDevice, Renderer *parentRenderer)
 	: Thread("prev"), m_parentDevice(parentDevice), m_parentRenderer(parentRenderer), 
