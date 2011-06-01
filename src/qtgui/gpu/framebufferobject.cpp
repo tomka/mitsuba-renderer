@@ -25,7 +25,11 @@
 
 MTS_NAMESPACE_BEGIN
 
-extern GLEWContext *glewGetContext();
+GLEWContext glewContext;
+
+GLEWContext *glewGetContext() {
+    return &glewContext;
+}
 
 bool CheckFramebufferStatus(const GLuint fbo)
 {
