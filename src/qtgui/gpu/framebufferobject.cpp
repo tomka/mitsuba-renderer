@@ -347,14 +347,15 @@ unsigned int FrameBufferObject::getHeight() const
 void FrameBufferObject::saveToDisk(const unsigned int colorBufferNum, const std::string &path) const {
 	if(this->nbColorAttachement>0 && (int)colorBufferNum<this->nbColorAttachement)
 	{
-        float data[width*height*3];
+        const unsigned int size = width * height * 3;
+        float data[size];
         glEnable(GL_TEXTURE_2D);
         bindColorTexture(colorBufferNum);
         glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_FLOAT, data);
         glDisable(GL_TEXTURE_2D);
 
         ref<Bitmap> bmp = new Bitmap(width, height, 128);
-            for(int i=0; i < width*height; i+=1) {
+            for(unsigned int i=0; i < width*height; i+=1) {
                 bmp->getFloatData()[i*4] = data[i*3];
                 bmp->getFloatData()[i*4+1] = data[i*3+1];
                 bmp->getFloatData()[i*4+2] = data[i*3+2];
