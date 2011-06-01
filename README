@@ -12,7 +12,8 @@ Im Kern arbeitet Mitsuba [7] als Renderer und Bereitsteller für verschiedene
 Infrastruktur. Damit dies erfolgreich möglich ist, werden weitere Abhängigkeiten
 benötigt. Mittels Mercurial [8] müssen diese (unter Windows und Mac OSX) in
 das den Ordner "dependencies" im Wurzelverzeichnis den Projekts geklont [9]
-werden.
+werden. Außerdem werden noch die numeric-bindings [11] von Boost und damit
+Lapak [12] benötigt.
 
 Für die GUI ist es notwendig das QT-Framework [10] zu installieren. Aber danach
 sollte einem nichts mehr im Wege stehen um das Projekt kompilieren zu können.
@@ -37,6 +38,9 @@ Schritt für Schritt
 10. Mittels einer Kommandozeile in den Projektordnor wechseln und SCons aufrufen.
     Unter Windows ist dies mit dem installierten Script im Pythonordner
     "Scripts" zu finden. (z.B. E:\bin\Python26\Scripts\scons.bat)
+11. Die Numeric-Bindings von Boost unter [11] herunterladen und in den Odner
+    "dependencies/boost" entpackes. Die Bibliotheken aus [12] müssen in den
+    entsprechenden Ordner der Windows-Version (e.g. "dependencies\windows\lib32")
 
 Referenzen
 ----------
@@ -51,3 +55,6 @@ Referenzen
 [8] http://mercurial.selenic.com/wiki/Download#Windows
 [9] https://www.mitsuba-renderer.org/hg/dependencies
 [10] http://qt.nokia.com/downloads/
+[11] http://mathema.tician.de/dl/software/boost-bindings
+[12] http://icl.cs.utk.edu/lapack-for-windows/lapack/#librairies
+
