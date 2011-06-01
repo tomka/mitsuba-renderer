@@ -347,8 +347,7 @@ unsigned int FrameBufferObject::getHeight() const
 void FrameBufferObject::saveToDisk(const unsigned int colorBufferNum, const std::string &path) const {
 	if(this->nbColorAttachement>0 && (int)colorBufferNum<this->nbColorAttachement)
 	{
-        const unsigned int size = width * height * 3;
-        float data[size];
+        float *data = new float[width * height * 3];
         glEnable(GL_TEXTURE_2D);
         bindColorTexture(colorBufferNum);
         glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_FLOAT, data);
@@ -362,6 +361,7 @@ void FrameBufferObject::saveToDisk(const unsigned int colorBufferNum, const std:
                 bmp->getFloatData()[i*4+3] = 1.0f;
             }
          bmp->save(Bitmap::EEXR, new FileStream(path, FileStream::ETruncWrite) );
+        delete [] data;
 	}
 }
 
