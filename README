@@ -34,7 +34,7 @@ Schritt für Schritt
 8. Mittels Merurial (hg), die Abhängigkeiten für Mitsuba auflösen indem das
    entsprechende Repository [9] in den Ordner "dependencies" im Projektordner
    geklont wird.
-9. QT [10] installieren.
+9. QT [10] installieren. Es wird von SCons nach der Umgebungsvariable QTDIR gesucht.
 10. Mittels einer Kommandozeile in den Projektordnor wechseln und SCons aufrufen.
     Unter Windows ist dies mit dem installierten Script im Pythonordner
     "Scripts" zu finden. (z.B. E:\bin\Python26\Scripts\scons.bat)
