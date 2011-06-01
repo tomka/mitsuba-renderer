@@ -436,7 +436,7 @@ void PreviewThread::run() {
 
                 /* read in new realtime SSS data (if changed) */
                 SnowRenderSettings &srs = m_context->snowRenderSettings;
-                if ((albedoMap == NULL) || (srs.shahAlbedoMap != albedoMap->getBitmap())) {
+                if ((albedoMap.get() == NULL) || (srs.shahAlbedoMap.get() != albedoMap->getBitmap())) {
                     /* albedo texture */
                     if (srs.shahAlbedoMap != NULL) {
                         albedoMap = new GLTexture("Albedo Map", srs.shahAlbedoMap);
@@ -451,7 +451,7 @@ void PreviewThread::run() {
                     std::cerr << "Set new realtime sss albedo map:" << std::endl << name << std::endl;
 #endif
                 }
-                if ((diffusionMap == NULL) || (srs.shahDiffusionProfile != diffusionMap->getBitmap()) ) {
+                if ((diffusionMap.get() == NULL) || (srs.shahDiffusionProfile.get() != diffusionMap->getBitmap()) ) {
                     /* diffusion profile / sub surface scattering texture */
                     if (srs.shahDiffusionProfile != NULL) {
                         diffusionMap = new GLTexture("Diffusion profile map", srs.shahDiffusionProfile);
