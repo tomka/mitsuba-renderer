@@ -24,6 +24,11 @@ class SnowMaterialManager {
     // a toggle for every shape if it has a snow material
     ShapeMap snowShapes;
 
+    /* A storage point for a snow diffusion profile. This is mainly used for
+     * realtime SSS. */
+    ref<Bitmap> diffusionProfileCache;
+    Float diffusionProfileRmax;
+
 public:
     /**
      * Add a material defined by 'mode' to the shape. The required snow
@@ -50,6 +55,26 @@ public:
      * Get a string description of the snow material manager.
      */
     std::string toString();
+
+    /**
+     * Get last diffusion profile calculated.
+     */
+    std::pair< ref<Bitmap>, Float > getCachedDiffusionProfile() const;
+
+    /**
+     * Check if there is a diffusion profile available that is ready for usage.
+     */
+    bool hasCachedDiffusionProfile() const;
+
+    /**
+     * Replace the currently cached diffusion profile with a new one.
+     */
+    void refreshDiffusionProfile(const SceneContext *context);
+
+    /**
+     * Calculate the dipole diffusion napproximation.
+     */
+    Spectrum getRd(Spectrum &r, Spectrum &sigmaTr, Spectrum &zv, Spectrum &zr);
 
 protected:
     /**

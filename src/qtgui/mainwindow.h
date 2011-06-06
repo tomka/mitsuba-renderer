@@ -209,6 +209,7 @@ private slots:
     void onDipoleSigmaTrTextureOpenDialogClose(int reason);
     void onDipoleIrrtrrDumpPathRequest();
     void onDipoleIrrtrrDumpPathDialogClose(int reason);
+    void onRefreshShahSnowParameters();
 
 private:
     Ui::MainWindow *ui;

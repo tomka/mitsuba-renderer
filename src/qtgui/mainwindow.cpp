@@ -234,6 +234,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_shahRTSettings->showLightCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_shahRTSettings->rMaxSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_shahRTSettings->specularSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_shahRTSettings->refreshSnowButton, SIGNAL(pressed()), this, SLOT(onRefreshShahSnowParameters()));
     connect(m_wiscombeSettings->depthSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_hkSettings->singleScatteringSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_hkSettings->multipleScatteringSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
@@ -908,6 +909,26 @@ void MainWindow::onDipoleIrrtrrDumpPathDialogClose(int reason) {
     }
 }
 
+
+/* Recalculates shah realtime rMax and diffusion profile based on snow
+ * properties. */
+void MainWindow::onRefreshShahSnowParameters() {
+	int currentIndex = ui->tabBar->currentIndex();
+	if (currentIndex == -1)
+		return;
+	SceneContext *context = m_context[currentIndex];
+
+   // ref<SubsurfaceMaterialManager> smm = SubsurfaceMaterialManager::getInstance();
+   // std::string hash = smm->getDipoleLUTHash();
+    snowMaterialManager.refreshDiffusionProfile(context);
+    
+    std::pair< ref<Bitmap>, Float > data = snowMaterialManager.getCachedDiffusionProfile();
+    context->snowRenderSettings.shahDiffusionProfile = data.first;
+    context->snowRenderSettings.shahRmax = data.second;
+
+    resetPreview(context);
+}
+
 void MainWindow::onSnowRenderModelChange() {
 	int currentIndex = ui->tabBar->currentIndex();
 	if (currentIndex == -1)
@@ -957,6 +978,7 @@ void MainWindow::onSnowRenderModelChange() {
     srs.subsurfaceRenderMode = subsurfaceRenderMode;
 
     /* actual material settings */
+
     SnowRenderSettings::EShahAlbedoType shahAlbedoType =
          static_cast<SnowRenderSettings::EShahAlbedoType>(m_shahRTSettings->albedoComboBox->currentIndex());
 
@@ -980,21 +1002,31 @@ void MainWindow::onSnowRenderModelChange() {
         }
     }
         
-    srs.shahDiffusionExample = m_shahRTSettings->diffusionProfileComboBox->currentIndex();
+    int shahDiffusionExample = m_shahRTSettings->diffusionProfileComboBox->currentIndex();
+    bool shahDiffusionProfileChanged = (srs.shahDiffusionExample != shahDiffusionExample);
+
     SnowRenderSettings::EShahDiffusionPrType shahDiffusionProfile = 
-        static_cast<SnowRenderSettings::EShahDiffusionPrType>( std::max(1, srs.shahDiffusionExample) );
-    bool shahDiffusionProfileChanged = (srs.shahDiffusionProfileType != shahDiffusionProfile);
-    srs.shahDiffusionProfileType = shahDiffusionProfile;
+        static_cast<SnowRenderSettings::EShahDiffusionPrType>( std::min(1, shahDiffusionExample) );
 
     Float rMax = m_shahRTSettings->rMaxSpinBox->value();
     bool rMaxManuallyChanged = (rMax != srs.shahRmax);
 
     if (shahDiffusionProfileChanged) {
+        srs.shahDiffusionExample = shahDiffusionExample;
+        srs.shahDiffusionProfileType = shahDiffusionProfile;
+
         if (shahDiffusionProfile == SnowRenderSettings::ESnowProfile) {
-            // ToDo
+            // Check if valid profile available and calculate one if not
+            if (!snowMaterialManager.hasCachedDiffusionProfile()) {
+                onRefreshShahSnowParameters();
+            }
+
+            std::pair< ref<Bitmap>, Float > data = snowMaterialManager.getCachedDiffusionProfile();
+            srs.shahDiffusionProfile = data.first;
+            rMax = data.second;
         } else {
             // load sample diffusion profile
-            int exampleIdx = srs.shahDiffusionExample; // substract leading snow profile entry
+            int exampleIdx = srs.shahDiffusionExample;
             std::ostringstream name; name << "/resources/snow/diffProfExample" << exampleIdx << ".bmp";
             QResource res(name.str().c_str());
             SAssert(res.isValid());
@@ -1082,7 +1114,8 @@ void MainWindow::on_actionShowKDTree_triggered() {
 	bool checked = ui->actionShowKDTree->isChecked();
 	currentContext->showKDTree = checked;
 	if (currentContext->previewMethod != EOpenGL &&
-		currentContext->previewMethod != EOpenGLSinglePass)
+		currentContext->previewMethod != EOpenGLSinglePass &&
+		currentContext->previewMethod != EOpenGLRealtime)
 		ui->glView->setPreviewMethod(EOpenGL);
 	else
 		ui->glView->resetPreview();
@@ -1118,7 +1151,8 @@ void MainWindow::on_actionShowNormals_triggered() {
 	bool checked = ui->actionShowNormals->isChecked();
 	currentContext->showNormals = checked;
 	if (currentContext->previewMethod != EOpenGL &&
-		currentContext->previewMethod != EOpenGLSinglePass)
+		currentContext->previewMethod != EOpenGLSinglePass &&
+		currentContext->previewMethod != EOpenGLRealtime)
 		ui->glView->setPreviewMethod(EOpenGL);
 	else
 		ui->glView->resetPreview();
@@ -1665,12 +1699,13 @@ void MainWindow::updateSnowRenderingComponents() {
     // Shah
     m_shahRTSettings->albedoComboBox->setCurrentIndex( (int) srs.shahAlbedoMapType );
     m_shahRTSettings->albedoPathEdit->setText( QString::fromStdString(srs.shahAlbedoMapCustomPath ) );
-    m_shahRTSettings->diffusionProfileComboBox->setCurrentIndex( (int) srs.shahDiffusionProfileType );
+    m_shahRTSettings->diffusionProfileComboBox->setCurrentIndex( srs.shahDiffusionExample );
     m_shahRTSettings->expandSilhouetteCheckBox->setChecked( srs.shahExpandSilhouette );
     m_shahRTSettings->showSplatOriginsCheckBox->setChecked( srs.shahShowSplatOrigins );
     m_shahRTSettings->showLightCheckBox->setChecked( srs.shahShowLight );
     m_shahRTSettings->rMaxSpinBox->setValue( srs.shahRmax );
     m_shahRTSettings->specularSpinBox->setValue( srs.shahSpecularColor.average() );
+    m_shahRTSettings->refreshSnowButton->setEnabled(srs.shahDiffusionProfileType == SnowRenderSettings::ESnowProfile);
 
     // Wiscombe
     Float wiscombeDepth = srs.wiscombeDepth;
@@ -1894,7 +1929,7 @@ bool MainWindow::on_tabBar_tabCloseRequested(int index) {
             removalCandidates[*it] = true;
             for(QList<SceneContext *>::Iterator ctxIt = m_context.begin(); ctxIt != m_context.end(); ++ctxIt ) {
                 SceneContext* testCtx = *ctxIt;
-                if (testCtx != context) {
+                if (testCtx != context && testCtx->scene != NULL) {
                     const shapeListType testShapes = testCtx->scene->getShapes();
                      /* look for shape in this context */
                      shapeListType::const_iterator findIt = std::find(testShapes.begin(), testShapes.end(), *it);

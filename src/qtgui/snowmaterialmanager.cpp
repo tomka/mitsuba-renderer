@@ -237,4 +237,135 @@ std::string SnowMaterialManager::toString() {
 		return oss.str();
 }
 
+std::pair< ref<Bitmap>, Float > SnowMaterialManager::getCachedDiffusionProfile() const {
+    return std::make_pair(diffusionProfileCache, diffusionProfileRmax);
+}
+
+bool SnowMaterialManager::hasCachedDiffusionProfile() const {
+    return diffusionProfileCache.get() != NULL;
+}
+
+void SnowMaterialManager::refreshDiffusionProfile(const SceneContext *context) {
+    typedef SubsurfaceMaterialManager::LUTType LUTType;
+
+    const Float errThreshold = 0.01f;
+    const Float lutResolution = 0.01f;
+    const SnowProperties &sp = context->snow;
+
+    Spectrum sigmaSPrime = sp.sigmaS * (1 - sp.g);
+    Spectrum sigmaTPrime = sigmaSPrime + sp.sigmaA;
+
+    /* extinction coefficient */
+    Spectrum sigmaT = sp.sigmaA + sp.sigmaS;
+
+    /* Effective transport extinction coefficient */
+    Spectrum sigmaTr = (sp.sigmaA * sigmaTPrime * 3.0f).sqrt();
+
+    /* Reduced albedo */
+    Spectrum alphaPrime = sigmaSPrime / sigmaTPrime;
+
+    /* Mean-free path (avg. distance traveled through the medium) */
+    Spectrum mfp = Spectrum(1.0f) / sigmaTPrime;
+
+    Float Fdr;
+    if (sp.ior > 1) {
+        /* Average reflectance due to mismatched indices of refraction
+           at the boundary - [Groenhuis et al. 1983]*/
+        Fdr = -1.440f / (sp.ior * sp.ior) + 0.710f / sp.ior
+            + 0.668f + 0.0636f * sp.ior;
+    } else {
+        /* Average reflectance due to mismatched indices of refraction
+           at the boundary - [Egan et al. 1973]*/
+        Fdr = -0.4399f + 0.7099f / sp.ior - 0.3319f / (sp.ior * sp.ior)
+            + 0.0636f / (sp.ior * sp.ior * sp.ior);
+    }
+
+    /* Average transmittance at the boundary */
+    Float Fdt = 1.0f - Fdr;
+
+    if (sp.ior == 1.0f) {
+        Fdr = (Float) 0.0f;
+        Fdt = (Float) 1.0f;
+    }
+
+    /* Approximate dipole boundary condition term */
+    Float A = (1 + Fdr) / Fdt;
+
+    /* Distance of the dipole point sources to the surface */
+    Spectrum zr = mfp;
+    Spectrum zv = mfp * (1.0f + 4.0f/3.0f * A);
+
+    const Spectrum invSigmaTr = 1.0f / sigmaTr;
+    const Float inv4Pi = 1.0f / (4 * M_PI);
+    ref<Random> random = new Random();
+
+    /* Find Rd for the whole area by monte carlo integration. The
+     * sampling area is calculated from the max. mean free path.
+     * A square area around with edge length 2 * maxMFP is used
+     * for this. Hene, the sampling area is 4 * maxMFP * maxMFP. */
+    const int numSamples = 10000;
+    Spectrum Rd_A = Spectrum(0.0f);
+    for (int n = 0; n < numSamples; ++n) {
+        /* do importance sampling by choosing samples distributed
+         * with sigmaTr^2 * e^(-sigmaTr * r). */
+        Spectrum r = invSigmaTr * -std::log( random->nextFloat() );
+        Rd_A += getRd(r, sigmaTr, zv, zr);
+    }
+    Float Area = 4 * invSigmaTr.max() * invSigmaTr.max();
+    Rd_A = Area * Rd_A * alphaPrime * inv4Pi / (Float)(numSamples - 1);
+    SLog(EDebug, "After %i MC integration iterations, Rd seems to be %s", numSamples, Rd_A.toString().c_str());
+
+    /* Since we now have Rd integrated over the whole surface we can find a valid rmax
+     * for the given threshold. */
+    const Float step = lutResolution;
+    Float rMax = 0.0f;
+    Spectrum err(std::numeric_limits<Float>::max());
+    while (err.max() > errThreshold) {
+        rMax += step;
+        /* Again, do MC integration, but with r clamped at rmax. */
+        Spectrum Rd_APrime(0.0f);
+        for (int n = 0; n < numSamples; ++n) {
+            /* do importance sampling by choosing samples distributed
+             * with sigmaTr^2 * e^(-sigmaTr * r). */
+            Spectrum r = invSigmaTr * -std::log( random->nextFloat() );
+            // clamp samples to rMax
+            for (int s=0; s<SPECTRUM_SAMPLES; ++s) {
+                r[s] = std::min(rMax, r[s]);
+            }
+            Rd_APrime += getRd(r, sigmaTr, zv, zr);
+        }
+        Float APrime = 4 * rMax * rMax;
+        Rd_APrime = APrime * Rd_APrime * alphaPrime * inv4Pi / (Float)(numSamples - 1);
+        err = (Rd_A - Rd_APrime) / Rd_A;
+    }
+    SLog(EDebug, "Maximum distance for sampling surface is %f with an error of %f", rMax, errThreshold);
+
+    /* Create the actual look-up-table */
+    const int numEntries = (int) (rMax / step) + 1;
+    std::vector<Spectrum> diffusionProfile;
+    for (int i=0; i<numEntries; ++i) {
+        Spectrum r = Spectrum(i * step);
+        diffusionProfile.push_back( getRd( r, sigmaTr, zv, zr) );
+std::cerr << diffusionProfile[i].toString() << std::endl;
+    }
+    SLog(EDebug, "Created Rd diffusion profile with %i entries.", numEntries);
+}
+
+
+/// Calculate Rd based on all dipoles and the requested distance
+Spectrum SnowMaterialManager::getRd(Spectrum &r, Spectrum &sigmaTr, Spectrum &zv, Spectrum &zr) { 
+    const Spectrum one(1.0f);
+    const Spectrum negSigmaTr = sigmaTr * (-1.0f);
+    const Spectrum rSqr = r * r; 
+                    
+    // calulate diffuse reflectance and transmittance 
+    Spectrum dr = (rSqr + zr*zr).sqrt();
+    Spectrum dv = (rSqr + zv*zv).sqrt();
+                    
+    // the change in Rd
+    Spectrum Rd =   (zr * (one + sigmaTr * dr) * (negSigmaTr * dr).exp() / (dr * dr * dr))
+                  + (zv * (one + sigmaTr * dv) * (negSigmaTr * dv).exp() / (dv * dv * dv));
+    return Rd;  
+}
+
 MTS_NAMESPACE_END
