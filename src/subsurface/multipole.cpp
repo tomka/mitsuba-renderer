@@ -227,7 +227,7 @@ struct IsotropicMultipoleQuery {
  */
 struct IsotropicLUTMultipoleQuery {
 	inline IsotropicLUTMultipoleQuery(const ref<LUTType> &lut, Float _res, Float _Fdt, const Point &_p)
-        : dMoR_LUT(lut), entries(lut->size()), resolution(_res),
+        : dMoR_LUT(lut), entries(lut->size()), invResolution(1.0f / _res),
           result(0.0f), Fdt(_Fdt), p(_p), count(0) {
 	}
 
@@ -237,7 +237,7 @@ struct IsotropicLUTMultipoleQuery {
         /* Look up dMoR for the distance. As in the normal query,
          * the reduced albedo is not included. It will be canceled
          * out later. */
-        int index = (int) (r * resolution);
+        int index = (int) (r * invResolution);
         if (index < entries) {
             Spectrum dMoR = dMoR_LUT->at(index);
 
@@ -256,7 +256,7 @@ struct IsotropicLUTMultipoleQuery {
     /* a reference to a dMoR look-up-table */
     const ref<LUTType> &dMoR_LUT;
     int entries;
-    Float resolution;
+    Float invResolution;
 	Spectrum result;
 	Float Fdt;
 	Point p;
@@ -480,7 +480,7 @@ public:
                 /* Find Rd for the whole area by monte carlo integration. The
                  * sampling area is calculated from the max. mean free path.
                  * A square area around with edge length 2 * maxMFP is used
-                 * for this. Hene, the sampling area is 4 * maxMFP * maxMFP. */
+                 * for this. Hence, the sampling area is 4 * maxMFP * maxMFP. */
                 const int numSamples = 10000;
                 Spectrum Rd_A = Spectrum(0.0f);
                 for (int n = 0; n < numSamples; ++n) {

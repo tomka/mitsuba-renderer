@@ -127,7 +127,7 @@ struct IsotropicDipoleQuery {
 struct IsotropicLUTDipoleQuery {
 	inline IsotropicLUTDipoleQuery(const ref<LUTType> &lut, Float _res, 
 		    Float Fdt, const Point &p) 
-		: dMo_LUT(lut), entries(lut->size()), resolution(_res),
+		: dMo_LUT(lut), entries(lut->size()), invResolution(1.0f / _res),
           result(0.0f), Fdt(Fdt), p(p), count(0) {
 	}
 
@@ -137,7 +137,7 @@ struct IsotropicLUTDipoleQuery {
         /* Look up dMo for the distance. As in the normal query,
          * the reduced albedo is not included. It will be canceled
          * out later. */
-        int index = (int) (r * resolution);
+        int index = (int) (r * invResolution);
         if (index < entries) {
             Spectrum dMo = dMo_LUT->at(index);
 
@@ -156,7 +156,7 @@ struct IsotropicLUTDipoleQuery {
     /* LUT related */
     const ref<LUTType> &dMo_LUT;
     int entries;
-    Float resolution;
+    Float invResolution;
     
     //Float zrMinSq;
     Spectrum result;
@@ -668,6 +668,7 @@ public:
     }
 
     Spectrum getdMoR(Float r) {
+        //Float dist = std::max((p - sample.p).lengthSquared(), zrMinSq); 
 		Spectrum rSqr = Spectrum(r * r);
 
         /* Distance to the real source */
