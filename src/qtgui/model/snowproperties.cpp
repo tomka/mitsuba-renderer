@@ -9,7 +9,7 @@ Spectrum SnowProperties::iceSigmaA = getSigmaAofIce();
 Float SnowProperties::iceDensity = 917.0f;
 
 SnowProperties::SnowProperties()
-    : calcMode(EAsymptotic) {
+    : calcMode(ELargeParticle) {
     loadPreset(EFreshNewSnow);
 }
 
@@ -41,8 +41,8 @@ void SnowProperties::loadFreshNewSnowPreset() {
     lastPreset = EFreshNewSnow;
     grainsize = 0.05f / 1000.0f; // mm -> m
     density = 70;
-    ior = 1.32;
-    g = 0.5;
+    ior = 1.31;
+    g = 0.78;
     configure();
 }
 
@@ -50,8 +50,8 @@ void SnowProperties::loadDryOlderSnowPreset() {
     lastPreset = EDryOlderSnow;
     grainsize = 0.25f / 1000.0f; // mm -> m
     density = 300;
-    ior = 1.32;
-    g = 0.5;
+    ior = 1.31;
+    g = 0.78;
     configure();
 }
 
@@ -59,8 +59,8 @@ void SnowProperties::loadWetOldSnowPreset() {
     lastPreset = EWetOldSnow;
     grainsize = 1.0f / 1000.0f; // mm -> m
     density = 450;
-    ior = 1.32;
-    g = 0.5;
+    ior = 1.31;
+    g = 0.78;
     configure();
 }
 
