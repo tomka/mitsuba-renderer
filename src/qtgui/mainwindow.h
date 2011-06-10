@@ -123,6 +123,7 @@ protected:
     void changeSnowCoefficient(int wlIndex, double value);
     void updateSnowOnAllShapes(SceneContext *context, bool visible = true);
     void updateSnowOnShape(SceneContext* context, Shape* shape, bool createNew);
+    void blockRenderComponentsSignals(bool block);
 
 signals:
 	void updateView();

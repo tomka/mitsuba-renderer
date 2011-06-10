@@ -235,10 +235,13 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_shahRTSettings->rMaxSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_shahRTSettings->specularSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_shahRTSettings->refreshSnowButton, SIGNAL(pressed()), this, SLOT(onRefreshShahSnowParameters()));
+
     connect(m_wiscombeSettings->depthSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
+
     connect(m_hkSettings->singleScatteringSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_hkSettings->multipleScatteringSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_hkSettings->multipleScatteringCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
+
     connect(m_dipoleSettings->subsurfaceSizeSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_dipoleSettings->subsurfaceSampleFactorSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_dipoleSettings->singleScatteringCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
@@ -253,6 +256,10 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_dipoleSettings->irrDumpPathButton, SIGNAL(pressed()), this, SLOT(onDipoleIrrtrrDumpPathRequest()));
     connect(m_dipoleSettings->useLutCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_dipoleSettings->lutResolutionSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_dipoleSettings->lutIterationsSpinBox, SIGNAL(valueChanged(int)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_dipoleSettings->lutRMaxSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_dipoleSettings->lutMCRadioButton, SIGNAL(toggled(bool)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_dipoleSettings->lutRMaxRadioButton, SIGNAL(toggled(bool)), this, SLOT(onSnowRenderModelChange()));
 
     connect(m_multipoleSettings->subsurfaceSizeSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_multipoleSettings->subsurfaceSampleFactorSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
@@ -262,6 +269,11 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_multipoleSettings->martelliDCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_multipoleSettings->useLutCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_multipoleSettings->lutResolutionSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_multipoleSettings->lutIterationsSpinBox, SIGNAL(valueChanged(int)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_multipoleSettings->lutRMaxSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_multipoleSettings->lutMCRadioButton, SIGNAL(toggled(bool)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_multipoleSettings->lutRMaxRadioButton, SIGNAL(toggled(bool)), this, SLOT(onSnowRenderModelChange()));
+
     connect(m_adipoleSettings->subsurfaceSizeSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_adipoleSettings->subsurfaceSampleFactorSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_adipoleSettings->sigmaTnSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
@@ -1073,6 +1085,9 @@ void MainWindow::onSnowRenderModelChange() {
     srs.dipoleDumpIrrtreePath = m_dipoleSettings->irrDumpPathEdit->text().toStdString();
     srs.dipoleUseLut = m_dipoleSettings->useLutCheckBox->isChecked();
     srs.dipoleLutResolution = m_dipoleSettings->lutResolutionSpinBox->value();
+    srs.dipoleLutMCIterations = m_dipoleSettings->lutIterationsSpinBox->value();
+    srs.dipoleLutRmax = m_dipoleSettings->lutRMaxSpinBox->value();
+    srs.dipoleLutPredefineRmax = m_dipoleSettings->lutRMaxRadioButton->isChecked();
 
     srs.multipoleDensityFactor = m_multipoleSettings->subsurfaceSizeSpinBox->value();
     srs.multipoleSampleFactor = m_multipoleSettings->subsurfaceSampleFactorSpinBox->value();
@@ -1082,6 +1097,8 @@ void MainWindow::onSnowRenderModelChange() {
     srs.multipoleMartelliDC = m_multipoleSettings->martelliDCheckBox->isChecked();
     srs.multipoleUseLut = m_multipoleSettings->useLutCheckBox->isChecked();
     srs.multipoleLutResolution = m_multipoleSettings->lutResolutionSpinBox->value();
+    srs.multipoleLutRmax = m_multipoleSettings->lutRMaxSpinBox->value();
+    srs.multipoleLutPredefineRmax = m_multipoleSettings->lutRMaxRadioButton->isChecked();
 
     srs.adipoleDensityFactor = m_adipoleSettings->subsurfaceSizeSpinBox->value();
     srs.adipoleSampleFactor = m_adipoleSettings->subsurfaceSampleFactorSpinBox->value();
@@ -1569,6 +1586,55 @@ void MainWindow::updateSnowOnShape(SceneContext* context, Shape* shape, bool has
         on_tabBar_currentChanged(index);
 }
 
+void MainWindow::blockRenderComponentsSignals(bool block) {
+    ui->renderModeComboBox->blockSignals(block);
+    ui->surfaceComboBox->blockSignals(block);
+    ui->subsurfaceComboBox->blockSignals(block);
+    m_shahRTSettings->albedoComboBox->blockSignals(block);
+    m_shahRTSettings->diffusionProfileComboBox->blockSignals(block);
+    m_shahRTSettings->expandSilhouetteCheckBox->blockSignals(block);
+    m_shahRTSettings->showSplatOriginsCheckBox->blockSignals(block);
+    m_shahRTSettings->showLightCheckBox->blockSignals(block);
+    m_shahRTSettings->rMaxSpinBox->blockSignals(block);
+    m_shahRTSettings->specularSpinBox->blockSignals(block);
+    m_wiscombeSettings->depthSpinBox->blockSignals(block);
+    m_hkSettings->singleScatteringSpinBox->blockSignals(block);
+    m_hkSettings->multipleScatteringSpinBox->blockSignals(block);
+    m_hkSettings->multipleScatteringCheckBox->blockSignals(block);
+    m_dipoleSettings->subsurfaceSizeSpinBox->blockSignals(block);
+    m_dipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(block);
+    m_dipoleSettings->singleScatteringCheckBox->blockSignals(block);
+    m_dipoleSettings->martelliDCheckBox->blockSignals(block);
+    m_dipoleSettings->textureCheckBox->blockSignals(block);
+    m_dipoleSettings->textureZrEdit->blockSignals(block);
+    m_dipoleSettings->textureSigmaTrEdit->blockSignals(block);
+    m_dipoleSettings->textureUSpinBox->blockSignals(block);
+    m_dipoleSettings->textureVSpinBox->blockSignals(block);
+    m_dipoleSettings->irrDumpCheckBox->blockSignals(block);
+    m_dipoleSettings->irrDumpPathEdit->blockSignals(block);
+    m_dipoleSettings->useLutCheckBox->blockSignals(block);
+    m_dipoleSettings->lutResolutionSpinBox->blockSignals(block);
+    m_dipoleSettings->lutIterationsSpinBox->blockSignals(block);
+    m_dipoleSettings->lutRMaxSpinBox->blockSignals(block);
+    m_dipoleSettings->lutRMaxRadioButton->blockSignals(block);
+    m_dipoleSettings->lutMCRadioButton->blockSignals(block);
+    m_multipoleSettings->subsurfaceSizeSpinBox->blockSignals(block);
+    m_multipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(block);
+    m_multipoleSettings->extraDipolesSpinBox->blockSignals(block);
+    m_multipoleSettings->slabThicknessSpinBox->blockSignals(block);
+    m_multipoleSettings->singleScatteringCheckBox->blockSignals(block);
+    m_multipoleSettings->martelliDCheckBox->blockSignals(block);
+    m_multipoleSettings->useLutCheckBox->blockSignals(block);
+    m_multipoleSettings->lutResolutionSpinBox->blockSignals(block);
+    m_multipoleSettings->lutRMaxSpinBox->blockSignals(block);
+    m_multipoleSettings->lutRMaxRadioButton->blockSignals(block);
+    m_multipoleSettings->lutMCRadioButton->blockSignals(block);
+    m_adipoleSettings->subsurfaceSizeSpinBox->blockSignals(block);
+    m_adipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(block);
+    m_adipoleSettings->sigmaTnSpinBox->blockSignals(block);
+    m_adipoleSettings->dLineEdit->blockSignals(block);
+}
+
 void MainWindow::updateSnowRenderingComponents() {
 	int index = ui->tabBar->currentIndex();
 	bool hasTab = (index != -1);
@@ -1641,45 +1707,7 @@ void MainWindow::updateSnowRenderingComponents() {
     }
 
     /* block signals to avoid endless loop */
-    ui->renderModeComboBox->blockSignals(true);
-    ui->surfaceComboBox->blockSignals(true);
-    ui->subsurfaceComboBox->blockSignals(true);
-    m_shahRTSettings->albedoComboBox->blockSignals(true);
-    m_shahRTSettings->diffusionProfileComboBox->blockSignals(true);
-    m_shahRTSettings->expandSilhouetteCheckBox->blockSignals(true);
-    m_shahRTSettings->showSplatOriginsCheckBox->blockSignals(true);
-    m_shahRTSettings->showLightCheckBox->blockSignals(true);
-    m_shahRTSettings->rMaxSpinBox->blockSignals(true);
-    m_shahRTSettings->specularSpinBox->blockSignals(true);
-    m_wiscombeSettings->depthSpinBox->blockSignals(true);
-    m_hkSettings->singleScatteringSpinBox->blockSignals(true);
-    m_hkSettings->multipleScatteringSpinBox->blockSignals(true);
-    m_hkSettings->multipleScatteringCheckBox->blockSignals(true);
-    m_dipoleSettings->subsurfaceSizeSpinBox->blockSignals(true);
-    m_dipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(true);
-    m_dipoleSettings->singleScatteringCheckBox->blockSignals(true);
-    m_dipoleSettings->martelliDCheckBox->blockSignals(true);
-    m_dipoleSettings->textureCheckBox->blockSignals(true);
-    m_dipoleSettings->textureZrEdit->blockSignals(true);
-    m_dipoleSettings->textureSigmaTrEdit->blockSignals(true);
-    m_dipoleSettings->textureUSpinBox->blockSignals(true);
-    m_dipoleSettings->textureVSpinBox->blockSignals(true);
-    m_dipoleSettings->irrDumpCheckBox->blockSignals(true);
-    m_dipoleSettings->irrDumpPathEdit->blockSignals(true);
-    m_dipoleSettings->useLutCheckBox->blockSignals(true);
-    m_dipoleSettings->lutResolutionSpinBox->blockSignals(true);
-    m_multipoleSettings->subsurfaceSizeSpinBox->blockSignals(true);
-    m_multipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(true);
-    m_multipoleSettings->extraDipolesSpinBox->blockSignals(true);
-    m_multipoleSettings->slabThicknessSpinBox->blockSignals(true);
-    m_multipoleSettings->singleScatteringCheckBox->blockSignals(true);
-    m_multipoleSettings->martelliDCheckBox->blockSignals(true);
-    m_multipoleSettings->useLutCheckBox->blockSignals(true);
-    m_multipoleSettings->lutResolutionSpinBox->blockSignals(true);
-    m_adipoleSettings->subsurfaceSizeSpinBox->blockSignals(true);
-    m_adipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(true);
-    m_adipoleSettings->sigmaTnSpinBox->blockSignals(true);
-    m_adipoleSettings->dLineEdit->blockSignals(true);
+    blockRenderComponentsSignals(true);
 
     /* set new data */
     SnowRenderSettings &srs = context->snowRenderSettings;
@@ -1741,6 +1769,10 @@ void MainWindow::updateSnowRenderingComponents() {
     m_dipoleSettings->irrDumpPathEdit->setText(QString::fromStdString(srs.dipoleDumpIrrtreePath));
     m_dipoleSettings->useLutCheckBox->setChecked(srs.dipoleUseLut);
     m_dipoleSettings->lutResolutionSpinBox->setValue(srs.dipoleLutResolution);
+    m_dipoleSettings->lutIterationsSpinBox->setValue(srs.dipoleLutMCIterations);
+    m_dipoleSettings->lutRMaxSpinBox->setValue(srs.dipoleLutRmax);
+    m_dipoleSettings->lutMCRadioButton->setChecked(!srs.dipoleLutPredefineRmax);
+    m_dipoleSettings->lutRMaxRadioButton->setChecked(srs.dipoleLutPredefineRmax);
 
     // Jensen multipole
     Float multipoleDensityFactor = srs.multipoleDensityFactor;
@@ -1758,6 +1790,9 @@ void MainWindow::updateSnowRenderingComponents() {
     m_multipoleSettings->martelliDCheckBox->setChecked(multipoleUseMartelliDC);
     m_multipoleSettings->useLutCheckBox->setChecked(srs.multipoleUseLut);
     m_multipoleSettings->lutResolutionSpinBox->setValue(srs.multipoleLutResolution);
+    m_multipoleSettings->lutRMaxSpinBox->setValue(srs.multipoleLutRmax);
+    m_multipoleSettings->lutMCRadioButton->setChecked(!srs.multipoleLutPredefineRmax);
+    m_multipoleSettings->lutRMaxRadioButton->setChecked(srs.multipoleLutPredefineRmax);
 
     // Jakob anisotropic multipole
     Float adipoleDensityFactor = srs.adipoleDensityFactor;
@@ -1771,45 +1806,7 @@ void MainWindow::updateSnowRenderingComponents() {
     m_adipoleSettings->dLineEdit->setText(adipoleD);
 
     /* unblock signals */
-    ui->renderModeComboBox->blockSignals(false);
-    ui->surfaceComboBox->blockSignals(false);
-    ui->subsurfaceComboBox->blockSignals(false);
-    m_shahRTSettings->albedoComboBox->blockSignals(false);
-    m_shahRTSettings->diffusionProfileComboBox->blockSignals(false);
-    m_shahRTSettings->expandSilhouetteCheckBox->blockSignals(false);
-    m_shahRTSettings->showSplatOriginsCheckBox->blockSignals(false);
-    m_shahRTSettings->showLightCheckBox->blockSignals(false);
-    m_shahRTSettings->rMaxSpinBox->blockSignals(false);
-    m_shahRTSettings->specularSpinBox->blockSignals(false);
-    m_wiscombeSettings->depthSpinBox->blockSignals(false);
-    m_hkSettings->singleScatteringSpinBox->blockSignals(false);
-    m_hkSettings->multipleScatteringSpinBox->blockSignals(false);
-    m_hkSettings->multipleScatteringCheckBox->blockSignals(false);
-    m_dipoleSettings->subsurfaceSizeSpinBox->blockSignals(false);
-    m_dipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(false);
-    m_dipoleSettings->singleScatteringCheckBox->blockSignals(false);
-    m_dipoleSettings->martelliDCheckBox->blockSignals(false);
-    m_dipoleSettings->textureCheckBox->blockSignals(false);
-    m_dipoleSettings->textureZrEdit->blockSignals(false);
-    m_dipoleSettings->textureSigmaTrEdit->blockSignals(false);
-    m_dipoleSettings->textureUSpinBox->blockSignals(false);
-    m_dipoleSettings->textureVSpinBox->blockSignals(false);
-    m_dipoleSettings->irrDumpCheckBox->blockSignals(false);
-    m_dipoleSettings->irrDumpPathEdit->blockSignals(false);
-    m_dipoleSettings->useLutCheckBox->blockSignals(false);
-    m_dipoleSettings->lutResolutionSpinBox->blockSignals(false);
-    m_multipoleSettings->subsurfaceSizeSpinBox->blockSignals(false);
-    m_multipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(false);
-    m_multipoleSettings->extraDipolesSpinBox->blockSignals(false);
-    m_multipoleSettings->slabThicknessSpinBox->blockSignals(false);
-    m_multipoleSettings->singleScatteringCheckBox->blockSignals(false);
-    m_multipoleSettings->martelliDCheckBox->blockSignals(false);
-    m_multipoleSettings->useLutCheckBox->blockSignals(false);
-    m_multipoleSettings->lutResolutionSpinBox->blockSignals(false);
-    m_adipoleSettings->subsurfaceSizeSpinBox->blockSignals(false);
-    m_adipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(false);
-    m_adipoleSettings->sigmaTnSpinBox->blockSignals(false);
-    m_adipoleSettings->dLineEdit->blockSignals(false);
+    blockRenderComponentsSignals(false);
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event) {

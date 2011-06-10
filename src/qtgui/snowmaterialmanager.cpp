@@ -82,6 +82,11 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
             properties.setBoolean("useTexture", srs.dipoleTexture);
             properties.setBoolean("dumpIrrtree", srs.dipoleDumpIrrtree);
             properties.setString("dumpIrrtreePath", srs.dipoleDumpIrrtreePath);
+            if (srs.dipoleLutPredefineRmax) {
+                properties.setFloat("lutRmax", srs.dipoleLutRmax);
+            } else {
+                properties.setInteger("mcIterations", srs.dipoleLutMCIterations);
+            }
             if (srs.dipoleTexture) {
                 properties.setString("zrFilename", srs.dipoleZrTexture);
                 properties.setString("sigmaTrFilename", srs.dipoleSigmaTrTexture);
@@ -102,6 +107,11 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
             properties.setBoolean("useMartelliD", srs.multipoleMartelliDC);
             properties.setBoolean("useLookUpTable", srs.multipoleUseLut);
             properties.setFloat("lutResolution", srs.multipoleLutResolution);
+            if (srs.multipoleLutPredefineRmax) {
+                properties.setFloat("lutRmax", srs.multipoleLutRmax);
+            } else {
+                properties.setInteger("mcIterations", srs.multipoleLutMCIterations);
+            }
             subsurface = static_cast<Subsurface *> (pluginManager->createObject(
                 Subsurface::m_theClass, properties));
         } else if (subsurfaceMode == EJakobADipoleBSSRDF) {

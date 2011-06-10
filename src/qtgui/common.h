@@ -95,6 +95,9 @@ struct SnowRenderSettings {
     std::string dipoleDumpIrrtreePath;
     bool dipoleUseLut;
     Float dipoleLutResolution;
+    int dipoleLutMCIterations;
+    Float dipoleLutRmax;
+    bool dipoleLutPredefineRmax;
 
     /* Jensen multipole settings */
     Float multipoleDensityFactor;
@@ -105,6 +108,9 @@ struct SnowRenderSettings {
     bool multipoleMartelliDC;
     bool multipoleUseLut;
     Float multipoleLutResolution;
+    int multipoleLutMCIterations;
+    Float multipoleLutRmax;
+    bool multipoleLutPredefineRmax;
 
     /* Jakob anisotropic dipole settings */
     Float adipoleDensityFactor;
@@ -135,10 +141,12 @@ struct SnowRenderSettings {
         dipoleDensityFactor(1.0f), dipoleSampleFactor(1.0f), dipoleUseSingleScattering(false),
         dipoleMartelliDC(false), dipoleTexture(false), dipoleTextureUScaling(1.0f), dipoleTextureVScaling(1.0f),
         dipoleDumpIrrtree(false), dipoleDumpIrrtreePath(""),
-        dipoleUseLut(true), dipoleLutResolution(0.01),
+        dipoleUseLut(true), dipoleLutResolution(0.01), dipoleLutMCIterations(10000), dipoleLutRmax(10.0f),
+        dipoleLutPredefineRmax(true),
         multipoleDensityFactor(1.0f), multipoleSampleFactor(1.0f), multipoleExtraDipoles(2),
         multipoleSlabThickness(0.2f), multipoleUseSingleScattering(false), multipoleMartelliDC(false),
-        multipoleUseLut(true), multipoleLutResolution(0.01),
+        multipoleUseLut(true), multipoleLutResolution(0.01), multipoleLutMCIterations(10000),
+        multipoleLutRmax(10.0f), multipoleLutPredefineRmax(true),
         adipoleDensityFactor(1.0f), adipoleSampleFactor(1.0f), adipoleSigmaTn(1.0f),
         // default to sin^20 flake distribution
         adipoleD("1.6307, -0.00049, 0.00069, -0.00049, 1.63148, 0.00001, 0.00067, 0.00002, 2.12596"),

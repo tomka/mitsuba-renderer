@@ -7,19 +7,19 @@
     <x>0</x>
     <y>0</y>
     <width>180</width>
-    <height>305</height>
+    <height>350</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
     <width>180</width>
-    <height>305</height>
+    <height>350</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
-    <width>16777215</width>
-    <height>305</height>
+    <width>16777214</width>
+    <height>350</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -149,7 +149,7 @@
       <x>0</x>
       <y>0</y>
       <width>151</width>
-      <height>28</height>
+      <height>21</height>
      </rect>
     </property>
     <layout class="QGridLayout" name="gridLayout_3">
@@ -214,9 +214,9 @@
     <property name="geometry">
      <rect>
       <x>0</x>
-      <y>20</y>
+      <y>27</y>
       <width>151</width>
-      <height>28</height>
+      <height>21</height>
      </rect>
     </property>
     <layout class="QGridLayout" name="gridLayout_4">
@@ -315,7 +315,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>255</y>
+     <y>305</y>
      <width>161</width>
      <height>19</height>
     </rect>
@@ -328,22 +328,82 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>267</y>
-     <width>161</width>
-     <height>31</height>
+     <y>323</y>
+     <width>151</width>
+     <height>21</height>
     </rect>
    </property>
+   <widget class="QWidget" name="gridLayoutWidget_6">
+    <property name="geometry">
+     <rect>
+      <x>6</x>
+      <y>0</y>
+      <width>141</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <layout class="QGridLayout" name="gridLayout_7">
+     <item row="0" column="0">
+      <widget class="QLabel" name="label_12">
+       <property name="toolTip">
+        <string>The mean free path</string>
+       </property>
+       <property name="text">
+        <string>Path</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QLineEdit" name="irrDumpPathEdit"/>
+     </item>
+     <item row="0" column="2">
+      <widget class="QPushButton" name="irrDumpPathButton">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>25</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset resource="resources.qrc">
+         <normaloff>:/resources/open16.png</normaloff>:/resources/open16.png</iconset>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+   <zorder>gridLayoutWidget_6</zorder>
+   <zorder>gridLayoutWidget_6</zorder>
   </widget>
   <widget class="QWidget" name="formLayoutWidget">
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>234</y>
+     <y>230</y>
      <width>153</width>
-     <height>22</height>
+     <height>74</height>
     </rect>
    </property>
    <layout class="QFormLayout" name="formLayout">
+    <property name="fieldGrowthPolicy">
+     <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+    </property>
+    <item row="0" column="0">
+     <widget class="QLabel" name="lutLabel">
+      <property name="text">
+       <string>LUT Resolution</string>
+      </property>
+     </widget>
+    </item>
     <item row="0" column="1">
      <widget class="QDoubleSpinBox" name="lutResolutionSpinBox">
       <property name="maximumSize">
@@ -363,10 +423,55 @@ p, li { white-space: pre-wrap; }
       </property>
      </widget>
     </item>
-    <item row="0" column="0">
-     <widget class="QLabel" name="lutLabel">
+    <item row="1" column="0">
+     <widget class="QRadioButton" name="lutMCRadioButton">
+      <property name="toolTip">
+       <string>Iterations for Monte-Carlo integration of Rd</string>
+      </property>
       <property name="text">
-       <string>LUT Resolution</string>
+       <string>Iterations</string>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="1">
+     <widget class="QSpinBox" name="lutIterationsSpinBox">
+      <property name="maximumSize">
+       <size>
+        <width>62</width>
+        <height>16777215</height>
+       </size>
+      </property>
+      <property name="minimum">
+       <number>1</number>
+      </property>
+      <property name="maximum">
+       <number>1000000</number>
+      </property>
+     </widget>
+    </item>
+    <item row="2" column="0">
+     <widget class="QRadioButton" name="lutRMaxRadioButton">
+      <property name="text">
+       <string>r_max</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item row="2" column="1">
+     <widget class="QDoubleSpinBox" name="lutRMaxSpinBox">
+      <property name="maximumSize">
+       <size>
+        <width>62</width>
+        <height>16777215</height>
+       </size>
+      </property>
+      <property name="decimals">
+       <number>3</number>
+      </property>
+      <property name="singleStep">
+       <double>0.010000000000000</double>
       </property>
      </widget>
     </item>
@@ -376,7 +481,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>214</y>
+     <y>213</y>
      <width>161</width>
      <height>19</height>
     </rect>
@@ -387,54 +492,6 @@ p, li { white-space: pre-wrap; }
    <property name="text">
     <string>Use dMo look-up-table</string>
    </property>
-  </widget>
-  <widget class="QWidget" name="gridLayoutWidget_6">
-   <property name="geometry">
-    <rect>
-     <x>20</x>
-     <y>272</y>
-     <width>151</width>
-     <height>28</height>
-    </rect>
-   </property>
-   <layout class="QGridLayout" name="gridLayout_7">
-    <item row="0" column="0">
-     <widget class="QLabel" name="label_12">
-      <property name="toolTip">
-       <string>The mean free path</string>
-      </property>
-      <property name="text">
-       <string>Path</string>
-      </property>
-     </widget>
-    </item>
-    <item row="0" column="1">
-     <widget class="QLineEdit" name="irrDumpPathEdit"/>
-    </item>
-    <item row="0" column="2">
-     <widget class="QPushButton" name="irrDumpPathButton">
-      <property name="minimumSize">
-       <size>
-        <width>0</width>
-        <height>0</height>
-       </size>
-      </property>
-      <property name="maximumSize">
-       <size>
-        <width>25</width>
-        <height>16777215</height>
-       </size>
-      </property>
-      <property name="text">
-       <string/>
-      </property>
-      <property name="icon">
-       <iconset resource="resources.qrc">
-        <normaloff>:/resources/open16.png</normaloff>:/resources/open16.png</iconset>
-      </property>
-     </widget>
-    </item>
-   </layout>
   </widget>
  </widget>
  <resources>
