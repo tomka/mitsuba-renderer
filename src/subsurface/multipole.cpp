@@ -19,6 +19,7 @@
 #include <mitsuba/render/subsurface.h>
 #include <mitsuba/render/scene.h>
 #include <mitsuba/core/plugin.h>
+#include <boost/timer.hpp>
 #include "irrtree.h"
 
 MTS_NAMESPACE_BEGIN
@@ -234,18 +235,14 @@ struct IsotropicLUTMultipoleQuery {
 	inline void operator()(const IrradianceSample &sample) {
 	    //Float rSqr = (p - sample.p).lengthSquared();
 	    Float r = (p - sample.p).length();
-        /* Look up dMoR for the distance. As in the normal query,
-         * the reduced albedo is not included. It will be canceled
-         * out later. */
-        int index = (int) (r * invResolution);
+        /* Look up dMo for the distance. As in the normal query,the
+         * reduced albedo is not included. It will be canceled out
+         * later. The index is rounded to the next nearest integer. */
+        int index = (int) (r * invResolution + 0.5f);
         if (index < entries) {
             Spectrum dMoR = dMoR_LUT->at(index);
-
-            /* combine Mo based on R and Mo based on T to a new
-             * Mo based on a combined profile P. */
             result += dMoR * sample.E * (sample.area * Fdt);
         }
-     
 		count++;
 	}
 
@@ -481,6 +478,7 @@ public:
                 m_RdLookUpTable = lutR.lut;
                 AssertEx(lutR.resolution == m_lutResolution, "Cached LUT does not have requested resolution!");
             } else {
+                boost::timer timer;
                 if (!m_rMaxPredefined) {
                     const Spectrum invSigmaTr = 1.0f / m_sigmaTr;
                     const Float inv4Pi = 1.0f / (4 * M_PI);
@@ -500,10 +498,12 @@ public:
                     }
                     Float A = 4 * invSigmaTr.max() * invSigmaTr.max();
                     Rd_A = A * Rd_A * m_alphaPrime * inv4Pi / (Float)(numSamples - 1);
-                    Log(EDebug, "After %i MC integration iterations, Rd seems to be %s", numSamples, Rd_A.toString().c_str());
+                    Log(EDebug, "After %i MC integration iterations, Rd seems to be %s (took %is)",
+                        numSamples, timer.elapsed(), Rd_A.toString().c_str());
 
                     /* Since we now have Rd integrated over the whole surface we can find a valid rmax
                      * for the given threshold. */
+                    timer.restart();
                     const Float step = m_lutResolution;
                     Float rMax = 0.0f;
                     Spectrum err(std::numeric_limits<Float>::max());
@@ -526,10 +526,12 @@ public:
                         err = (Rd_A - Rd_APrime) / Rd_A;
                     }
                     m_rMax = rMax;
-                    Log(EDebug, "Maximum distance for sampling surface is %f with an error of %f", m_rMax, m_errThreshold);
+                    Log(EDebug, "Maximum distance for sampling surface is %f with an error of %f (took %is)",
+                        m_rMax, timer.elapsed(), m_errThreshold);
                 }
 
                 /* Create the actual look-up-table if it was MC integrated */
+                timer.restart();
                 const int numEntries = (int) (m_rMax / m_lutResolution) + 1;
                 m_RdLookUpTable = new LUTType(numEntries);
                 for (int i=0; i<numEntries; ++i) {
@@ -543,7 +545,7 @@ public:
                     AssertEx(smm->hasLUT(lutHash), "LUT is not available, but it should be!");
                 }
 
-                Log(EDebug, "Created Rd look-up-table with %i entries.", numEntries);
+                Log(EDebug, "Created Rd look-up-table with %i entries (took %is)", numEntries, timer.elapsed());
             }
         }
 	}

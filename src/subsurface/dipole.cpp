@@ -23,19 +23,23 @@
 #include <mitsuba/core/mstream.h>
 #include <mitsuba/core/fstream.h>
 #include <mitsuba/core/fresolver.h>
+#include <boost/timer.hpp>
 #include "irrtree.h"
+
+//#define NO_SSE_QUERY
 
 MTS_NAMESPACE_BEGIN
 
 typedef SubsurfaceMaterialManager::LUTType LUTType;
 typedef SubsurfaceMaterialManager::LUTRecord LUTRecord;
 
+
 /**
  * Computes the combined diffuse radiant exitance 
  * caused by a number of dipole sources
  */
 struct IsotropicDipoleQuery {
-#if !defined(MTS_SSE) || (SPECTRUM_SAMPLES != 3)
+#if !defined(MTS_SSE) || (SPECTRUM_SAMPLES != 3) || defined(NO_SSE_QUERY)
 	inline IsotropicDipoleQuery(const Spectrum &zr, const Spectrum &zv, 
 		const Spectrum &sigmaTr, Float Fdt, const Point &p) 
 		: zr(zr), zv(zv), sigmaTr(sigmaTr), result(0.0f), Fdt(Fdt), p(p) {
@@ -45,7 +49,8 @@ struct IsotropicDipoleQuery {
 	}
 
 	inline void operator()(const IrradianceSample &sample) {
-        Float dist = std::max((p - sample.p).lengthSquared(), zrMinSq); 
+        //Float dist = std::max((p - sample.p).lengthSquared(), zrMinSq); 
+        Float dist = (p - sample.p).lengthSquared(); 
 		Spectrum rSqr = Spectrum(dist);
 		/* Distance to the real source */
 		Spectrum dr = (rSqr + zr*zr).sqrt();
@@ -67,7 +72,6 @@ struct IsotropicDipoleQuery {
 	}
 
 	Spectrum zr, zv, sigmaTr, result;
-    Float zrMinSq;
 #else
 	inline IsotropicDipoleQuery(const Spectrum &_zr, const Spectrum &_zv, 
 		const Spectrum &_sigmaTr, Float Fdt, const Point &p) : Fdt(Fdt), p(p) {
@@ -134,19 +138,15 @@ struct IsotropicLUTDipoleQuery {
 	inline void operator()(const IrradianceSample &sample) {
         //Float dist = std::max((p - sample.p).lengthSquared(), zrMinSq);
 	    Float r = (p - sample.p).length();
-        /* Look up dMo for the distance. As in the normal query,
-         * the reduced albedo is not included. It will be canceled
-         * out later. */
-        int index = (int) (r * invResolution);
+        /* Look up dMo for the distance. As in the normal query,the
+         * reduced albedo is not included. It will be canceled out
+         * later. The index is rounded to the next nearest integer. */
+        int index = (int) (r * invResolution + 0.5f);
         if (index < entries) {
             Spectrum dMo = dMo_LUT->at(index);
-
-            /* combine Mo based on R and Mo based on T to a new
-             * Mo based on a combined profile P. */
             result += dMo * sample.E * (sample.area * Fdt);
- 
-    		count++;
         }
+        count++;
 	}
 
 	inline const Spectrum &getResult() const {
@@ -443,6 +443,7 @@ public:
                 m_RdLookUpTable = lutR.lut;
                 AssertEx(lutR.resolution == m_lutResolution, "Cached LUT does not have requested resolution!");
             } else {
+                boost::timer timer;
                 if (!m_rMaxPredefined) {
                     const Spectrum invSigmaTr = 1.0f / m_sigmaTr;
                     const Float inv4Pi = 1.0f / (4 * M_PI);
@@ -462,10 +463,12 @@ public:
                     }
                     Float A = 4 * invSigmaTr.max() * invSigmaTr.max();
                     Rd_A = A * Rd_A * m_alphaPrime * inv4Pi / (Float)(m_mcIterations - 1);
-                    Log(EDebug, "After %i MC integration iterations, Rd seems to be %s", count, Rd_A.toString().c_str());
+                    Log(EDebug, "After %i MC integration iterations, Rd seems to be %s (took %is)",
+                        count, timer.elapsed(), Rd_A.toString().c_str());
 
                     /* Since we now have Rd integrated over the whole surface we can find a valid rmax
                      * for the given threshold. */
+                    timer.restart();
                     Float rMax = 0.0f;
                     Spectrum err(std::numeric_limits<Float>::max());
                     Spectrum invRd_A = Spectrum(1.0f) / Rd_A;
@@ -488,10 +491,12 @@ public:
                         err = (Rd_A - Rd_APrime) * invRd_A;
                     }
                     m_rMax = rMax;
-                    Log(EDebug, "Maximum distance for sampling surface is %f with an error of %f", m_rMax, m_errThreshold);
+                    Log(EDebug, "Maximum distance for sampling surface is %f with an error of %f (took %is)",
+                        m_rMax, timer.elapsed(), m_errThreshold);
                 }
 
                 /* Create the actual look-up-table */
+                timer.restart();
                 const int numEntries = (int) (m_rMax / m_lutResolution) + 1;
                 m_RdLookUpTable = new LUTType(numEntries);
                 for (int i=0; i<numEntries; ++i) {
@@ -505,7 +510,7 @@ public:
                     AssertEx(smm->hasLUT(lutHash), "LUT is not available, but it should be!");
                 }
 
-                Log(EDebug, "Created Rd look-up-table with %i entries.", numEntries);
+                Log(EDebug, "Created Rd look-up-table with %i entries (took %is)", numEntries, timer.elapsed());
             }
         }
     }
@@ -691,13 +696,13 @@ public:
         /* Distance to the image point source */
         Spectrum dv = (rSqr + m_zv*m_zv).sqrt();
 
-        Spectrum C1 = (m_sigmaTr + Spectrum(1.0f) / dr);
-        Spectrum C2 = (m_sigmaTr + Spectrum(1.0f) / dv);
+        Spectrum C1 = m_zr * (m_sigmaTr + Spectrum(1.0f) / dr);
+        Spectrum C2 = m_zv * (m_sigmaTr + Spectrum(1.0f) / dv);
 
         /* Do not include the reduced albedo - will be canceled out later */
         Spectrum dMo = Spectrum(0.25f * INV_PI) *
-             (m_zr * C1 * ((-m_sigmaTr * dr).exp()) / (dr * dr)
-            + m_zv * C2 * ((-m_sigmaTr * dv).exp()) / (dv * dv));
+             (C1 * ((-m_sigmaTr * dr).exp()) / (dr * dr)
+            + C2 * ((-m_sigmaTr * dv).exp()) / (dv * dv));
         return dMo;
     }
 
