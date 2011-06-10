@@ -498,8 +498,8 @@ public:
                     }
                     Float A = 4 * invSigmaTr.max() * invSigmaTr.max();
                     Rd_A = A * Rd_A * m_alphaPrime * inv4Pi / (Float)(numSamples - 1);
-                    Log(EDebug, "After %i MC integration iterations, Rd seems to be %s (took %is)",
-                        numSamples, timer.elapsed(), Rd_A.toString().c_str());
+                    Log(EDebug, "After %i MC integration iterations, Rd seems to be %s (took %.2fs)",
+                        numSamples, Rd_A.toString().c_str(), timer.elapsed());
 
                     /* Since we now have Rd integrated over the whole surface we can find a valid rmax
                      * for the given threshold. */
@@ -526,8 +526,8 @@ public:
                         err = (Rd_A - Rd_APrime) / Rd_A;
                     }
                     m_rMax = rMax;
-                    Log(EDebug, "Maximum distance for sampling surface is %f with an error of %f (took %is)",
-                        m_rMax, timer.elapsed(), m_errThreshold);
+                    Log(EDebug, "Maximum distance for sampling surface is %f with an error of %f (took %.0fs)",
+                        m_rMax, m_errThreshold, timer.elapsed());
                 }
 
                 /* Create the actual look-up-table if it was MC integrated */
@@ -545,7 +545,7 @@ public:
                     AssertEx(smm->hasLUT(lutHash), "LUT is not available, but it should be!");
                 }
 
-                Log(EDebug, "Created Rd look-up-table with %i entries (took %is)", numEntries, timer.elapsed());
+                Log(EDebug, "Created Rd look-up-table with %i entries (took %.2fs)", numEntries, timer.elapsed());
             }
         }
 	}
