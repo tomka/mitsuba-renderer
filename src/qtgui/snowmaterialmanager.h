@@ -1,10 +1,12 @@
 #ifndef SNOWMATERALMANAGER_H
 #define SNOWMATERALMANAGER_H
 
-#include "common.h"
 #include <mitsuba/mitsuba.h>
 #include "model/snowproperties.h"
 #include <map>
+
+/* forward declarations */
+class SceneContext;
 
 MTS_NAMESPACE_BEGIN
 
@@ -19,7 +21,7 @@ class SnowMaterialManager {
             originalBSDF(NULL), originalSubsurface(NULL) { }
     };
 
-    typedef std::map<Shape*, ShapeEntry> ShapeMap;
+    typedef std::map<const Shape*, ShapeEntry> ShapeMap;
 
     // a toggle for every shape if it has a snow material
     ShapeMap snowShapes;
@@ -44,7 +46,7 @@ public:
     /**
      * Query if a particular shape is made of snow.
      */
-    bool isMadeOfSnow(Shape *shape);
+    bool isMadeOfSnow(const Shape *shape) const;
 
     /**
      * Removes all links to a shape.

@@ -26,6 +26,7 @@
 #include <mitsuba/core/mstream.h>
 #include <mitsuba/core/bitmap.h>
 #include "model/snowproperties.h"
+#include "snowmaterialmanager.h"
 
 using namespace mitsuba;
 
@@ -344,6 +345,7 @@ struct SceneContext {
     /* Snow properties */
     SnowProperties snow;
     SnowRenderSettings snowRenderSettings;
+    SnowMaterialManager snowMaterialManager;
 
     /* the currently selected shape */
     Shape *currentlySelectedShape;

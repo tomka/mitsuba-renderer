@@ -1,3 +1,4 @@
+#include "common.h"
 #include "snowmaterialmanager.h"
 #include <mitsuba/render/shape.h>
 #include <mitsuba/render/bsdf.h>
@@ -205,8 +206,8 @@ void SnowMaterialManager::resetMaterial(Shape *shape, SceneContext *context) {
         std::cerr << "[Snow Material Manager] Reset material on shape " << shape->getName() << std::endl;
 }
 
-bool SnowMaterialManager::isMadeOfSnow(Shape * shape) {
-    ShapeMap::iterator it = snowShapes.find(shape);
+bool SnowMaterialManager::isMadeOfSnow(const Shape * shape) const {
+    ShapeMap::const_iterator it = snowShapes.find(shape);
     if (it != snowShapes.end())
         return it->second.madeOfSnow;
     else
@@ -232,11 +233,11 @@ std::string SnowMaterialManager::toString() {
 		oss << "SnowMaterialManager[" << std::endl;
 
         for (ShapeMap::iterator it = snowShapes.begin(); it != snowShapes.end(); it++) {
-            Shape *s = it->first;
+            const Shape *s = it->first;
             ShapeEntry &entry = it->second;
             if (entry.madeOfSnow && s != NULL) {
-                BSDF* bsdf = s->getBSDF();
-                Subsurface* subsurface = s->getSubsurface();
+                const BSDF* bsdf = s->getBSDF();
+                const Subsurface* subsurface = s->getSubsurface();
 
                 oss << "  " << s->getName() << ":" << std::endl
                 << "    BSDF: " << std::endl << (bsdf == NULL ? "None" : indent(bsdf->toString(), 3)) << std::endl

@@ -48,6 +48,7 @@
 #include "math/snowmath.h"
 #include <QtGlobal>
 #include <boost/filesystem/fstream.hpp>
+#include "snowmaterialmanager.h"
 
 #if !defined(WIN32)
 #include <QX11Info>
@@ -932,9 +933,9 @@ void MainWindow::onRefreshShahSnowParameters() {
 
    // ref<SubsurfaceMaterialManager> smm = SubsurfaceMaterialManager::getInstance();
    // std::string hash = smm->getDipoleLUTHash();
-    snowMaterialManager.refreshDiffusionProfile(context);
+    context->snowMaterialManager.refreshDiffusionProfile(context);
     
-    std::pair< ref<Bitmap>, Float > data = snowMaterialManager.getCachedDiffusionProfile();
+    std::pair< ref<Bitmap>, Float > data = context->snowMaterialManager.getCachedDiffusionProfile();
     context->snowRenderSettings.shahDiffusionProfile = data.first;
     context->snowRenderSettings.shahRmax = data.second;
 
@@ -1029,11 +1030,11 @@ void MainWindow::onSnowRenderModelChange() {
 
         if (shahDiffusionProfile == SnowRenderSettings::ESnowProfile) {
             // Check if valid profile available and calculate one if not
-            if (!snowMaterialManager.hasCachedDiffusionProfile()) {
+            if (!context->snowMaterialManager.hasCachedDiffusionProfile()) {
                 onRefreshShahSnowParameters();
             }
 
-            std::pair< ref<Bitmap>, Float > data = snowMaterialManager.getCachedDiffusionProfile();
+            std::pair< ref<Bitmap>, Float > data = context->snowMaterialManager.getCachedDiffusionProfile();
             srs.shahDiffusionProfile = data.first;
             rMax = data.second;
         } else {
@@ -1119,7 +1120,7 @@ void MainWindow::onSnowRenderModelChange() {
 void MainWindow::updateSnowOnAllShapes(SceneContext *context, bool visible) {
     const shapeListType meshes = context->scene->getShapes();
     for (shapeListType::const_iterator it = meshes.begin(); it != meshes.end(); it++)
-        if (snowMaterialManager.isMadeOfSnow(*it))
+        if (context->snowMaterialManager.isMadeOfSnow(*it))
             updateSnowOnShape(context, *it, visible);
 }
 
@@ -1466,7 +1467,7 @@ void MainWindow::updateShapeComponents() {
             }
             if (shapeIndex > -1) {
                 ui->shapeComboBox->setCurrentIndex(shapeIndex);
-                ui->shapeSnowCheckBox->setChecked(snowMaterialManager.isMadeOfSnow(currentShape));
+                ui->shapeSnowCheckBox->setChecked(context->snowMaterialManager.isMadeOfSnow(currentShape));
             } else {
                 std::cerr << "MainWindow: This should not happen" << std::endl;
             }
@@ -1573,9 +1574,9 @@ void MainWindow::updateSnowOnShape(SceneContext* context, Shape* shape, bool has
 	qApp->processEvents();
 
     if (hasSnow) {
-        snowMaterialManager.replaceMaterial(shape, context);
+        context->snowMaterialManager.replaceMaterial(shape, context);
     } else {
-        snowMaterialManager.resetMaterial(shape, context);
+        context->snowMaterialManager.resetMaterial(shape, context);
     }
     /* expects allowed on control on context and preview data (i.e. should not be active) */
     /* Reset preview data */
@@ -1939,7 +1940,7 @@ bool MainWindow::on_tabBar_tabCloseRequested(int index) {
         for (std::map<Shape*, bool>::const_iterator it = removalCandidates.begin();
                 it != removalCandidates.end(); it++) {
             if (it->second)
-                snowMaterialManager.removeShape(it->first);
+                context->snowMaterialManager.removeShape(it->first);
         }
     }
 
@@ -2289,7 +2290,7 @@ void MainWindow::on_actionRender_triggered() {
 	resize(size() + context->sizeIncrease);
 #endif
 
-    std::cerr << snowMaterialManager.toString() << std::endl
+    std::cerr << context->snowMaterialManager.toString() << std::endl
               << context->snow.toString() << std::endl;
 	updateStatus();
 	context->renderJob->start();

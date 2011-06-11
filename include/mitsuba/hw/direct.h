@@ -47,6 +47,9 @@ public:
 
 	/// Return all bound triangle meshes
 	inline const std::vector<const TriMesh *> &getMeshes() const { return m_meshes; }
+    /// Return all shapes belonging to the bound meshes
+	inline const std::vector<const Shape *> &getShapes() const { return m_shapes; }
+
 
 	/// Return the shadow cube map for debugging purposes
 	inline GPUTexture *getShadowMap() { return m_shadowMap; }
@@ -214,6 +217,7 @@ private:
 	ref<GPUProgram> m_backgroundProgram;
     DirectDependencyNode m_backgroundDependencies; 
 	std::vector<const TriMesh *> m_meshes;
+	std::vector<const Shape *> m_shapes;
 
 public:
     ref<GPUProgram> m_lightViewProgram;

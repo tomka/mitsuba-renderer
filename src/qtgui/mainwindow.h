@@ -22,7 +22,6 @@
 #include "common.h"
 #include <QtNetwork>
 #include <mitsuba/render/renderjob.h>
-#include "snowmaterialmanager.h"
 
 #define MAX_RECENT_FILES 10
 
@@ -243,7 +242,6 @@ private:
 	PreviewSettingsDlg *m_previewSettings;
 #endif
 	QWidget *m_currentChild;
-    SnowMaterialManager snowMaterialManager;
 
     QGroupBox *m_wiscombeWidget;
     Ui_WiscombeBRDFSettings *m_wiscombeSettings;
