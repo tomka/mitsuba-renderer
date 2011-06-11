@@ -807,6 +807,7 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
 	m_mutex->unlock();
 
     const SnowRenderSettings &srs = m_context->snowRenderSettings;
+    const SnowMaterialManager &smm = m_context->snowMaterialManager;
 
     // expect for now only one spot light
     std::vector<Luminaire *> luminaires = m_context->scene->getLuminaires();
@@ -848,87 +849,96 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
 
 	for (size_t i=0; i<meshes.size(); i++) {
         const TriMesh *mesh = meshes[i];
-        ts.mesh = mesh;
+        if (smm.isMadeOfSnow( m_directShaderManager->getMeshes()[i] )) {
+            ts.mesh = mesh;
 
-        /* If required, build en albedo map */
-        if (buildAlbedoMap) {
-            // ToDo:
-        }
-
-        calcSplatPositions(ts); // in light view
-
-        // view matrix must have been set here
-        calcVisiblePositions(ts); // in camera view
-
-        combineSplats(ts); // in camera view
-
-        /* give some debug output if requested */
-        if (showSplatOrigins) {
-            glPointSize(10.0);
-            glBegin(GL_POINTS);
-            std::vector<Splat>::iterator it;
-            for(it=splats.begin(); it!=splats.end(); it++)
-            {
-                glColor3fv(&(it->c.x));
-                glVertex3fv(&(it->o.x));
+            /* If required, build en albedo map */
+            if (buildAlbedoMap) {
+                // ToDo:
             }
-            glEnd();
-        }
 
-        if (showLight) {
-            glPointSize(10.0);
-            glBegin(GL_POINTS);
-                glColor3fv(&(m_currentSpot.color.x));
-                glVertex3fv(&(m_currentSpot.pos.x));
-            glEnd();
-            glPointSize(1.0);
-            glBegin(GL_LINES);
-                glVertex3fv(&(m_currentSpot.pos.x));
-                Point3 target = m_currentSpot.pos + m_currentSpot.dir;
-                glVertex3fv(&(target.x));
-            glEnd();
-        }
+            calcSplatPositions(ts); // in light view
+
+            // view matrix must have been set here
+            calcVisiblePositions(ts); // in camera view
+
+            combineSplats(ts); // in camera view
+
+            /* give some debug output if requested */
+            if (showSplatOrigins) {
+                glPointSize(10.0);
+                glBegin(GL_POINTS);
+                std::vector<Splat>::iterator it;
+                for(it=splats.begin(); it!=splats.end(); it++)
+                {
+                    glColor3fv(&(it->c.x));
+                    glVertex3fv(&(it->o.x));
+                }
+                glEnd();
+            }
+
+            if (showLight) {
+                glPointSize(10.0);
+                glBegin(GL_POINTS);
+                    glColor3fv(&(m_currentSpot.color.x));
+                    glVertex3fv(&(m_currentSpot.pos.x));
+                glEnd();
+                glPointSize(1.0);
+                glBegin(GL_LINES);
+                    glVertex3fv(&(m_currentSpot.pos.x));
+                    Point3 target = m_currentSpot.pos + m_currentSpot.dir;
+                    glVertex3fv(&(target.x));
+                glEnd();
+            }
 
 #ifdef SSSDEBUG 
-        // save images of light view maps
-        if (find(m_exportedMeshes.begin(), m_exportedMeshes.end(), mesh) == m_exportedMeshes.end()) {
-            m_exportedMeshes.push_back(mesh);
-            std::ostringstream name; name << "img-obj-" << mesh->getName();
-            fboLightView->saveToDisk(0, name.str().append("-splat-o.exr"));
-            fboLightView->saveToDisk(1, name.str().append("-splat-c.exr"));
-        }
+            // save images of light view maps
+            if (find(m_exportedMeshes.begin(), m_exportedMeshes.end(), mesh) == m_exportedMeshes.end()) {
+                m_exportedMeshes.push_back(mesh);
+                std::ostringstream name; name << "img-obj-" << mesh->getName();
+                fboLightView->saveToDisk(0, name.str().append("-splat-o.exr"));
+                fboLightView->saveToDisk(1, name.str().append("-splat-c.exr"));
+            }
 
-        // save images of light view maps
-        if (find(m_camViewImages.begin(), m_camViewImages.end(), mesh) == m_camViewImages.end()) {
-            m_camViewImages.push_back(mesh);
-            std::ostringstream name; name << "img-obj-" << mesh->getName() << "-camView.exr";
-            fboView->saveToDisk(0, name.str());
-        }
+            // save images of light view maps
+            if (find(m_camViewImages.begin(), m_camViewImages.end(), mesh) == m_camViewImages.end()) {
+                m_camViewImages.push_back(mesh);
+                std::ostringstream name; name << "img-obj-" << mesh->getName() << "-camView.exr";
+                fboView->saveToDisk(0, name.str());
+            }
 
-        // save images of light view maps
-        if (find(m_expansionImages.begin(), m_expansionImages.end(), mesh) == m_expansionImages.end()) {
-            m_expansionImages.push_back(mesh);
-            std::ostringstream name; name << "img-obj-" << mesh->getName() << "-expansion.exr";
-            fboViewExpand->saveToDisk(0, name.str());
-        }
+            // save images of light view maps
+            if (find(m_expansionImages.begin(), m_expansionImages.end(), mesh) == m_expansionImages.end()) {
+                m_expansionImages.push_back(mesh);
+                std::ostringstream name; name << "img-obj-" << mesh->getName() << "-expansion.exr";
+                fboViewExpand->saveToDisk(0, name.str());
+            }
 
-        // save images of light view maps
-        if (find(m_expansionImages.begin(), m_expansionImages.end(), mesh) == m_expansionImages.end()) {
-            m_expansionImages.push_back(mesh);
-            std::ostringstream name; name << "img-obj-" << mesh->getName() << "-cumulated.exr";
-            fboViewExpand->saveToDisk(0, name.str());
-        }
+            // save images of light view maps
+            if (find(m_expansionImages.begin(), m_expansionImages.end(), mesh) == m_expansionImages.end()) {
+                m_expansionImages.push_back(mesh);
+                std::ostringstream name; name << "img-obj-" << mesh->getName() << "-cumulated.exr";
+                fboViewExpand->saveToDisk(0, name.str());
+            }
 
-        // save images of light view maps
-        if (find(m_finalImages.begin(), m_finalImages.end(), mesh) == m_finalImages.end()) {
-            m_finalImages.push_back(mesh);
-            Point3i size = m_framebuffer->getSize();
-            ref<Bitmap> bitmap = new Bitmap(size.x, size.y, 128);
-            m_framebuffer->download(bitmap);
-            std::ostringstream name; name << "img-obj-" << mesh->getName() << "-final.exr";
-            bitmap->save(Bitmap::EEXR, new FileStream(name.str(), FileStream::ETruncWrite));
-        }
+            // save images of light view maps
+            if (find(m_finalImages.begin(), m_finalImages.end(), mesh) == m_finalImages.end()) {
+                m_finalImages.push_back(mesh);
+                Point3i size = m_framebuffer->getSize();
+                ref<Bitmap> bitmap = new Bitmap(size.x, size.y, 128);
+                m_framebuffer->download(bitmap);
+                std::ostringstream name; name << "img-obj-" << mesh->getName() << "-final.exr";
+                bitmap->save(Bitmap::EEXR, new FileStream(name.str(), FileStream::ETruncWrite));
+            }
 #endif
+        } else { // mesh not made of snow
+            m_renderer->beginDrawingMeshes();
+            //m_shaderManager->configure(vpl, meshes[j]->getBSDF(), 
+            //    meshes[j]->getLuminaire(), camPos, !meshes[j]->hasVertexNormals());
+            m_renderer->drawTriMesh(mesh);
+            //m_shaderManager->unbind();
+            m_renderer->endDrawingMeshes();
+        }
     }
 
     // restore color data
