@@ -809,6 +809,7 @@ public:
 
         // make sure no previous user flag is set anymore
         clearUserFlag();
+        int ignoredTris = 0;
 		/* Collapse the mesh into a more usable form */
         // iterate over all height spans/elements
         for (HeightSpanIterator hsi=begin(); !at_end(hsi); next(hsi)) {
@@ -839,7 +840,7 @@ public:
                     if (m_filterInconsistencies && (!hs1.get_flag( idx_trans[l1] ) || !hs2.get_flag( idx_trans[l2])
                                                     || (hs1.get_nbr_slab_idx( idx_trans[l1] ) != hsi.k)
                                                     || (hs2.get_nbr_slab_idx( idx_trans[l2] ) != hsi.k))) {
-                        Log(EWarn, "Ignoring triangle because of missing inverse connection information");
+                        ++ignoredTris;
                         continue;
                     }
                     // calculate the actual positions (still in object space)
@@ -879,7 +880,11 @@ public:
                     
                 }
             }
-        }		
+        }
+
+        if (ignoredTris > 0) {
+            Log(EWarn, "%i triangles have been ignored because of missing inverse connection information", ignoredTris);
+        }
 		
         ref<TriMesh> mesh = new TriMesh(name,
 			triangles.size(), vertexBuffer.size(),
