@@ -465,7 +465,8 @@ void DirectShaderManager::init() {
 }
 
 void DirectShaderManager::configure(const BSDF *bsdf,
-            const Luminaire *luminaire, const Point &camPos, bool faceNormals) {
+            const Luminaire *luminaire, const SpotLight &spot,
+            const Point &camPos, bool faceNormals) {
     Shader *bsdfShader = m_renderer->getShaderForResource(bsdf);
     Shader *lumShader = (luminaire == NULL) ? NULL
         : m_renderer->getShaderForResource(luminaire);
@@ -479,28 +480,241 @@ void DirectShaderManager::configure(const BSDF *bsdf,
         return;
     }
 
+   GPUProgram* program = NULL;
+
+   //if (bsdfShader != NULL)
+   //     program = m_renderer->createGPUProgram(configName);
+
     bool anisotropic = bsdf->getType() & BSDF::EAnisotropic;
 
-    m_targetConfig = DirectProgramConfiguration(); //subsurfaceShader, bsdfShader, lumShader, faceNormals);
+    m_targetConfig = DirectProgramConfiguration(bsdfShader, lumShader, faceNormals);
     m_targetConfig.toString(oss);
     std::string configName = oss.str();
     std::map<std::string, ProgramAndConfiguration>::iterator it =
         m_programs.find(configName);
-    GPUProgram* program = NULL;
 
     if (it != m_programs.end()) {
-        /* A program for this configuration has been created previously */
+        // A program for this configuration has been created previously
         m_current = (*it).second;
         program = m_current.program;
     } else {
-        /* No program for this particular combination exists -- create one */
+        // No program for this particular combination exists -- create one
         program = m_renderer->createGPUProgram(configName);
+
+		if (faceNormals) {
+			/* Generate face normals in a geometry shader */
+	
+    		if (!m_renderer->getCapabilities()->isSupported(
+					RendererCapabilities::EGeometryShaders))
+				Log(EError, "Face normals require geometry shader support!");
+			if (anisotropic)
+				Log(EError, "Anisotropy and face normals can't be combined at the moment");
+	
+			oss.str("");
+			oss << "#version 120" << endl
+				<< "#extension GL_EXT_geometry_shader4 : enable" << endl
+				<< "varying in vec3 lightVec_vertex[3], camVec_vertex[3];" << endl
+				<< "varying in vec2 uv_vertex[3];" << endl
+				<< "varying in vec3 vertexColor_vertex[3];" << endl
+				<< "varying out vec3 normal;" << endl
+				<< "varying out vec3 lightVec, camVec;" << endl
+				<< "varying out vec2 uv;" << endl
+				<< "varying out vec3 vertexColor;" << endl
+				<< endl
+				<< "void main() {" << endl
+				<< "   vec3 p0 = gl_PositionIn[0].xyz / gl_PositionIn[0].w;" << endl
+				<< "   vec3 p1 = gl_PositionIn[1].xyz / gl_PositionIn[1].w;" << endl
+				<< "   vec3 p2 = gl_PositionIn[2].xyz / gl_PositionIn[2].w;" << endl
+				<< "   normal = normalize(cross(p1 - p0, p2 - p0));" << endl
+				<< "   gl_Position = vec4(0.0);" << endl
+				<< "   lightVec = camVec = vec3(0.0);" << endl
+				<< "   for (int i=0; i<gl_VerticesIn; ++i) {" << endl
+				<< "      gl_Position = gl_PositionIn[i];" << endl
+				<< "      uv = uv_vertex[i];" << endl
+				<< "      vertexColor = vertexColor_vertex[i];" << endl
+				<< "      lightVec = lightVec_vertex[i];" << endl
+				<< "      camVec = camVec_vertex[i];" << endl
+				<< "      EmitVertex();" << endl
+				<< "   }" << endl
+				<< "   EndPrimitive();" << endl
+				<< "}" << endl;
+
+			program->setMaxVertices(3); 
+			program->setSource(GPUProgram::EGeometryProgram, oss.str());
+		}
+
+		/* Vertex program */
+		oss.str("");
+        oss << "#version 120" << endl;
+		if (anisotropic)
+			oss << "varying vec3 tangent;" << endl;
+		oss << "uniform vec3 lightPos, camPos;" << endl;
+
+		if (!faceNormals) {
+			oss << "varying vec3 lightVec, camVec;" << endl
+				<< "varying vec2 uv;" << endl
+				<< "varying vec3 normal;" << endl
+				<< "varying vec3 vertexColor;" << endl
+				<< endl
+				<< "void main() {" << endl
+				<< "   uv = gl_MultiTexCoord0.xy;" << endl
+				<< "   camVec = camPos - gl_Vertex.xyz;" << endl
+				<< "   lightVec = lightPos - gl_Vertex.xyz;" << endl
+				<< "   gl_Position = ftransform();" << endl
+				<< "   vertexColor = gl_Color.rgb;" << endl
+				<< "   normal = gl_Normal;" << endl;
+		} else {
+			oss << "varying vec3 lightVec_vertex, camVec_vertex;" << endl
+				<< "varying vec2 uv_vertex;" << endl
+				<< "varying vec3 vertexColor_vertex;" << endl
+				<< endl
+				<< "void main() {" << endl
+				<< "   uv_vertex = gl_MultiTexCoord0.xy;" << endl
+				<< "   camVec_vertex = camPos - gl_Vertex.xyz;" << endl
+				<< "   lightVec_vertex = lightPos - gl_Vertex.xyz;" << endl
+				<< "   gl_Position = ftransform();" << endl
+				<< "   vertexColor_vertex = gl_Color.rgb;" << endl;
+		}
+		if (anisotropic)
+			oss << "   tangent = gl_MultiTexCoord1.xyz;" << endl;
+		oss << "}" << endl;
+
+		program->setSource(GPUProgram::EVertexProgram, oss.str());
+		oss.str("");
+
+		oss << "#version 120" << endl
+			<< endl
+			<< "/* Uniform inputs */" << endl
+			<< "uniform samplerCube shadowMap;" << endl
+            << "uniform vec3 lightPower;" << endl
+			<< "uniform float nearClip, invClipRange, minDist;" << endl
+			<< "uniform bool diffuseSources, diffuseReceivers;" << endl
+			<< "varying vec3 vertexColor;" << endl
+			<< endl
+			<< "/* Inputs <- Vertex program */" << endl
+			<< "varying vec3 normal, lightVec, camVec;" << endl
+			<< "varying vec2 uv;" << endl;
+		if (anisotropic)
+			oss << "varying vec3 tangent;" << endl;
+
+		oss << endl
+			<< "/* Some helper functions for BSDF implementations */" << endl
+			<< "float cosTheta(vec3 v) { return v.z; }" << endl
+			<< "float sinTheta2(vec3 v) { return 1.0-v.z*v.z; }" << endl
+			<< "float sinTheta(vec3 v) { float st2 = sinTheta2(v); if (st2 <= 0) return 0.0; else return sqrt(sinTheta2(v)); }" << endl
+			<< "float tanTheta(vec3 v) { return sinTheta(v)/cosTheta(v); }" << endl
+			<< endl;
+
+		std::string bsdfEvalName, lumEvalName;
+		m_targetConfig.generateCode(oss, bsdfEvalName, lumEvalName);
+
+		oss << "void main() {" << endl
+			<< "   /* Set up an ONB */" << endl
+			<< "   vec3 N = normalize(normal);" << endl;
+		if (anisotropic) {
+			oss << "   vec3 S = normalize(tangent - dot(tangent, N)*N);" << endl;
+		} else {
+			oss << "   vec3 S;" << endl
+				<< "   if (abs(N.x) > abs(N.y)) {" << endl
+				<< "      float invLen = 1.0 / sqrt(N.x*N.x + N.z*N.z);" << endl
+				<< "      S = vec3(-N.z * invLen, 0.0, N.x * invLen);" << endl
+				<< "   } else {" << endl
+				<< "      float invLen = 1.0 / sqrt(N.y*N.y + N.z*N.z);" << endl
+				<< "      S = vec3(0.0, -N.z * invLen, N.y * invLen);" << endl
+				<< "   }" << endl;
+		}
+		oss << "   vec3 T = cross(N, S);" << endl
+			<< endl
+			<< "   /* Compute shadows */" << endl
+			<< "   float d = length(lightVec);" << endl
+			<< "   vec3 nLightVec = lightVec/d, absLightVec = abs(lightVec);" << endl
+			<< "   float depth = max(max(absLightVec.x, absLightVec.y), absLightVec.z);" << endl
+			<< "   depth = (depth-nearClip) * invClipRange - 0.005;" << endl
+			<< "   float shadow = textureCube(shadowMap, nLightVec).r > depth ? 1.0 : 0.0;" << endl
+			<< endl
+			<< "   /* Shading */" << endl
+			<< "   vec3 nCamVec = normalize(camVec);" << endl
+			<< "   vec3 wo = vec3(dot(S, nLightVec)," << endl
+			<< "                  dot(T, nLightVec)," << endl
+			<< "                  dot(N, nLightVec));" << endl
+			<< "   vec3 wi = vec3(dot(S, nCamVec)," << endl
+			<< "                  dot(T, nCamVec)," << endl
+			<< "                  dot(N, nCamVec));" << endl
+			<< "   vec3 contrib = lightPower;" << endl;
+			//<< "   if (!diffuseSources)" << endl 
+			//<< "      contrib *= " << vplEvalName;
+			//if (vpl.type == ESurfaceVPL)
+			//	oss << "(vplUV, vplWi, vplWo);" << endl;
+			//else
+			//	oss << "_dir(vplWo);" << endl;
+		oss << "   if (d < minDist) d = minDist;" << endl
+			<< "   if (!diffuseReceivers)" << endl
+			<< "      contrib *= "<< bsdfEvalName << "(uv, wi, wo);" << endl
+			<< "   else" << endl
+			<< "      contrib *= " << bsdfEvalName << "_diffuse(uv, wi, wo);" << endl
+			<< "   gl_FragColor.rgb = contrib";
+		//if (vpl.type == ESurfaceVPL || (vpl.type == ELuminaireVPL 
+		//		&& (vpl.luminaire->getType() & Luminaire::EOnSurface)))
+		//	oss << " * (shadow * abs(cosTheta(wo) * cosTheta(vplWo)) / (d*d))";
+		//else 
+		oss << " * (shadow * abs(cosTheta(wo)) / (d*d))";
+		if (luminaire != NULL) {
+			oss << endl;
+			oss << "                      + " << lumEvalName << "_area(uv)"
+				<< " * " << lumEvalName << "_dir(wi);" << endl;
+		} else {
+			oss << ";" << endl;
+		}
+		oss << "   gl_FragColor.a = 1.0;" << endl
+			<< "}" << endl;
+
+		program->setSource(GPUProgram::EFragmentProgram, oss.str());
+		try {
+			program->init();
+		} catch (const std::exception &) {
+			Log(EWarn, "Unable to compile the following VPL program:\n%s", oss.str().c_str());
+			throw;
+		}
+
+		m_targetConfig.resolve(program);
+		m_targetConfig.param_shadowMap = program->getParameterID("shadowMap", false);
+		m_targetConfig.param_camPos = program->getParameterID("camPos", false);
+		m_targetConfig.param_lightPower = program->getParameterID("lightPower", false);
+		m_targetConfig.param_lightPos = program->getParameterID("lightPos", false);
+		m_targetConfig.param_nearClip = program->getParameterID("nearClip", false);
+		m_targetConfig.param_invClipRange = program->getParameterID("invClipRange", false);
+		m_targetConfig.param_minDist = program->getParameterID("minDist", false);
+		m_targetConfig.param_diffuseSources = program->getParameterID("diffuseSources", false);
+		m_targetConfig.param_diffuseReceivers = program->getParameterID("diffuseReceivers", false);
+		m_current.program = program;
+		m_current.config = m_targetConfig;
+		m_programs[configName] = m_current;
+		program->incRef();
 
         // ToDo: Shadow program
     }
 
     program->bind();
     //m_shadowMap->bind();
+
+	const DirectProgramConfiguration &config = m_current.config;
+
+	//program->setParameter(config.param_shadowMap, m_shadowMap);
+	program->setParameter(config.param_lightPos, spot.pos);
+	program->setParameter(config.param_camPos, camPos);
+	//program->setParameter(config.param_diffuseSources, m_diffuseSources);
+	//Spectrum power = spot.color;
+	//if (m_diffuseSources && vpl.type == ESurfaceVPL)
+	//	power *= vpl.its.shape->getBSDF()->getDiffuseReflectance(vpl.its) * INV_PI;
+    // ToDo: 100 is just a migic number, the light is too dark without it
+	program->setParameter(config.param_lightPower, spot.color * 100 /* power */);
+	program->setParameter(config.param_diffuseReceivers, m_diffuseReceivers);
+	program->setParameter(config.param_nearClip, m_nearClip);
+	program->setParameter(config.param_invClipRange, m_invClipRange);
+	program->setParameter(config.param_minDist, m_minDist);
+
+	int textureUnitOffset = 1;
+	m_targetConfig.bind(program, config, textureUnitOffset);
 }
 
 
@@ -519,13 +733,11 @@ void DirectShaderManager::drawBackground(const Transform &clipToWorld, const Poi
 }
 
 void DirectShaderManager::unbind() {
-    /*
     if (m_current.program && m_current.program->isBound()) {
         m_targetConfig.unbind();
         m_current.program->unbind();
-        m_shadowMap->unbind();
+        //m_shadowMap->unbind();
     }
-    */
 }
 
 void DirectShaderManager::cleanup() {

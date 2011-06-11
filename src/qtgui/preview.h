@@ -49,19 +49,6 @@ public:
     } Splat;
 
     typedef struct {
-        /* splat origin */
-        Point pos;
-        /* direction of spot */
-        Vector3 dir;
-        /* spot aperture */
-        Float aperture;
-        /* diffuse light color */
-        Vector3 color;
-        /* specular light color */
-        Vector3 specularColor;
-    } SpotLight;
-
-    typedef struct {
         const TriMesh* mesh;
         ref<GPUTexture> albedoMap;
         ref<GPUTexture> diffusionMap;

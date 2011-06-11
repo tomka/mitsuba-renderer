@@ -933,10 +933,11 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
 #endif
         } else { // mesh not made of snow
             m_renderer->beginDrawingMeshes();
-            //m_shaderManager->configure(vpl, meshes[j]->getBSDF(), 
-            //    meshes[j]->getLuminaire(), camPos, !meshes[j]->hasVertexNormals());
+
+            m_directShaderManager->configure(mesh->getBSDF(), 
+                mesh->getLuminaire(), m_currentSpot, camPos, !mesh->hasVertexNormals());
             m_renderer->drawTriMesh(mesh);
-            //m_shaderManager->unbind();
+            m_directShaderManager->unbind();
             m_renderer->endDrawingMeshes();
         }
     }

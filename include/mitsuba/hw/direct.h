@@ -25,6 +25,23 @@
 MTS_NAMESPACE_BEGIN
 
 /**
+ * This spot light class is still needed for realtime
+ * subsurface scattering.
+ */
+typedef struct {
+    /* splat origin */
+    Point pos;
+    /* direction of spot */
+    Vector3 dir;
+    /* spot aperture */
+    Float aperture;
+    /* diffuse light color */
+    Vector3 color;
+    /* specular light color */
+    Vector3 specularColor;
+} SpotLight;
+
+/**
  * Manage the direct rendering of a scene by making use of
  * GPU programs. Real-Rime subsurface scattering is supported.
  */
@@ -37,7 +54,7 @@ public:
 
 	/// Prepare for rendering a material with BSDF 'bsdf'
 	void configure(const BSDF *bsdf, const Luminaire *luminaire,
-            const Point &camPos, bool faceNormals);
+            const SpotLight &spot, const Point &camPos, bool faceNormals);
 
 	/// Draw the background if there is an environment luminaire
 	void drawBackground(const Transform &clipToWorld, const Point &camPos);
@@ -160,20 +177,57 @@ private:
     };
 
     struct DirectProgramConfiguration {
-        int param_lightPos, param_lightDir, param_lightColor;
-        int param_lightAperture;
+        DirectDependencyNode bsdf, luminaire;
+        bool hasLuminaire, faceNormals;
+		int param_shadowMap, param_camPos, param_lightPower;
+		int param_nearClip, param_invClipRange, param_minDist;
+		int param_diffuseSources, param_diffuseReceivers;
+        int param_lightPos; //, param_lightDir, param_lightColor;
+        //int param_lightAperture;
+
+        inline DirectProgramConfiguration() { }
+
+        inline DirectProgramConfiguration(Shader *bsdf, Shader *luminaire, bool faceNormals)
+            : bsdf(bsdf), luminaire(luminaire), faceNormals(faceNormals) {
+            hasLuminaire = (luminaire != NULL);
+        }
+
+		void generateCode(std::ostringstream &oss,
+				std::string &bsdfEvalName, std::string &luminaireEvalName) const {
+			int id = 0;
+			bsdfEvalName = bsdf.recursiveGenerateCode(oss, id);
+			if (hasLuminaire)
+				luminaireEvalName = luminaire.recursiveGenerateCode(oss, id);
+		}
+
+		void resolve(GPUProgram *program) {
+			int id = 0;
+			bsdf.recursiveResolve(program, id);
+			if (hasLuminaire)
+				luminaire.recursiveResolve(program, id);
+		}
+	
+		inline void bind(GPUProgram *program, const DirectProgramConfiguration &targetConf, int &textureUnitOffset) {
+			bsdf.recursiveBind(program, targetConf.bsdf, textureUnitOffset);
+			if (hasLuminaire)
+				luminaire.recursiveBind(program, targetConf.luminaire, textureUnitOffset);
+		}
+		
+        inline void unbind() {
+            bsdf.recursiveUnbind();
+            if (hasLuminaire)
+                luminaire.recursiveUnbind();
+        }
 
         inline void toString(std::ostringstream &oss) const {
-            oss << "vpl=";
-            //vpl.toString(oss);
-            oss << ", bsdf=";
-            //bsdf.toString(oss);
-            //if (hasLuminaire) {
-            //    oss << ", luminaire=";
-            //    luminaire.toString(oss);
-            //}
-            //if (faceNormals)
-            //    oss << ", faceNormals";
+            oss << "bsdf=";
+            bsdf.toString(oss);
+            if (hasLuminaire) {
+                oss << ", luminaire=";
+                luminaire.toString(oss);
+            }
+            if (faceNormals)
+                oss << ", faceNormals";
         }
     };
 
