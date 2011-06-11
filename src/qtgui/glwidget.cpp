@@ -309,7 +309,6 @@ void GLWidget::setScene(SceneContext *context) {
 	if (m_movementTimer->isActive())
 		m_movementTimer->stop();
 	m_context = context;
-
 	if (context && context->scene == NULL)
 		context = NULL;
 	m_preview->setSceneContext(context, true, false);
