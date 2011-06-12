@@ -403,7 +403,7 @@ void DirectShaderManager::init() {
            // Vertex (splat center) position in camera space
         "  vec4 vMV = gl_ModelViewMatrix * gl_Vertex;\n"
            // Translate by current offset to generate the billboard
-        "  vMV.xy += billboardOffset*billboardRadius; //*length(gl_MultiTexCoord0.xyz);\n"
+        "  vMV.xy += billboardOffset*billboardRadius;\n"
            // Vertex position in clip space
         "  vec4 vMVP = gl_ProjectionMatrix * vMV;\n"
            // Give splat origin and screen space coordinates to fragment program
@@ -422,21 +422,25 @@ void DirectShaderManager::init() {
         "uniform sampler2D translucencyTex;\n"
         "uniform float billboardRadius;\n"
         "\n"
-         // Corresponds to a light source in the dipole theory
+         /* The origin of the splat currently rendered. It corresponds
+          * to a light source in the dipole theory */
         "varying vec3 splatOrigin;\n"
          // Pixel projected texture coordinate
         "varying vec4 pixelProj;\n"
         "\n"
         "void main() {\n"
-           // Calculate visible surfaces
+           /* Calculate visible surfaces by accessing the texture in normalized device ccordinates
+            * by doing pp.st/pp.ww. After that pp will be positioned in a cube with (0,0,0) as center
+            * lowest corner (-1,-1,-1) and (1,1,1) as largest. Thus devide by two and shift to [0,1]. */
         "  vec3 visSurfPos = texture2D( viewSurfPos, 0.5 + 0.5*pixelProj.st/pixelProj.ww ).rgb;\n"
-           // Distance from the splat center in screen space
+           // Distance from the splat center in world space
         "  float dist = length(visSurfPos - splatOrigin);\n"
            // Texture coordinate in 1D diffusion profile
-        "  float dist2splatCenter = dist/(billboardRadius); //*length(gl_TexCoord[0].xyz)\n"
+        "  float dist2splatCenter = dist/(billboardRadius);\n"
            // gl_TexCoord[0].xyz contains the splat color at origin
         "  vec3 finalPixelColor=gl_TexCoord[0].xyz * texture2D( translucencyTex, vec2(dist2splatCenter,0.5)).rgb;\n"
-        "  gl_FragColor = vec4(finalPixelColor, 0.0);\n"
+           // Assign final color and count up alpha
+        "  gl_FragColor = vec4(finalPixelColor, 1.0);\n"
         "}\n"
     );
 
@@ -526,6 +530,7 @@ void DirectShaderManager::init() {
         << "  \n"
            // Final color
         << "  gl_FragColor = vec4(specular + surfaceAlbedo*subsurfaceContrib.rgb/sampleScale,0.0);\n"
+        //<< "  gl_FragColor = vec4(specular + surfaceAlbedo * subsurfaceContrib.rgb * subsurfaceContrib.a / sampleScale, 0.0);\n"
         << "}\n";
 
     m_finalContributionProgram->setSource(GPUProgram::EFragmentProgram, finalCotribFragmentProg.str());
