@@ -7,19 +7,19 @@
     <x>0</x>
     <y>0</y>
     <width>177</width>
-    <height>275</height>
+    <height>325</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
     <width>0</width>
-    <height>275</height>
+    <height>325</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
     <width>16777215</width>
-    <height>275</height>
+    <height>325</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -189,7 +189,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>210</y>
+     <y>260</y>
      <width>131</width>
      <height>19</height>
     </rect>
@@ -202,7 +202,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>230</y>
+     <y>280</y>
      <width>131</width>
      <height>19</height>
     </rect>
@@ -215,7 +215,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>250</y>
+     <y>300</y>
      <width>81</width>
      <height>19</height>
     </rect>
@@ -229,19 +229,19 @@
     <rect>
      <x>10</x>
      <y>160</y>
-     <width>160</width>
-     <height>48</height>
+     <width>165</width>
+     <height>100</height>
     </rect>
    </property>
    <layout class="QFormLayout" name="formLayout_2">
-    <item row="1" column="0">
+    <item row="3" column="0">
      <widget class="QLabel" name="label_4">
       <property name="text">
        <string>Specular Term</string>
       </property>
      </widget>
     </item>
-    <item row="1" column="1">
+    <item row="3" column="1">
      <widget class="QDoubleSpinBox" name="specularSpinBox">
       <property name="singleStep">
        <double>0.100000000000000</double>
@@ -262,6 +262,43 @@ splats are drawn at max.</string>
     </item>
     <item row="0" column="1">
      <widget class="QSpinBox" name="nSpinBox">
+      <property name="minimum">
+       <number>2</number>
+      </property>
+      <property name="maximum">
+       <number>4096</number>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="0">
+     <widget class="QLabel" name="label_5">
+      <property name="text">
+       <string>Viewbuffer width</string>
+      </property>
+     </widget>
+    </item>
+    <item row="2" column="0">
+     <widget class="QLabel" name="label_6">
+      <property name="text">
+       <string>Viewbuffer height</string>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="1">
+     <widget class="QSpinBox" name="viewBufferWSpinBox">
+      <property name="minimum">
+       <number>2</number>
+      </property>
+      <property name="maximum">
+       <number>4096</number>
+      </property>
+     </widget>
+    </item>
+    <item row="2" column="1">
+     <widget class="QSpinBox" name="viewBufferHSpinBox">
+      <property name="minimum">
+       <number>2</number>
+      </property>
       <property name="maximum">
        <number>4096</number>
       </property>

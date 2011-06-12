@@ -240,6 +240,8 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_shahRTSettings->rMaxRadioButton, SIGNAL(toggled(bool)), this, SLOT(onSnowRenderModelChange()));
     connect(m_shahRTSettings->specularSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_shahRTSettings->nSpinBox, SIGNAL(valueChanged(int)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_shahRTSettings->viewBufferWSpinBox, SIGNAL(valueChanged(int)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_shahRTSettings->viewBufferHSpinBox, SIGNAL(valueChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_shahRTSettings->refreshSnowButton, SIGNAL(pressed()), this, SLOT(onRefreshShahSnowParameters()));
     connect(m_shahRTSettings->refreshSnowButton2, SIGNAL(pressed()), this, SLOT(onRefreshShahSnowParameters()));
 
@@ -1081,6 +1083,8 @@ void MainWindow::onSnowRenderModelChange() {
     srs.shahMCIterations = m_shahRTSettings->mcIterationsSpinBox->value() * 1000.0;
     srs.shahPredefineRmax = m_shahRTSettings->rMaxRadioButton->isChecked();
     srs.shahMaxLightViewResolution = m_shahRTSettings->nSpinBox->value();
+    srs.shahBackbufferWidth = m_shahRTSettings->viewBufferWSpinBox->value();
+    srs.shahBackbufferHeight = m_shahRTSettings->viewBufferHSpinBox->value();
 
     SnowRenderSettings::EShahDiffusionPrType shahDiffusionProfile = 
         static_cast<SnowRenderSettings::EShahDiffusionPrType>( std::min(1, shahDiffusionExample) );
@@ -1666,6 +1670,8 @@ void MainWindow::blockRenderComponentsSignals(bool block) {
     m_shahRTSettings->rMaxRadioButton->blockSignals(block);
     m_shahRTSettings->specularSpinBox->blockSignals(block);
     m_shahRTSettings->nSpinBox->blockSignals(block);
+    m_shahRTSettings->viewBufferWSpinBox->blockSignals(block);
+    m_shahRTSettings->viewBufferHSpinBox->blockSignals(block);
     m_wiscombeSettings->depthSpinBox->blockSignals(block);
     m_hkSettings->singleScatteringSpinBox->blockSignals(block);
     m_hkSettings->multipleScatteringSpinBox->blockSignals(block);
@@ -1807,6 +1813,8 @@ void MainWindow::updateSnowRenderingComponents() {
     m_shahRTSettings->mcRadioButton->setChecked( !srs.shahPredefineRmax );
     m_shahRTSettings->rMaxRadioButton->setChecked( srs.shahPredefineRmax );
     m_shahRTSettings->nSpinBox->setValue( srs.shahMaxLightViewResolution );
+    m_shahRTSettings->viewBufferWSpinBox->setValue( srs.shahBackbufferWidth );
+    m_shahRTSettings->viewBufferHSpinBox->setValue( srs.shahBackbufferHeight );
 
     // Wiscombe
     Float wiscombeDepth = srs.wiscombeDepth;

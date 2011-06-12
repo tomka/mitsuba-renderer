@@ -166,8 +166,8 @@ private:
     float *splatColors;
 
     //cumulative splat buffer resolution to accelerate the rendering
-    const static int fboCumulSplatWidth = 100;
-    const static int fboCumulSplatHeight = 75;
+    int fboCumulSplatWidth;
+    int fboCumulSplatHeight;
 
     static unsigned int intColFormRGBF[2];
     static unsigned int intColFormRGBAF[2];

@@ -92,6 +92,9 @@ PreviewThread::PreviewThread(Device *parentDevice, Renderer *parentRenderer)
     splatOrigins = NULL;
     splatColors = NULL;
 
+    fboCumulSplatWidth = -1;
+    fboCumulSplatHeight = -1;
+
 	MTS_AUTORELEASE_END()
 }
 
@@ -409,20 +412,6 @@ void PreviewThread::run() {
 					m_framebuffer->setFrameBufferType(GPUTexture::EColorBuffer);
 					m_framebuffer->setMipMapped(false);
 					m_framebuffer->init();
-
-                    fboView = new FrameBufferObject(1);
-                    fboViewExpand = new FrameBufferObject(1);
-                    fboCumulSplat = new FrameBufferObject(1);
-                    fboTmp = new FrameBufferObject(1);
-
-                    fboView->init(fboCumulSplatWidth,fboCumulSplatHeight,intColFormRGBAF,
-                        wrap,wrap,filter,filter,FBO_DepthBufferType_TEXTURE,GL_NEAREST,GL_NEAREST,GL_CLAMP,GL_CLAMP);
-                    fboViewExpand->init(fboCumulSplatWidth,fboCumulSplatHeight,intColFormRGBAF,
-                        wrap,wrap,filter,filter,FBO_DepthBufferType_TEXTURE,GL_NEAREST,GL_NEAREST,GL_CLAMP,GL_CLAMP);
-                    fboCumulSplat->init(fboCumulSplatWidth,fboCumulSplatHeight,intColFormRGBAF,
-                        wrap,wrap,filterL,filterL,FBO_DepthBufferType_NONE,0,0,0,0);
-                    fboTmp->init(fboCumulSplatWidth,fboCumulSplatHeight,intColFormRGBF,
-                        wrap,wrap,filterL,filterL,FBO_DepthBufferType_NONE,0,0,0,0);
                 }
 
 				m_directShaderManager->setShadowMapResolution(m_context->shadowMapResolution);
@@ -890,6 +879,28 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
         splatColors = new float[fboSplatSize * fboSplatSize * 3];
     }
 
+    bool backbufferSizeChanged =   (fboCumulSplatWidth != srs.shahBackbufferWidth)
+                                || (fboCumulSplatHeight != srs.shahBackbufferHeight);
+    if (backbufferSizeChanged) {
+        fboCumulSplatWidth = srs.shahBackbufferWidth;
+        fboCumulSplatHeight = srs.shahBackbufferHeight;
+
+        fboView = new FrameBufferObject(1);
+        fboViewExpand = new FrameBufferObject(1);
+        fboCumulSplat = new FrameBufferObject(1);
+        fboTmp = new FrameBufferObject(1);
+
+        fboView->init(fboCumulSplatWidth,fboCumulSplatHeight,intColFormRGBAF,
+            wrap,wrap,filter,filter,FBO_DepthBufferType_TEXTURE,GL_NEAREST,GL_NEAREST,GL_CLAMP,GL_CLAMP);
+        fboViewExpand->init(fboCumulSplatWidth,fboCumulSplatHeight,intColFormRGBAF,
+            wrap,wrap,filter,filter,FBO_DepthBufferType_TEXTURE,GL_NEAREST,GL_NEAREST,GL_CLAMP,GL_CLAMP);
+        fboCumulSplat->init(fboCumulSplatWidth,fboCumulSplatHeight,intColFormRGBAF,
+            wrap,wrap,filterL,filterL,FBO_DepthBufferType_NONE,0,0,0,0);
+        fboTmp->init(fboCumulSplatWidth,fboCumulSplatHeight,intColFormRGBF,
+            wrap,wrap,filterL,filterL,FBO_DepthBufferType_NONE,0,0,0,0);
+
+    }
+
     // ToDo: Make this dynamic
     TranslucentShape ts;
     ts.albedoMap = albedoMap;
@@ -1196,7 +1207,8 @@ void PreviewThread::calcVisiblePositions(const TranslucentShape &ts) {
     float sOffset = 1.0f / fboView->getWidth();
     float tOffset = 1.0f / fboView->getHeight();
 
-    // render surface data from view point (pixel position on the current translucent object rendered
+    /* render surface data from view point (pixel position on
+     * the current translucent object rendered */
     fboView->enableRenderToColorAndDepth(0);
     fboView->saveAndSetViewPort();
     // alpha=0.0 pixel is not on the current object (occluder or void)
