@@ -133,8 +133,11 @@ struct SnowRenderSettings {
     int shahDiffusionExample;
     ref<Bitmap> shahDiffusionProfile;
     Float shahRmax;
+    int shahMCIterations;
+    bool shahPredefineRmax;
     Spectrum shahSpecularColor;
-
+    Float shahErrorThreshold;
+    int shahMaxLightViewResolution; 
 
     SnowRenderSettings() :
         generalRenderMode(EOffline), surfaceRenderMode(ENoSurface), subsurfaceRenderMode(ENoSubSurface),
@@ -153,7 +156,8 @@ struct SnowRenderSettings {
         adipoleD("1.6307, -0.00049, 0.00069, -0.00049, 1.63148, 0.00001, 0.00067, 0.00002, 2.12596"),
         shahExpandSilhouette(true), shahShowSplatOrigins(false), shahShowLight(false),
         shahAlbedoMapType(EWhiteAlbedo), shahDiffusionProfileType(EExampleProfile), shahDiffusionExample(4),
-        shahRmax(0.5f), shahSpecularColor(0.5f)
+        shahRmax(0.5f), shahMCIterations(10000), shahPredefineRmax(true), shahSpecularColor(0.5f),
+        shahErrorThreshold(0.01), shahMaxLightViewResolution(1024)
     {
         /* try to load last texture paths */
 	    QSettings settings("mitsuba-renderer.org", "qtgui");

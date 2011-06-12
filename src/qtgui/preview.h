@@ -158,14 +158,23 @@ private:
     SpotLight m_currentSpot;
     std::vector<Splat> splats;
 
+    // the number of overlapping splats
+    int n0;
     //light view subsurface data buffer size (square for a spot with constant aperture)
-    const static int fboSplatSize = 48;
+    int fboSplatSize;
+    float *splatOrigins;
+    float *splatColors;
+
     //cumulative splat buffer resolution to accelerate the rendering
     const static int fboCumulSplatWidth = 100;
     const static int fboCumulSplatHeight = 75;
 
-    float splatOrigins[fboSplatSize * fboSplatSize * 3];
-    float splatColors[fboSplatSize * fboSplatSize * 3];
+    static unsigned int intColFormRGBF[2];
+    static unsigned int intColFormRGBAF[2];
+    static unsigned int filter[2];
+    static unsigned int filterL[2];
+    static unsigned int wrap[2];
+    static unsigned int wrapE[2];
 
 #ifdef SSSDEBUG
     std::vector<const TriMesh*> m_exportedMeshes;

@@ -33,6 +33,13 @@ GLEWContext *glewGetContext() {
     return &glewContext;
 }
 
+unsigned int PreviewThread::intColFormRGBF[2] = {GL_RGB16F_ARB, GL_RGB16F_ARB};
+unsigned int PreviewThread::intColFormRGBAF[2] = {GL_RGBA16F_ARB, GL_RGBA16F_ARB};
+unsigned int PreviewThread::filter[2] = {GL_NEAREST, GL_NEAREST};
+unsigned int PreviewThread::filterL[2] = {GL_LINEAR, GL_LINEAR};
+unsigned int PreviewThread::wrap[2] = {GL_CLAMP, GL_CLAMP};
+unsigned int PreviewThread::wrapE[2] = {GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE};
+
 PreviewThread::PreviewThread(Device *parentDevice, Renderer *parentRenderer)
 	: Thread("prev"), m_parentDevice(parentDevice), m_parentRenderer(parentRenderer), 
 		m_directShaderManager(NULL), m_context(NULL), m_quit(false) {
@@ -82,6 +89,8 @@ PreviewThread::PreviewThread(Device *parentDevice, Renderer *parentRenderer)
     fboViewExpand  = new FrameBufferObject(1);
     fboCumulSplat = new FrameBufferObject(1);
     fboTmp = new FrameBufferObject(1);
+    splatOrigins = NULL;
+    splatColors = NULL;
 
 	MTS_AUTORELEASE_END()
 }
@@ -401,21 +410,11 @@ void PreviewThread::run() {
 					m_framebuffer->setMipMapped(false);
 					m_framebuffer->init();
 
-                    unsigned int intColFormRGBF[] = {GL_RGB16F_ARB, GL_RGB16F_ARB};
-                    unsigned int intColFormRGBAF[] = {GL_RGBA16F_ARB, GL_RGBA16F_ARB};
-                    unsigned int filter[] = {GL_NEAREST, GL_NEAREST};
-                    unsigned int filterL[] = {GL_LINEAR, GL_LINEAR};
-                    unsigned int wrap[] = {GL_CLAMP, GL_CLAMP};
-                    unsigned int wrapE[] = {GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE};
-
-                    fboLightView = new FrameBufferObject(2);
                     fboView = new FrameBufferObject(1);
                     fboViewExpand = new FrameBufferObject(1);
                     fboCumulSplat = new FrameBufferObject(1);
                     fboTmp = new FrameBufferObject(1);
 
-                    fboLightView->init(fboSplatSize,fboSplatSize,intColFormRGBAF,
-                          wrapE,wrapE,filterL,filterL,FBO_DepthBufferType_TEXTURE,GL_NEAREST,GL_NEAREST,GL_CLAMP,GL_CLAMP);
                     fboView->init(fboCumulSplatWidth,fboCumulSplatHeight,intColFormRGBAF,
                         wrap,wrap,filter,filter,FBO_DepthBufferType_TEXTURE,GL_NEAREST,GL_NEAREST,GL_CLAMP,GL_CLAMP);
                     fboViewExpand->init(fboCumulSplatWidth,fboCumulSplatHeight,intColFormRGBAF,
@@ -445,6 +444,7 @@ void PreviewThread::run() {
                 if ((albedoMap.get() == NULL) || (srs.shahAlbedoMap.get() != albedoMap->getBitmap())) {
                     /* albedo texture */
                     if (srs.shahAlbedoMap != NULL) {
+                        srs.shahAlbedoMap->incRef();
                         albedoMap = new GLTexture("Albedo Map", srs.shahAlbedoMap);
                         albedoMap->setFilterType(GPUTexture::ELinear);
                         albedoMap->setMipMapped(false);
@@ -452,6 +452,7 @@ void PreviewThread::run() {
                     } else {
                         albedoMap = NULL;
                     }
+
 #ifdef SSSDEBUG
                     std::string name = (albedoMap == NULL) ? "None" : albedoMap->toString();
                     std::cerr << "Set new realtime sss albedo map:" << std::endl << name << std::endl;
@@ -460,6 +461,7 @@ void PreviewThread::run() {
                 if ((diffusionMap.get() == NULL) || (srs.shahDiffusionProfile.get() != diffusionMap->getBitmap()) ) {
                     /* diffusion profile / sub surface scattering texture */
                     if (srs.shahDiffusionProfile != NULL) {
+                        srs.shahDiffusionProfile->incRef();
                         diffusionMap = new GLTexture("Diffusion profile map", srs.shahDiffusionProfile);
                         diffusionMap->setFilterType(GPUTexture::ELinear);
                         diffusionMap->setType(GPUTexture::ETexture2D);
@@ -468,9 +470,47 @@ void PreviewThread::run() {
                     } else {
                         diffusionMap = NULL;
                     }
+
+                    /* We avso need to change the light view resolution. According to Shah et al. this is
+                     * done by first calculating the number of overlapping quads n0: Rd(0) / (n0 * Rd(r_max) < err.
+                     * This means n0 > Rd(0) / (err * Rd(r_max)).
+                     */
+                    Bitmap *dp = srs.shahDiffusionProfile;
+                    size_t dpSize = dp->getSize();
+                    Float Rd0Max, RdRMaxMax;
+                    if (dp->getBitsPerPixel() == 128) {
+                        Float *data = dp->getFloatData();
+                        /* Find maximum R(0) value */
+                        Rd0Max = data[0];
+                        if (Rd0Max < data[1]) Rd0Max = data[1];
+                        if (Rd0Max < data[2]) Rd0Max = data[2];
+                        /* Find maximum R(r_max) vavue */
+                        RdRMaxMax = data[dpSize - 4];
+                        if (RdRMaxMax < data[dpSize - 3]) RdRMaxMax = data[dpSize - 3];
+                        if (RdRMaxMax < data[dpSize - 2]) RdRMaxMax = data[dpSize - 2];
+                        if (RdRMaxMax < 0.0001) RdRMaxMax = 0.0001;
+                    } else {
+                        unsigned char *data = dp->getData();
+                        /* Find maximum R(0) value */
+                        unsigned char R = data[0];
+                        if (R < data[1]) R = data[1];
+                        if (R < data[2]) R = data[2];
+                        Rd0Max = (Float) R;
+                        /* Find maximum R(r_max) vavue */
+                        R = data[dpSize - 4];
+                        if (R < data[dpSize - 3]) R = data[dpSize - 3];
+                        if (R < data[dpSize - 2]) R = data[dpSize - 2];
+                        RdRMaxMax = (Float) R;
+                        if (RdRMaxMax < 0.0001) RdRMaxMax = 0.0001;
+                    }
+                    /* Calculate n0 */
+                    n0 = Rd0Max / (srs.shahErrorThreshold * RdRMaxMax);
+                    /* Based on n0, a more realistic non-overlapping value can be calculated.
+                     * This is done when the light is known.
+                     */ 
 #ifdef SSSDEBUG
                     std::string name = (diffusionMap == NULL) ? "None" : diffusionMap->toString();
-                    std::cerr << "Set new realtime sss diffusion map:" << std::endl << name << std::endl;
+                    std::cerr << "Set new realtime sss diffusion map (n0 = " << n0 << "):" << std::endl << name << std::endl;
 #endif
                 }
 
@@ -829,6 +869,26 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
     m_currentSpot.color =  Vector3(spotR, spotG, spotB);
     srs.shahSpecularColor.toLinearRGB(spotR, spotG, spotB);
     m_currentSpot.specularColor = Vector3(spotR, spotG, spotB);
+
+    /* calculate light view resolution n and adapt FBO if needed. After
+     * Shah et al. this is n = (n0 * W) / (2 * r_max). W is the lights
+     * view frustum in world units. Limit the view size to a defined max.
+     */
+    Float W = 10.0f; // ToDo: Use the actual frustum
+    int n = std::min( n0 * W / (2 * srs.shahRmax), (Float) srs.shahMaxLightViewResolution);
+    if (n != fboSplatSize) {
+        fboSplatSize = n;
+        std::cerr << "Realtime SSS: New light view resolution is " << n << "x" << n << std::endl;
+        fboLightView = new FrameBufferObject(2);
+        fboLightView->init(fboSplatSize,fboSplatSize,intColFormRGBAF,
+              wrapE,wrapE,filterL,filterL,FBO_DepthBufferType_TEXTURE,GL_NEAREST,GL_NEAREST,GL_CLAMP,GL_CLAMP);
+        if (splatOrigins != NULL)
+            delete [] splatOrigins;
+        splatOrigins = new float[fboSplatSize * fboSplatSize * 3];
+        if (splatColors != NULL)
+            delete [] splatColors;
+        splatColors = new float[fboSplatSize * fboSplatSize * 3];
+    }
 
     // ToDo: Make this dynamic
     TranslucentShape ts;

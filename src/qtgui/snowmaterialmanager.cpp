@@ -5,6 +5,9 @@
 #include <mitsuba/render/subsurface.h>
 #include <mitsuba/core/plugin.h>
 #include <mitsuba/core/properties.h>
+#include <mitsuba/core/fstream.h>
+
+#define DEBUG_DIFF_PROF
 
 MTS_NAMESPACE_BEGIN
 
@@ -260,8 +263,10 @@ void SnowMaterialManager::refreshDiffusionProfile(const SceneContext *context) {
     typedef SubsurfaceMaterialManager::LUTType LUTType;
 
     const Float errThreshold = 0.01f;
-    const Float lutResolution = 0.01f;
+    const Float lutResolution = 0.001f;
     const SnowProperties &sp = context->snow;
+    const bool rMaxPredefined = context->snowRenderSettings.shahPredefineRmax;
+    const Float predefinedRmax = context->snowRenderSettings.shahRmax;
 
     Spectrum sigmaSPrime = sp.sigmaS * (1 - sp.g);
     Spectrum sigmaTPrime = sigmaSPrime + sp.sigmaA;
@@ -308,58 +313,111 @@ void SnowMaterialManager::refreshDiffusionProfile(const SceneContext *context) {
 
     const Spectrum invSigmaTr = 1.0f / sigmaTr;
     const Float inv4Pi = 1.0f / (4 * M_PI);
-    ref<Random> random = new Random();
 
-    /* Find Rd for the whole area by monte carlo integration. The
-     * sampling area is calculated from the max. mean free path.
-     * A square area around with edge length 2 * maxMFP is used
-     * for this. Hene, the sampling area is 4 * maxMFP * maxMFP. */
-    const int numSamples = 10000;
-    Spectrum Rd_A = Spectrum(0.0f);
-    for (int n = 0; n < numSamples; ++n) {
-        /* do importance sampling by choosing samples distributed
-         * with sigmaTr^2 * e^(-sigmaTr * r). */
-        Spectrum r = invSigmaTr * -std::log( random->nextFloat() );
-        Rd_A += getRd(r, sigmaTr, zv, zr);
-    }
-    Float Area = 4 * invSigmaTr.max() * invSigmaTr.max();
-    Rd_A = Area * Rd_A * alphaPrime * inv4Pi / (Float)(numSamples - 1);
-    SLog(EDebug, "After %i MC integration iterations, Rd seems to be %s", numSamples, Rd_A.toString().c_str());
-
-    /* Since we now have Rd integrated over the whole surface we can find a valid rmax
-     * for the given threshold. */
-    const Float step = lutResolution;
     Float rMax = 0.0f;
-    Spectrum err(std::numeric_limits<Float>::max());
-    while (err.max() > errThreshold) {
-        rMax += step;
-        /* Again, do MC integration, but with r clamped at rmax. */
-        Spectrum Rd_APrime(0.0f);
+
+    if (!rMaxPredefined) {
+        ref<Random> random = new Random();
+
+        /* Find Rd for the whole area by monte carlo integration. The
+         * sampling area is calculated from the max. mean free path.
+         * A square area around with edge length 2 * maxMFP is used
+         * for this. Hene, the sampling area is 4 * maxMFP * maxMFP. */
+        const int numSamples = context->snowRenderSettings.shahMCIterations;
+        Spectrum Rd_A = Spectrum(0.0f);
         for (int n = 0; n < numSamples; ++n) {
             /* do importance sampling by choosing samples distributed
              * with sigmaTr^2 * e^(-sigmaTr * r). */
             Spectrum r = invSigmaTr * -std::log( random->nextFloat() );
-            // clamp samples to rMax
-            for (int s=0; s<SPECTRUM_SAMPLES; ++s) {
-                r[s] = std::min(rMax, r[s]);
-            }
-            Rd_APrime += getRd(r, sigmaTr, zv, zr);
+            Rd_A += getRd(r, sigmaTr, zv, zr);
         }
-        Float APrime = 4 * rMax * rMax;
-        Rd_APrime = APrime * Rd_APrime * alphaPrime * inv4Pi / (Float)(numSamples - 1);
-        err = (Rd_A - Rd_APrime) / Rd_A;
+        Float Area = 4 * invSigmaTr.max() * invSigmaTr.max();
+        Rd_A = Area * Rd_A * alphaPrime * inv4Pi / (Float)(numSamples - 1);
+        SLog(EDebug, "After %i MC integration iterations, Rd seems to be %s", numSamples, Rd_A.toString().c_str());
+
+        /* Since we now have Rd integrated over the whole surface we can find a valid rmax
+         * for the given threshold. */
+        const Float step = lutResolution;
+        Spectrum err(std::numeric_limits<Float>::max());
+        while (err.max() > errThreshold) {
+            rMax += step;
+            /* Again, do MC integration, but with r clamped at rmax. */
+            Spectrum Rd_APrime(0.0f);
+            for (int n = 0; n < numSamples; ++n) {
+                /* do importance sampling by choosing samples distributed
+                 * with sigmaTr^2 * e^(-sigmaTr * r). */
+                Spectrum r = invSigmaTr * -std::log( random->nextFloat() );
+                // clamp samples to rMax
+                for (int s=0; s<SPECTRUM_SAMPLES; ++s) {
+                    r[s] = std::min(rMax, r[s]);
+                }
+                Rd_APrime += getRd(r, sigmaTr, zv, zr);
+            }
+            Float APrime = 4 * rMax * rMax;
+            Rd_APrime = APrime * Rd_APrime * alphaPrime * inv4Pi / (Float)(numSamples - 1);
+            err = (Rd_A - Rd_APrime) / Rd_A;
+        }
+        SLog(EDebug, "Maximum distance for sampling surface is %f with an error of %f", rMax, errThreshold);
+    } else {
+        rMax = predefinedRmax;
     }
-    SLog(EDebug, "Maximum distance for sampling surface is %f with an error of %f", rMax, errThreshold);
 
     /* Create the actual look-up-table */
-    const int numEntries = (int) (rMax / step) + 1;
-    std::vector<Spectrum> diffusionProfile;
+    const int numEntries = (int) (rMax / lutResolution) + 1;
+    std::vector<Spectrum> diffusionProfile(numEntries);
     for (int i=0; i<numEntries; ++i) {
-        Spectrum r = Spectrum(i * step);
-        diffusionProfile.push_back( getRd( r, sigmaTr, zv, zr) );
-std::cerr << diffusionProfile[i].toString() << std::endl;
+        Spectrum r = Spectrum(i * lutResolution);
+        diffusionProfile.at(i) = getRd( r, sigmaTr, zv, zr);
     }
     SLog(EDebug, "Created Rd diffusion profile with %i entries.", numEntries);
+
+    /* Create the diffuson profile bitmap */
+    diffusionProfileRmax = rMax;
+    bool useHDR = false;
+
+    if (useHDR) {
+        diffusionProfileCache = new Bitmap(numEntries, 1, 128);
+        float *data = diffusionProfileCache->getFloatData();
+        for (int i = 0; i < numEntries; ++i) {
+            *data++ = diffusionProfile[i][0];
+            *data++ = diffusionProfile[i][1];
+            *data++ = diffusionProfile[i][2];
+            *data++ = 1.0f;
+        }
+#ifdef DEBUG_DIFF_PROF
+        data = diffusionProfileCache->getFloatData();
+        for (int i = 0; i < numEntries * 4; ++i) {
+            std::cerr << *data++ << " ";
+        }
+        std::cerr << std::endl;
+
+        diffusionProfileCache->save(
+            Bitmap::EEXR,
+            new FileStream("img-diffprof.exr", FileStream::ETruncWrite));
+#endif
+    } else {
+        diffusionProfileCache = new Bitmap(numEntries, 1, 32);
+        Float maxRd = diffusionProfile[0].max();
+        Float scale = 255.0 / maxRd;
+        unsigned char *data = diffusionProfileCache->getData();
+        for (int i = 0; i < numEntries; ++i) {
+            *data++ = (unsigned int) (diffusionProfile[i][0] * scale + 0.5);
+            *data++ = (unsigned int) (diffusionProfile[i][1] * scale + 0.5);
+            *data++ = (unsigned int) (diffusionProfile[i][2] * scale + 0.5);
+            *data++ = 255;
+        }
+#ifdef DEBUG_DIFF_PROF
+        data = diffusionProfileCache->getData();
+        for (int i = 0; i < numEntries * 4; ++i) {
+            std::cerr << (int) (*data++) << " ";
+        }
+        std::cerr << std::endl;
+
+        diffusionProfileCache->save(
+            Bitmap::EPNG,
+            new FileStream("img-diffprof.png", FileStream::ETruncWrite));
+#endif
+    }
 }
 
 

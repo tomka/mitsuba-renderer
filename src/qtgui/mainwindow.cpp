@@ -234,8 +234,13 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_shahRTSettings->showSplatOriginsCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_shahRTSettings->showLightCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_shahRTSettings->rMaxSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_shahRTSettings->mcIterationsSpinBox, SIGNAL(valueChanged(int)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_shahRTSettings->mcRadioButton, SIGNAL(toggled(bool)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_shahRTSettings->rMaxRadioButton, SIGNAL(toggled(bool)), this, SLOT(onSnowRenderModelChange()));
     connect(m_shahRTSettings->specularSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_shahRTSettings->nSpinBox, SIGNAL(valueChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_shahRTSettings->refreshSnowButton, SIGNAL(pressed()), this, SLOT(onRefreshShahSnowParameters()));
+    connect(m_shahRTSettings->refreshSnowButton2, SIGNAL(pressed()), this, SLOT(onRefreshShahSnowParameters()));
 
     connect(m_wiscombeSettings->depthSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
 
@@ -931,8 +936,6 @@ void MainWindow::onRefreshShahSnowParameters() {
 		return;
 	SceneContext *context = m_context[currentIndex];
 
-   // ref<SubsurfaceMaterialManager> smm = SubsurfaceMaterialManager::getInstance();
-   // std::string hash = smm->getDipoleLUTHash();
     context->snowMaterialManager.refreshDiffusionProfile(context);
     
     std::pair< ref<Bitmap>, Float > data = context->snowMaterialManager.getCachedDiffusionProfile();
@@ -1017,6 +1020,9 @@ void MainWindow::onSnowRenderModelChange() {
         
     int shahDiffusionExample = m_shahRTSettings->diffusionProfileComboBox->currentIndex();
     bool shahDiffusionProfileChanged = (srs.shahDiffusionExample != shahDiffusionExample);
+    srs.shahMCIterations = m_shahRTSettings->mcIterationsSpinBox->value() * 1000.0;
+    srs.shahPredefineRmax = m_shahRTSettings->rMaxRadioButton->isChecked();
+    srs.shahMaxLightViewResolution = m_shahRTSettings->nSpinBox->value();
 
     SnowRenderSettings::EShahDiffusionPrType shahDiffusionProfile = 
         static_cast<SnowRenderSettings::EShahDiffusionPrType>( std::min(1, shahDiffusionExample) );
@@ -1597,7 +1603,11 @@ void MainWindow::blockRenderComponentsSignals(bool block) {
     m_shahRTSettings->showSplatOriginsCheckBox->blockSignals(block);
     m_shahRTSettings->showLightCheckBox->blockSignals(block);
     m_shahRTSettings->rMaxSpinBox->blockSignals(block);
+    m_shahRTSettings->mcIterationsSpinBox->blockSignals(block);
+    m_shahRTSettings->mcRadioButton->blockSignals(block);
+    m_shahRTSettings->rMaxRadioButton->blockSignals(block);
     m_shahRTSettings->specularSpinBox->blockSignals(block);
+    m_shahRTSettings->nSpinBox->blockSignals(block);
     m_wiscombeSettings->depthSpinBox->blockSignals(block);
     m_hkSettings->singleScatteringSpinBox->blockSignals(block);
     m_hkSettings->multipleScatteringSpinBox->blockSignals(block);
@@ -1732,9 +1742,13 @@ void MainWindow::updateSnowRenderingComponents() {
     m_shahRTSettings->expandSilhouetteCheckBox->setChecked( srs.shahExpandSilhouette );
     m_shahRTSettings->showSplatOriginsCheckBox->setChecked( srs.shahShowSplatOrigins );
     m_shahRTSettings->showLightCheckBox->setChecked( srs.shahShowLight );
+    m_shahRTSettings->mcIterationsSpinBox->setValue( srs.shahMCIterations / 1000.0 );
     m_shahRTSettings->rMaxSpinBox->setValue( srs.shahRmax );
     m_shahRTSettings->specularSpinBox->setValue( srs.shahSpecularColor.average() );
     m_shahRTSettings->refreshSnowButton->setEnabled(srs.shahDiffusionProfileType == SnowRenderSettings::ESnowProfile);
+    m_shahRTSettings->mcRadioButton->setChecked( !srs.shahPredefineRmax );
+    m_shahRTSettings->rMaxRadioButton->setChecked( srs.shahPredefineRmax );
+    m_shahRTSettings->nSpinBox->setValue( srs.shahMaxLightViewResolution );
 
     // Wiscombe
     Float wiscombeDepth = srs.wiscombeDepth;
