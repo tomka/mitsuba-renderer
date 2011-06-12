@@ -917,7 +917,7 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
                 // ToDo:
             }
 
-            calcSplatPositions(ts); // in light view
+            calcSplatPositions(ts, camPos); // in light view
 
             // view matrix must have been set here
             calcVisiblePositions(ts); // in camera view
@@ -1045,7 +1045,7 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
 	}
 }
 
-void PreviewThread::calcSplatPositions(const TranslucentShape &ts) {
+void PreviewThread::calcSplatPositions(const TranslucentShape &ts, Point &camPos) {
 	const std::vector<const TriMesh *> meshes = m_directShaderManager->getMeshes();
 
     // Setup spot light view space.
@@ -1063,8 +1063,6 @@ void PreviewThread::calcSplatPositions(const TranslucentShape &ts) {
         m_currentSpot.pos.z + m_currentSpot.dir.z,
         0.0f,1.0f,0.0f);
 
-    GPUProgram *lightViewProgram = m_directShaderManager->m_lightViewProgram;
-
     fboLightView->saveAndSetViewPort();
 
     GLenum drawBuffers[2] = {GL_COLOR_ATTACHMENT0_EXT, GL_COLOR_ATTACHMENT1_EXT};
@@ -1078,40 +1076,63 @@ void PreviewThread::calcSplatPositions(const TranslucentShape &ts) {
     glActiveTexture(GL_TEXTURE0);
     glEnable(GL_TEXTURE_2D);
 
-    lightViewProgram->bind();
-    ts.albedoMap->bind(0);
-    lightViewProgram->setParameter(m_directShaderManager->param_lightPos, m_currentSpot.pos);
-    lightViewProgram->setParameter(m_directShaderManager->param_lightColor, m_currentSpot.color);
-    lightViewProgram->setParameter(m_directShaderManager->param_lightDir, m_currentSpot.dir);
-    lightViewProgram->setParameter(m_directShaderManager->param_lightAperture, degToRad(m_currentSpot.aperture * 0.5f));
-    lightViewProgram->setParameter(m_directShaderManager->param_lightAlbedoTex, ts.albedoMap.get());
+    // WiscombeWarren-Albedo will be calculated in the shader
+    if (m_context->snowRenderSettings.shahAlbedoMapType != SnowRenderSettings::EWiscombeWarrenAlbedo) {
+        GPUProgram *lightViewProgram = m_directShaderManager->m_lightViewProgram;
+        lightViewProgram->bind();
+        ts.albedoMap->bind(0);
+        lightViewProgram->setParameter(m_directShaderManager->param_lightPos, m_currentSpot.pos);
+        lightViewProgram->setParameter(m_directShaderManager->param_lightColor, m_currentSpot.color);
+        lightViewProgram->setParameter(m_directShaderManager->param_lightDir, m_currentSpot.dir);
+        lightViewProgram->setParameter(m_directShaderManager->param_lightAperture, degToRad(m_currentSpot.aperture * 0.5f));
+        lightViewProgram->setParameter(m_directShaderManager->param_lightAlbedoTex, ts.albedoMap.get());
 
-    /* It is currently  not necessary to translate trimeshes around. */
-    //glMatrixMode(GL_TEXTURE);
-    //glPushMatrix();
-    //glLoadIdentity();
-    //meshes[j]->getPosition(top);
-    //glTranslatef(top.x,top.y,top.z);
-    //glMatrixMode(GL_MODELVIEW);
-    //glPushMatrix();
-    //glTranslatef(top.x,top.y,top.z);
+        /* It is currently  not necessary to translate trimeshes around. */
+        //glMatrixMode(GL_TEXTURE);
+        //glPushMatrix();
+        //glLoadIdentity();
+        //meshes[j]->getPosition(top);
+        //glTranslatef(top.x,top.y,top.z);
+        //glMatrixMode(GL_MODELVIEW);
+        //glPushMatrix();
+        //glTranslatef(top.x,top.y,top.z);
 
-    // render the current translucent object
-    m_renderer->beginDrawingMeshes();
+        // render the current translucent object
+        m_renderer->beginDrawingMeshes();
 
-    // needs tex coord and normal
-    m_renderer->drawTriMesh(ts.mesh);
+        // needs tex coord and normal
+        m_renderer->drawTriMesh(ts.mesh);
 
-    m_renderer->endDrawingMeshes();
+        m_renderer->endDrawingMeshes();
 
-    //glPopMatrix();
-    //glMatrixMode(GL_TEXTURE);
-    //glPopMatrix();
-    //glMatrixMode(GL_MODELVIEW);
+        //glPopMatrix();
+        //glMatrixMode(GL_TEXTURE);
+        //glPopMatrix();
+        //glMatrixMode(GL_MODELVIEW);
 
-    // unbind light view program and clean up
-    lightViewProgram->unbind();
-    ts.albedoMap->unbind();
+        // unbind light view program and clean up
+        lightViewProgram->unbind();
+        ts.albedoMap->unbind();
+    } else {
+        ref<GPUProgram> lightViewWWProgram = m_directShaderManager->m_lightViewWWProgram;
+        lightViewWWProgram->bind();
+        lightViewWWProgram->setParameter(m_directShaderManager->param_lightWWCamPos, camPos);
+        lightViewWWProgram->setParameter(m_directShaderManager->param_lightWWPos, m_currentSpot.pos);
+        lightViewWWProgram->setParameter(m_directShaderManager->param_lightWWColor, m_currentSpot.color);
+        lightViewWWProgram->setParameter(m_directShaderManager->param_lightWWDir, m_currentSpot.dir);
+        lightViewWWProgram->setParameter(m_directShaderManager->param_lightWWAperture, degToRad(m_currentSpot.aperture * 0.5f));
+        int texOffset = 0;
+        m_directShaderManager->m_wiscombeWarrenShader->bind(lightViewWWProgram.get(),
+            m_directShaderManager->m_wiscombeWarrenParams, texOffset);
+
+        m_renderer->beginDrawingMeshes();
+        // needs tex coord and normal
+        m_renderer->drawTriMesh(ts.mesh);
+        m_renderer->endDrawingMeshes();
+
+        lightViewWWProgram->unbind();
+    }
+
     fboLightView->disableRenderToColorDepth();
 
     //render occluders

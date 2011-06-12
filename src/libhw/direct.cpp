@@ -3,6 +3,7 @@
 #include <mitsuba/hw/gpuprogram.h>
 #include <mitsuba/hw/gputexture.h>
 #include <mitsuba/render/scene.h>
+#include <mitsuba/core/properties.h>
 
 MTS_NAMESPACE_BEGIN
 
@@ -154,7 +155,7 @@ void DirectShaderManager::init() {
         m_backgroundDependencies.recursiveResolve(m_backgroundProgram, id);
     }
 
-    /* light view program */
+    /* light view program - with albedo map */
     m_lightViewProgram = m_renderer->createGPUProgram("SplatSSS LightView Program");
     m_lightViewProgram->setSource(GPUProgram::EVertexProgram,
         "#version 120\n"
@@ -215,6 +216,83 @@ void DirectShaderManager::init() {
     param_lightAperture = m_lightViewProgram->getParameterID("lightAperture", false);
     param_lightAlbedoTex = m_lightViewProgram->getParameterID("albedoTex", false);
 
+    /* light view program - wiscombe warren albedo */
+    PluginManager *pluginManager = PluginManager::getInstance();
+    Properties props("wiscombe");
+    ref<BSDF> wiscombeBsdf = static_cast<BSDF *> (pluginManager->createObject(
+                    BSDF::m_theClass, props));
+    wiscombeBsdf->configure();
+    m_wiscombeWarrenShader = wiscombeBsdf->createShader(m_renderer);
+    Assert(m_wiscombeWarrenShader != NULL);
+
+    m_lightViewWWProgram = m_renderer->createGPUProgram("SplatSSS LightView WW Program");
+    m_lightViewWWProgram->setSource(GPUProgram::EVertexProgram,
+        "#version 120\n"
+        "uniform vec3 camPos;\n"
+        "uniform vec3 lightPos;\n"
+        "uniform vec3 lightColor;\n"
+        "uniform vec3 lightDir;\n"
+        "uniform float lightAperture;\n"
+        "\n"
+        "varying vec3 surfPos;\n"
+        "varying vec3 normal;\n"
+        "varying vec3 surfToLight;\n"
+        "varying vec3 surfToCam;\n"
+        "\n"
+        "void main() {\n"
+           // Vertex position in camera space
+        "  vec4 vMV = gl_ModelViewMatrix * gl_Vertex;\n"
+           // Vertex position in clip space
+        "  vec4 vMVP = gl_ProjectionMatrix * vMV;\n"
+        "  surfPos = (gl_TextureMatrix[0] * gl_Vertex).xyz;\n"
+        "  surfToLight = lightPos-surfPos.xyz;\n"
+        "  surfToCam = camPos-surfPos.xyz;\n"
+        "\n"
+        "  gl_TexCoord[0] = gl_MultiTexCoord0;\n" //out
+        "  normal = gl_Normal;\n"
+        "  gl_Position = vMVP;\n"
+        "}\n"
+    );
+
+    std::ostringstream oss;
+    oss << "#version 120\n"
+        << "uniform vec3 lightPos;\n"
+        << "uniform vec3 lightColor;\n"
+        << "uniform vec3 lightDir;\n"
+        << "uniform float lightAperture;\n"
+        << "\n"
+        << "varying vec3 surfPos;\n"
+        << "varying vec3 normal;\n"
+        << "varying vec3 surfToLight;\n"
+        << "varying vec3 surfToCam;\n"
+        << "\n";
+    // add wiscombe warren shader code;
+    m_wiscombeWarrenShader->generateCode(oss, "wiscombe", std::vector<std::string>());
+
+    oss << "\n"
+        << "void main() {\n"
+        << "  vec3 surfToLightNorm = normalize(surfToLight);\n"
+        << "  vec3 surfToCamNorm = normalize(surfToCam);\n"
+        << "  float lightIntensity = dot(normalize(normal), surfToLightNorm);\n"
+           //sqrt because light is musplipied two time by albedo
+        << "  vec3 surfAlbedo  = wiscombe_albedo(lightIntensity);\n"
+           //spot extinction
+        << "  float spot = clamp( (dot(normalize(lightDir),-surfToLightNorm)-lightAperture)/(1.0-lightAperture) ,0.0,1.0);\n"
+        << "  gl_FragData[0] = vec4(surfPos, 0.0);\n" //splat origin
+        << "  gl_FragData[1] = vec4(lightColor * spot * lightIntensity * surfAlbedo, 0.0);\n"  //splat center color
+        << "}\n";
+
+    m_lightViewWWProgram->setSource(GPUProgram::EFragmentProgram, oss.str());
+
+    // upload the program
+    m_lightViewWWProgram->init();
+    // configure parameters
+    param_lightWWCamPos = m_lightViewWWProgram->getParameterID("camPos", false);
+    param_lightWWPos = m_lightViewWWProgram->getParameterID("lightPos", false);
+    param_lightWWColor = m_lightViewWWProgram->getParameterID("lightColor", false);
+    param_lightWWDir = m_lightViewWWProgram->getParameterID("lightDir", false);
+    param_lightWWAperture = m_lightViewWWProgram->getParameterID("lightAperture", false);
+    m_wiscombeWarrenShader->resolve(m_lightViewWWProgram, "wiscombe", m_wiscombeWarrenParams);
 
     /* camere view program */
     m_cameraViewProgram = m_renderer->createGPUProgram("SplatSSS CameraView Program");

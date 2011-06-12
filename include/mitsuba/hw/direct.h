@@ -277,6 +277,12 @@ public:
     ref<GPUProgram> m_lightViewProgram;
     int param_lightPos, param_lightDir, param_lightColor,
         param_lightAperture, param_lightAlbedoTex;
+
+    ref<GPUProgram> m_lightViewWWProgram;
+    ref<Shader> m_wiscombeWarrenShader;
+    std::vector<int> m_wiscombeWarrenParams;
+    int param_lightWWCamPos, param_lightWWPos, param_lightWWDir,
+        param_lightWWColor, param_lightWWAperture, param_lightWWAlbedoTex;
     
     ref<GPUProgram> m_cameraViewProgram;
     ref<GPUProgram> m_expandSilhouetteProgram;

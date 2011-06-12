@@ -106,7 +106,7 @@ protected:
     /// check for OpenGL errors
     void oglErrorCheck();
     /// calculate splat positon and colors in light view
-    void calcSplatPositions(const TranslucentShape &ts);
+    void calcSplatPositions(const TranslucentShape &ts, Point &camPos);
     /// calculate in view space
     void calcVisiblePositions(const TranslucentShape &ts);
     /// build the splats und accumulate them in view space
