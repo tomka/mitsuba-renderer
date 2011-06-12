@@ -244,6 +244,13 @@ public:
             << "const float " << evalName << "_invpi = 1.0 / " << evalName << "_PI;" << endl
             << "const vec3  " << evalName << "_one = vec3(1.0,1.0,1.0);" << endl 
             << endl
+            << "vec3 " << evalName << "_albedo(float mu0) {" << endl
+            << "    vec3 albedo = (" << evalName << "_wStar / (vec3(1.0) + " << evalName << "_P))" << endl
+            << "       * ( (vec3(1.0) - " << evalName << "_xi * mu0 * " << evalName << "_bStar) / (vec3(1.0) + "
+            << "      " << evalName << "_xi * mu0) );" << endl
+            << "    return albedo;" << endl
+            << "}" << endl
+            << endl
 		    << "vec3 " << evalName << "(vec2 uv, vec3 wi, vec3 wo) {" << endl
 			<< "    if (wi.z < 0.0 || wo.z < 0.0)" << endl
 			<< "    	return vec3(0.0);" << endl
@@ -251,9 +258,7 @@ public:
             << "    float muPrime = dot(wo, normal);" << endl
             << "    float b = 1.07 * mu0 - 0.84;" << endl
             << "    float fBar = (3 / (3 -b)) * (1 + b * (muPrime - 1));" << endl
-            << "    vec3 albedo = (" << evalName << "_wStar / (vec3(1.0) + " << evalName << "_P))"
-            << " * ( (vec3(1.0) - " << evalName << "_xi * mu0 * " << evalName << "_bStar) / (vec3(1.0) + "
-            << evalName << "_xi * mu0) );" << endl
+            << "    vec3 albedo = " << evalName << "_albedo(mu0);" << endl
             << "    return albedo * fBar * " << evalName << "_invpi;" << endl
 			<< "}" << endl
             << endl
