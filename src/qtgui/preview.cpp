@@ -471,7 +471,7 @@ void PreviewThread::run() {
                         diffusionMap = NULL;
                     }
 
-                    /* We avso need to change the light view resolution. According to Shah et al. this is
+                    /* We also need to change the light view resolution. According to Shah et al. this is
                      * done by first calculating the number of overlapping quads n0: Rd(0) / (n0 * Rd(r_max) < err.
                      * This means n0 > Rd(0) / (err * Rd(r_max)).
                      */
@@ -1432,42 +1432,74 @@ void PreviewThread::combineSplats(const TranslucentShape &ts) {
     glEnable(GL_TEXTURE_2D);
     fboCumulSplat->bindColorTexture(0);
 
-    glActiveTexture(GL_TEXTURE1);
-    glEnable(GL_TEXTURE_2D);
-    ts.albedoMap->bind(1);
-
 	m_framebuffer->activateTarget();
     //m_framebuffer->clear();
  
-    GPUProgram *finalContribProgram = m_directShaderManager->m_finalContributionProgram;
-    finalContribProgram->bind();
-    finalContribProgram->setParameter(m_directShaderManager->param_finalContribSampleScale, (Float) splats.size());
-    finalContribProgram->setParameter(m_directShaderManager->param_finalContribLightPos, m_currentSpot.pos);
-    finalContribProgram->setParameter(m_directShaderManager->param_finalContribLightDir, m_currentSpot.dir);
-    finalContribProgram->setParameter(m_directShaderManager->param_finalContribLightSpecColor, m_currentSpot.specularColor);
-    finalContribProgram->setParameter(m_directShaderManager->param_finalContribLightAperture, degToRad(m_currentSpot.aperture * 0.5f));
-    // ToDo: Wrap FBO implementation in sub class of GLProgram
-    //finalContribProgram->setParameter(m_directShaderManager->param_finalContribSubSurf, fboCumulSplat);
-    glUniform1i(m_directShaderManager->param_finalContribSubSurf, 0);
-    //finalContribProgram->setParameter(m_directShaderManager->param_finalContribAlbedoTex, ts.albedoMap.get());
-    glUniform1i(m_directShaderManager->param_finalContribAlbedoTex, 1);
+    // WiscombeWarren-Albedo will be calculated in the shader
+    if (m_context->snowRenderSettings.shahAlbedoMapType != SnowRenderSettings::EWiscombeWarrenAlbedo) {
+        glActiveTexture(GL_TEXTURE1);
+        glEnable(GL_TEXTURE_2D);
+        ts.albedoMap->bind(1);
 
-    //glPushMatrix();
-    //curObj->getPosition(top);
-    //glTranslatef(top.x,top.y,top.z);
-    // render the current translucent object
-    m_renderer->beginDrawingMeshes();
-    // needs tex coord and normal
-    m_renderer->drawTriMesh(ts.mesh);
-    m_renderer->endDrawingMeshes();
+        GPUProgram *finalContribProgram = m_directShaderManager->m_finalContributionProgram;
+        finalContribProgram->bind();
+        finalContribProgram->setParameter(m_directShaderManager->param_finalContribSampleScale, (Float) splats.size());
+        finalContribProgram->setParameter(m_directShaderManager->param_finalContribLightPos, m_currentSpot.pos);
+        finalContribProgram->setParameter(m_directShaderManager->param_finalContribLightDir, m_currentSpot.dir);
+        finalContribProgram->setParameter(m_directShaderManager->param_finalContribLightSpecColor, m_currentSpot.specularColor);
+        finalContribProgram->setParameter(m_directShaderManager->param_finalContribLightAperture, degToRad(m_currentSpot.aperture * 0.5f));
+        // ToDo: Wrap FBO implementation in sub class of GLProgram
+        //finalContribProgram->setParameter(m_directShaderManager->param_finalContribSubSurf, fboCumulSplat);
+        glUniform1i(m_directShaderManager->param_finalContribSubSurf, 0);
+        //finalContribProgram->setParameter(m_directShaderManager->param_finalContribAlbedoTex, ts.albedoMap.get());
+        glUniform1i(m_directShaderManager->param_finalContribAlbedoTex, 1);
 
-    //glPopMatrix();
+        //glPushMatrix();
+        //curObj->getPosition(top);
+        //glTranslatef(top.x,top.y,top.z);
+        // render the current translucent object
+        m_renderer->beginDrawingMeshes();
+        // needs tex coord and normal
+        m_renderer->drawTriMesh(ts.mesh);
+        m_renderer->endDrawingMeshes();
 
-    // clean up
-    finalContribProgram->unbind();
-    ts.albedoMap->unbind();
-    glActiveTexture(GL_TEXTURE1);
-    glDisable(GL_TEXTURE_2D);
+        //glPopMatrix();
+
+        // clean up
+        finalContribProgram->unbind();
+        ts.albedoMap->unbind();
+        glActiveTexture(GL_TEXTURE1);
+        glDisable(GL_TEXTURE_2D);
+    } else {
+        ref<GPUProgram> finalContribProgram = m_directShaderManager->m_finalContributionWWProgram;
+        finalContribProgram->bind();
+        finalContribProgram->setParameter(m_directShaderManager->param_finalContribWWSampleScale, (Float) splats.size());
+        finalContribProgram->setParameter(m_directShaderManager->param_finalContribWWLightPos, m_currentSpot.pos);
+        finalContribProgram->setParameter(m_directShaderManager->param_finalContribWWLightDir, m_currentSpot.dir);
+        finalContribProgram->setParameter(m_directShaderManager->param_finalContribWWLightSpecColor, m_currentSpot.specularColor);
+        finalContribProgram->setParameter(m_directShaderManager->param_finalContribWWLightAperture, degToRad(m_currentSpot.aperture * 0.5f));
+        int texOffset = 0;
+        m_directShaderManager->m_wiscombeWarrenShader->bind(finalContribProgram.get(),
+            m_directShaderManager->m_finalContribWiscombeWarrenParams, texOffset);
+        // ToDo: Wrap FBO implementation in sub class of GLProgram
+        //finalContribProgram->setParameter(m_directShaderManager->param_finalContribSubSurf, fboCumulSplat);
+        glUniform1i(m_directShaderManager->param_finalContribSubSurf, 0);
+
+        //glPushMatrix();
+        //curObj->getPosition(top);
+        //glTranslatef(top.x,top.y,top.z);
+        // render the current translucent object
+        m_renderer->beginDrawingMeshes();
+        // needs tex coord and normal
+        m_renderer->drawTriMesh(ts.mesh);
+        m_renderer->endDrawingMeshes();
+
+        //glPopMatrix();
+
+        // clean up
+        finalContribProgram->unbind();
+    }
+
     glActiveTexture(GL_TEXTURE0);
     glDisable(GL_TEXTURE_2D);
 }

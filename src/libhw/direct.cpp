@@ -449,83 +449,86 @@ void DirectShaderManager::init() {
     param_renderSplatsBillboardRadius = m_renderSplatsProgram->getParameterID("billboardRadius", false);
 
 
-    /* final contribution program */
+    /* final contribution program - uses an albedo texture*/
     m_finalContributionProgram = m_renderer->createGPUProgram("SplatSSS Final Rendering Program");
-    m_finalContributionProgram->setSource(GPUProgram::EVertexProgram,
-        "#version 120\n"
-        "//uniform sampler2D subSurf;\n"
-        "//uniform sampler2D albedoTex;\n"
-        "uniform float sampleScale;\n"
-        "uniform vec3 lightPos;\n"
-        "uniform vec3 lightSpecColor;\n"
-        "uniform vec3 lightDir;\n"
-        "uniform float lightAperture;\n"
-        "\n"
-        "varying vec4 pixelProj;\n"
-        "varying vec3 normal;\n"
-        "varying vec3 surfPos;\n"
-        "varying vec3 surfToLight;\n"
-        "varying vec3 halfVec;\n"
-        "\n"
-        "void main() {\n"
+    std::ostringstream finalContribVertexProg;
+    finalContribVertexProg << "#version 120\n"
+        << "//uniform sampler2D subSurf;\n"
+        << "//uniform sampler2D albedoTex;\n"
+        << "uniform float sampleScale;\n"
+        << "uniform vec3 lightPos;\n"
+        << "uniform vec3 lightSpecColor;\n"
+        << "uniform vec3 lightDir;\n"
+        << "uniform float lightAperture;\n"
+        << "\n"
+        << "varying vec4 pixelProj;\n"
+        << "varying vec3 normal;\n"
+        << "varying vec3 surfPos;\n"
+        << "varying vec3 surfToLight;\n"
+        << "varying vec3 halfVec;\n"
+        << "\n"
+        << "void main() {\n"
            // Vertex position in camera space
-        "  vec4 vMV = gl_ModelViewMatrix * gl_Vertex;\n"
+        << "  vec4 vMV = gl_ModelViewMatrix * gl_Vertex;\n"
            // Vertex position in clip space
-        "  vec4 vMVP = gl_ProjectionMatrix * vMV;\n"
-        "  \n"
-        "  pixelProj = vMVP;\n"
-        "  surfPos = gl_Vertex.xyz;\n"
-        "  surfToLight = lightPos - gl_Vertex.xyz;\n"
-        "  vec3 surfToView = gl_ModelViewMatrixInverse[3].xyz - gl_Vertex.xyz;\n"
+        << "  vec4 vMVP = gl_ProjectionMatrix * vMV;\n"
+        << "  \n"
+        << "  pixelProj = vMVP;\n"
+        << "  surfPos = gl_Vertex.xyz;\n"
+        << "  surfToLight = lightPos - gl_Vertex.xyz;\n"
+        << "  vec3 surfToView = gl_ModelViewMatrixInverse[3].xyz - gl_Vertex.xyz;\n"
            // Half vector to compute Blinn specular
-        "  halfVec = ((surfToView+surfToLight)/2.0);\n"
-        "  normal = gl_Normal;\n" // out
-        "  gl_TexCoord[0] = gl_MultiTexCoord0;\n"
-        "  gl_Position = vMVP;\n"
-        "}\n"
-    );
+        << "  halfVec = ((surfToView+surfToLight)/2.0);\n"
+        << "  normal = gl_Normal;\n" // out
+        << "  gl_TexCoord[0] = gl_MultiTexCoord0;\n"
+        << "  gl_Position = vMVP;\n"
+        << "}\n";
 
-    m_finalContributionProgram->setSource(GPUProgram::EFragmentProgram,
-        "#version 120\n"
-        "uniform sampler2D subSurf;\n"
-        "uniform sampler2D albedoTex;\n"
-        "uniform float sampleScale;\n"
-        "uniform vec3 lightPos;\n"
-        "uniform vec3 lightSpecColor;\n"
-        "uniform vec3 lightDir;\n"
-        "uniform float lightAperture;\n"
-        "\n"
-        "varying vec4 pixelProj;\n"
-        "varying vec3 normal;\n"
-        "varying vec3 surfPos;\n"
-        "varying vec3 surfToLight;\n"
-        "varying vec3 halfVec;\n"
-        "\n"
-        "void main() {\n"
+    m_finalContributionProgram->setSource(GPUProgram::EVertexProgram,
+        finalContribVertexProg.str());
+
+    std::ostringstream finalCotribFragmentProg;
+    finalCotribFragmentProg << "#version 120\n"
+        << "uniform sampler2D subSurf;\n"
+        << "uniform sampler2D albedoTex;\n"
+        << "uniform float sampleScale;\n"
+        << "uniform vec3 lightPos;\n"
+        << "uniform vec3 lightSpecColor;\n"
+        << "uniform vec3 lightDir;\n"
+        << "uniform float lightAperture;\n"
+        << "\n"
+        << "varying vec4 pixelProj;\n"
+        << "varying vec3 normal;\n"
+        << "varying vec3 surfPos;\n"
+        << "varying vec3 surfToLight;\n"
+        << "varying vec3 halfVec;\n"
+        << "\n"
+        << "void main() {\n"
            // Visible surfaces
-        "  \n"
+        << "  \n"
           // Subsurface light
-        "  vec4 subsurfaceContrib = texture2D( subSurf, (0.5 + 0.5 * pixelProj.st / pixelProj.ww) );\n"
+        << "  vec4 subsurfaceContrib = texture2D( subSurf, (0.5 + 0.5 * pixelProj.st / pixelProj.ww) );\n"
           // Sqrt because light is musplipied two times by albedo
-        "  vec3 surfaceAlbedo = sqrt(texture2D( albedoTex, gl_TexCoord[0].st ).rgb);\n"
-        "  \n"
+        << "  vec3 surfaceAlbedo = sqrt(texture2D( albedoTex, gl_TexCoord[0].st ).rgb);\n"
+        << "  \n"
            // Compute some data for spot ligth specular"
-        "  vec3 normalNorm = normalize(normal);\n"
-        "  vec3 halfVecNorm = normalize(halfVec);\n"
-        "  vec3 surfToLightNorm = normalize(surfToLight);\n"
-        "  float specIntensity = clamp(dot(normalNorm, halfVecNorm),0.0,1.0);\n"
-        "  float dot3SpotCone = dot(lightDir,-surfToLightNorm);\n"
-        "  float spotCone = clamp( (dot3SpotCone-lightAperture)/(1.0-lightAperture) ,0.0,1.0);\n"
-        "  float dot3lamb = dot(normal,surfToLightNorm);\n"
-        "  float specContrib = clamp(dot3lamb*10.0,0.0,1.0);\n"
-        "  \n"
+        << "  vec3 normalNorm = normalize(normal);\n"
+        << "  vec3 halfVecNorm = normalize(halfVec);\n"
+        << "  vec3 surfToLightNorm = normalize(surfToLight);\n"
+        << "  float specIntensity = clamp(dot(normalNorm, halfVecNorm),0.0,1.0);\n"
+        << "  float dot3SpotCone = dot(lightDir,-surfToLightNorm);\n"
+        << "  float spotCone = clamp( (dot3SpotCone-lightAperture)/(1.0-lightAperture) ,0.0,1.0);\n"
+        << "  float dot3lamb = dot(normal,surfToLightNorm);\n"
+        << "  float specContrib = clamp(dot3lamb*10.0,0.0,1.0);\n"
+        << "  \n"
            // Specular component
-        "  vec3 specular = specIntensity * surfaceAlbedo * lightSpecColor * specContrib * spotCone * pow(specIntensity,64.0);\n"
-        "  \n"
+        << "  vec3 specular = specIntensity * surfaceAlbedo * lightSpecColor * specContrib * spotCone * pow(specIntensity,64.0);\n"
+        << "  \n"
            // Final color
-        "  gl_FragColor = vec4(specular + surfaceAlbedo*subsurfaceContrib.rgb/sampleScale,0.0);\n"
-        "}\n"
-    );
+        << "  gl_FragColor = vec4(specular + surfaceAlbedo*subsurfaceContrib.rgb/sampleScale,0.0);\n"
+        << "}\n";
+
+    m_finalContributionProgram->setSource(GPUProgram::EFragmentProgram, finalCotribFragmentProg.str());
 
     // upload the program
     m_finalContributionProgram->init();
@@ -538,6 +541,68 @@ void DirectShaderManager::init() {
     param_finalContribLightDir = m_finalContributionProgram->getParameterID("lightDir", false);
     param_finalContribLightPos = m_finalContributionProgram->getParameterID("lightPos", false);
 
+
+    /* final contribution program - uses Warren Wiscombe albedo*/
+    m_finalContributionWWProgram = m_renderer->createGPUProgram("SplatSSS Final Rendering WW Program");
+    m_finalContributionWWProgram->setSource(GPUProgram::EVertexProgram,
+        finalContribVertexProg.str());
+
+    /* combine both parts for the albedo texture verison */ 
+    std::ostringstream finalCotribFragmentWWProg;
+    finalCotribFragmentWWProg << "#version 120\n"
+        << "uniform sampler2D subSurf;\n"
+        << "uniform float sampleScale;\n"
+        << "uniform vec3 lightPos;\n"
+        << "uniform vec3 lightSpecColor;\n"
+        << "uniform vec3 lightDir;\n"
+        << "uniform float lightAperture;\n"
+        << "\n"
+        << "varying vec4 pixelProj;\n"
+        << "varying vec3 normal;\n"
+        << "varying vec3 surfPos;\n"
+        << "varying vec3 surfToLight;\n"
+        << "varying vec3 halfVec;\n"
+        << "\n";
+    // add wiscombe warren shader code;
+    m_wiscombeWarrenShader->generateCode(finalCotribFragmentWWProg, "wiscombe", std::vector<std::string>());
+    finalCotribFragmentWWProg << endl
+        << "void main() {\n"
+           // Visible surfaces
+        << "  \n"
+          // Subsurface light
+        << "  vec4 subsurfaceContrib = texture2D( subSurf, (0.5 + 0.5 * pixelProj.st / pixelProj.ww) );\n"
+           // Compute some data for spot ligth specular"
+        << "  vec3 normalNorm = normalize(normal);\n"
+        << "  vec3 halfVecNorm = normalize(halfVec);\n"
+        << "  vec3 surfToLightNorm = normalize(surfToLight);\n"
+        << "  float specIntensity = clamp(dot(normalNorm, halfVecNorm),0.0,1.0);\n"
+        << "  float dot3SpotCone = dot(lightDir,-surfToLightNorm);\n"
+        << "  float spotCone = clamp( (dot3SpotCone-lightAperture)/(1.0-lightAperture) ,0.0,1.0);\n"
+        << "  float dot3lamb = dot(normal,surfToLightNorm);\n"
+        << "  float specContrib = clamp(dot3lamb*10.0,0.0,1.0);\n"
+        << "  \n"
+        << "  float dot3lambNorm = dot(normalNorm,surfToLightNorm);\n"
+        << "  vec3 surfaceAlbedo = wiscombe_albedo(dot3lambNorm);\n"
+        << "  \n"
+           // Specular component
+        << "  vec3 specular = specIntensity * surfaceAlbedo * lightSpecColor * specContrib * spotCone * pow(specIntensity,64.0);\n"
+        << "  \n"
+           // Final color
+        << "  gl_FragColor = vec4(specular + surfaceAlbedo*subsurfaceContrib.rgb/sampleScale,0.0);\n"
+        << "}\n";
+
+    m_finalContributionWWProgram->setSource(GPUProgram::EFragmentProgram, finalCotribFragmentWWProg.str());
+
+    // upload the program
+    m_finalContributionWWProgram->init();
+    // configure parameters
+    param_finalContribWWSubSurf = m_finalContributionWWProgram->getParameterID("subSurf", false);
+    param_finalContribWWSampleScale = m_finalContributionWWProgram->getParameterID("sampleScale", false);
+    param_finalContribWWLightAperture = m_finalContributionWWProgram->getParameterID("lightAperture", false);
+    param_finalContribWWLightSpecColor = m_finalContributionWWProgram->getParameterID("lightSpecColor", false);
+    param_finalContribWWLightDir = m_finalContributionWWProgram->getParameterID("lightDir", false);
+    param_finalContribWWLightPos = m_finalContributionWWProgram->getParameterID("lightPos", false);
+    m_wiscombeWarrenShader->resolve(m_finalContributionWWProgram, "wiscombe", m_finalContribWiscombeWarrenParams);
 
     m_initialized = true;
 }

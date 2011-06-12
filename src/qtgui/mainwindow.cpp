@@ -1003,7 +1003,7 @@ void MainWindow::onSnowRenderModelChange() {
     bool shahHasCustomAlbedo = false;
     if (shahAlbedoTypeChanged) {
         if (srs.shahAlbedoMapType == SnowRenderSettings::EWiscombeWarrenAlbedo) { // Wiscombe-Warren
-            // ToDo, uncomment when albedo maps can be creaded: srs.shahAlbedoMap = NULL; 
+            /* do nothing, this is handled in the preview class */ 
         } else if (srs.shahAlbedoMapType == SnowRenderSettings::EWhiteAlbedo) { // White
              /* Load a white albedo map */
             QResource res("/resources/snow/white.bmp");

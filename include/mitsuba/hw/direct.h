@@ -297,6 +297,13 @@ public:
         param_finalContribSampleScale, param_finalContribLightAperture,
         param_finalContribLightSpecColor, param_finalContribLightDir,
         param_finalContribLightPos;
+
+    ref<GPUProgram> m_finalContributionWWProgram;
+    std::vector<int> m_finalContribWiscombeWarrenParams;
+    int param_finalContribWWSubSurf, param_finalContribWWAlbedoTex,
+        param_finalContribWWSampleScale, param_finalContribWWLightAperture,
+        param_finalContribWWLightSpecColor, param_finalContribWWLightDir,
+        param_finalContribWWLightPos;
 };
 
 
