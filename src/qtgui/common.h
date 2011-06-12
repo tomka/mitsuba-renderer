@@ -157,7 +157,7 @@ struct SnowRenderSettings {
         adipoleD("1.6307, -0.00049, 0.00069, -0.00049, 1.63148, 0.00001, 0.00067, 0.00002, 2.12596"),
         shahExpandSilhouette(true), shahShowSplatOrigins(false), shahShowLight(false),
         shahAlbedoMapType(EWhiteAlbedo), shahDiffusionProfileType(EExampleProfile), shahDiffusionExample(4),
-        shahRmax(0.5f), shahMCIterations(10000), shahPredefineRmax(true), shahSpecularColor(0.5f),
+        shahRmax(0.5f), shahMCIterations(10000), shahPredefineRmax(true), shahSpecularColor(0.0f),
         shahErrorThreshold(0.01), shahMaxLightViewResolution(1024), shahBackbufferWidth(100), shahBackbufferHeight(75)
     {
         /* try to load last texture paths */
