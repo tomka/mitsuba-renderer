@@ -210,6 +210,9 @@ private slots:
     void onDipoleIrrtrrDumpPathRequest();
     void onDipoleIrrtrrDumpPathDialogClose(int reason);
     void onRefreshShahSnowParameters();
+    void onShahAlbedoMapPathRequest();
+    void onShahAlbedoMapPathDialogClose(int reason);
+    void loadShahCustomAlbedoMap();
 
 private:
     Ui::MainWindow *ui;

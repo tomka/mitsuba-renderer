@@ -229,6 +229,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     
     connect(m_shahRTSettings->albedoComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_shahRTSettings->albedoPathButton, SIGNAL(pressed()), this, SLOT(onShahAlbedoMapPathRequest()));
     connect(m_shahRTSettings->diffusionProfileComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_shahRTSettings->expandSilhouetteCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_shahRTSettings->showSplatOriginsCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
@@ -927,6 +928,62 @@ void MainWindow::onDipoleIrrtrrDumpPathDialogClose(int reason) {
     }
 }
 
+void MainWindow::onShahAlbedoMapPathRequest() {
+	QFileDialog *dialog = new QFileDialog(this, tr("Load albedo map"),
+		"", tr("PNG files (*.png)"));
+
+	QSettings settings("mitsuba-renderer.org", "qtgui");
+	dialog->setViewMode(QFileDialog::Detail);
+
+#if defined(__OSX__)
+	dialog->setOption(QFileDialog::DontUseNativeDialog, true);
+#endif
+
+	dialog->restoreState(settings.value("fileDialogState").toByteArray());
+	dialog->setAttribute(Qt::WA_DeleteOnClose);
+	dialog->setWindowModality(Qt::WindowModal);
+	connect(dialog, SIGNAL(finished(int)), this, SLOT(onShahAlbedoMapPathDialogClose(int)));
+	m_currentChild = dialog;
+	// prevent a tab drawing artifact on Qt/OSX
+	m_activeWindowHack = true;
+	dialog->show();
+	qApp->processEvents();
+	m_activeWindowHack = false;
+}
+
+void MainWindow::onShahAlbedoMapPathDialogClose(int reason) {
+	int currentIndex = ui->tabBar->currentIndex();
+	SceneContext *ctx = m_context[currentIndex];
+
+	QSettings settings("mitsuba-renderer.org", "qtgui");
+	QFileDialog *dialog = static_cast<QFileDialog *>(sender());
+	m_currentChild = NULL;
+
+    if (reason == QDialog::Accepted) {
+		settings.setValue("fileDialogState", dialog->saveState());
+        QString fileName = dialog->selectedFiles().value(0);
+        ctx->snowRenderSettings.shahAlbedoMapCustomPath = fileName.toStdString();
+        // reflect in GUI
+        updateSnowRenderingComponents();
+        loadShahCustomAlbedoMap();
+    }
+}
+
+void MainWindow::loadShahCustomAlbedoMap() {
+	int currentIndex = ui->tabBar->currentIndex();
+	SceneContext *ctx = m_context[currentIndex];
+
+    SnowRenderSettings &srs = ctx->snowRenderSettings;
+    
+    if (boost::filesystem::exists(srs.shahAlbedoMapCustomPath)) {
+        ref<FileStream> fs = new FileStream(srs.shahAlbedoMapCustomPath, FileStream::EReadOnly);
+        ref<Bitmap> map = new Bitmap(Bitmap::EPNG, fs);
+        if (map != NULL)
+            srs.shahAlbedoMap = map;
+    } else {
+        std::cerr << "Could not find file \"" << srs.shahAlbedoMapCustomPath << "\"" << std::endl;
+    }
+}
 
 /* Recalculates shah realtime rMax and diffusion profile based on snow
  * properties. */
@@ -1015,6 +1072,7 @@ void MainWindow::onSnowRenderModelChange() {
             srs.shahAlbedoMap = bitmap; 
         } else { // Custom
             shahHasCustomAlbedo = true;
+            loadShahCustomAlbedoMap();
         }
     }
         
