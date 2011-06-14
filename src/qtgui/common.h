@@ -146,7 +146,7 @@ struct SnowRenderSettings {
         dipoleDensityFactor(1.0f), dipoleSampleFactor(1.0f), dipoleUseSingleScattering(false),
         dipoleMartelliDC(false), dipoleTexture(false), dipoleTextureUScaling(1.0f), dipoleTextureVScaling(1.0f),
         dipoleDumpIrrtree(false), dipoleDumpIrrtreePath(""),
-        dipoleUseLut(true), dipoleLutResolution(0.01), dipoleLutMCIterations(10000), dipoleLutRmax(10.0f),
+        dipoleUseLut(true), dipoleLutResolution(0.001), dipoleLutMCIterations(10000), dipoleLutRmax(10.0f),
         dipoleLutPredefineRmax(true),
         multipoleDensityFactor(1.0f), multipoleSampleFactor(1.0f), multipoleExtraDipoles(2),
         multipoleSlabThickness(0.2f), multipoleUseSingleScattering(false), multipoleMartelliDC(false),
