@@ -5,3 +5,13 @@
 src/qtgui/ui_*.h
 src/qtgui/moc_*.cc
 .sconf_temp/*
+*.exr
+*.png
+*.bmp
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.pdf
+*.toc
