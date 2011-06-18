@@ -202,6 +202,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->iorSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onIorChanged(double)));
     connect(ui->asymmetrySpinBox, SIGNAL(valueChanged(double)), this, SLOT(onAsymmetryFactorChanged(double)));
     connect(ui->calculationComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onCalculationTypeChanged(int)));
+    connect(ui->ssAlbedoSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSsAlbedoChanged(double)));
     connect(ui->snowCoeffComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(updateSnowComponents()));
     connect(ui->wl435SpinBox, SIGNAL(valueChanged(double)), this, SLOT(on435nmCoeffChanged(double)));
     connect(ui->wl545SpinBox, SIGNAL(valueChanged(double)), this, SLOT(on545nmCoeffChanged(double)));
@@ -701,11 +702,25 @@ void MainWindow::onCalculationTypeChanged(int index) {
     else
         SLog(EWarn, "Unknown snow coefficient calculation mode encountered");
 
+    currentContext->snow.ssOverride = false;
     // recalculate coefficients, as they depend on density
     currentContext->snow.configure();
     resetPreview(currentContext);
     updateSnowComponents();
+}
 
+void MainWindow::onSsAlbedoChanged(double ssAlbedo) {
+	int currentIndex = ui->tabBar->currentIndex();
+	if (currentIndex == -1)
+		return;
+
+	SceneContext *currentContext = m_context[currentIndex];
+    currentContext->snow.ssAlbedoOverride = ssAlbedo;
+    currentContext->snow.ssOverride = true;
+
+    currentContext->snow.configure();
+    resetPreview(currentContext);
+    updateSnowComponents();
 }
 
 void MainWindow::changeSnowCoefficient(int wlIndex, double value) {
@@ -1575,6 +1590,7 @@ void MainWindow::updateSnowComponents() {
     ui->iorSpinBox->blockSignals(true);
     ui->asymmetrySpinBox->blockSignals(true);
     ui->calculationComboBox->blockSignals(true);
+    ui->ssAlbedoSpinBox->blockSignals(true);
     ui->snowCoeffComboBox->blockSignals(true);
     ui->wl435SpinBox->blockSignals(true);
     ui->wl545SpinBox->blockSignals(true);
@@ -1589,6 +1605,7 @@ void MainWindow::updateSnowComponents() {
     /* media interaction */
     ui->asymmetrySpinBox->setValue(snow.g);
     ui->calculationComboBox->setCurrentIndex( (int) snow.calcMode );
+    ui->ssAlbedoSpinBox->setValue(snow.ssAlbedoOverride);
 
     int coeff = ui->snowCoeffComboBox->currentIndex();
     if (coeff == 0) {
@@ -1624,6 +1641,9 @@ void MainWindow::updateSnowComponents() {
     Spectrum albedo = getAlbedo(snow.iceSigmaA, snow.grainsize);
     ui->albedoLabel->setText(QString::number(albedo.average(), 'g', 2));
     ui->ssalbedoLabel->setText(QString::number(snow.singleScatteringAlbedo.average(), 'g', 2));
+    bool showSsAlbedoInput = context->snow.calcMode == SnowProperties::EPhenomenological;
+    ui->ssAlbedoSpinBox->setEnabled(showSsAlbedoInput);
+    ui->ssAlbedoLabel->setEnabled(showSsAlbedoInput);
 
     ui->snowtypeComboBox->blockSignals(false);
     ui->grainsizeSpinBox->blockSignals(false);
@@ -1631,6 +1651,7 @@ void MainWindow::updateSnowComponents() {
     ui->iorSpinBox->blockSignals(false);
     ui->asymmetrySpinBox->blockSignals(false);
     ui->calculationComboBox->blockSignals(false);
+    ui->ssAlbedoSpinBox->blockSignals(false);
     ui->snowCoeffComboBox->blockSignals(false);
     ui->wl435SpinBox->blockSignals(false);
     ui->wl545SpinBox->blockSignals(false);

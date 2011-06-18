@@ -48,6 +48,10 @@ struct SnowProperties {
     EPreset lastPreset;
     /* calculation mode of coefficients */
     ECalculationMode calcMode;
+    /* indicates if the subsurface scattering should be calculated automaticly */
+    bool ssOverride;
+    /* a potential override value for the single scattering albedo */
+    Float ssAlbedoOverride;
 
     SnowProperties();
 

@@ -9,18 +9,18 @@ Spectrum SnowProperties::iceSigmaA = getSigmaAofIce();
 Float SnowProperties::iceDensity = 917.0f;
 
 SnowProperties::SnowProperties()
-    : calcMode(ELargeParticle) {
+    : calcMode(ELargeParticle), ssOverride(false) {
     loadPreset(EFreshNewSnow);
 }
 
 SnowProperties::SnowProperties(EPreset preset)
-    : calcMode(EAsymptotic) {
+    : calcMode(EAsymptotic), ssOverride(false) {
     loadPreset(preset);
 }
 
 SnowProperties::SnowProperties(Float _grainsize, Float _density,
         Float _ior, Float _g)
-     :  grainsize(_grainsize), density(_density), ior(_ior), g(_g), calcMode(EAsymptotic) {
+     :  grainsize(_grainsize), density(_density), ior(_ior), g(_g), calcMode(EAsymptotic), ssOverride(false) {
     configure();
 }
 
@@ -67,8 +67,12 @@ void SnowProperties::loadWetOldSnowPreset() {
 void SnowProperties::configure() {
     sigmaA = getSigmaA(iceSigmaA, density, iceDensity);
     if (calcMode == EPhenomenological) {
-        singleScatteringAlbedo = Spectrum(0.99f);
-        //singleScatteringAlbedo = getSingleScatteringAlbedo(iceSigmaA, grainsize);
+        if (ssOverride)
+            singleScatteringAlbedo = Spectrum(ssAlbedoOverride);
+        else {
+            singleScatteringAlbedo = getSingleScatteringAlbedo(iceSigmaA, grainsize);
+            ssAlbedoOverride = singleScatteringAlbedo.average();
+        }
         Spectrum v0 = geRteEigenvector(singleScatteringAlbedo, g);
         sigmaT = getBarkstromExtCoeff(iceSigmaA, grainsize, density, iceDensity, v0);
         sigmaS = sigmaT - sigmaA;
@@ -78,7 +82,8 @@ void SnowProperties::configure() {
         } else if (calcMode == ESnowPack) {
             Float c1 = 10.0f; // kg * m^-2
             Float c2 = 30.0f; // m^-1
-            sigmaT = getSnowPackExtCoeff(density, c1, c2);
+            Spectrum sigmaTPrime = getSnowPackExtCoeff(density, c1, c2);
+            sigmaT = ((sigmaTPrime - sigmaA) / (1-g)) + sigmaA;
         } else if (calcMode == ELargeParticle) {
             sigmaT = getLargeParticleExtCoeff(grainsize, density, iceDensity);
         } else {
