@@ -330,11 +330,14 @@ void DirectShaderManager::init() {
         "varying vec2 offset;\n"
         "\n"
         "void main() {\n"
-        "  vec4 vMV = gl_ModelViewMatrix * gl_Vertex;\n" //vertex position in camera space
-        "  vec4 vMVP = gl_ProjectionMatrix * vMV;\n" //vertex position in clip space
+           //vertex position in camera space
+        "  vec4 vMV = gl_ModelViewMatrix * gl_Vertex;\n"
+           //vertex position in clip space
+        "  vec4 vMVP = gl_ProjectionMatrix * vMV;\n"
         "  offset = gl_MultiTexCoord0.zw;\n"
         "\n"
-        "  gl_TexCoord[0] = gl_MultiTexCoord0;\n" // out, contains tex coord in xy and tap offset in zw
+           // out, contains tex coord in xy and tap offset in zw
+        "  gl_TexCoord[0] = gl_MultiTexCoord0;\n"
         "  gl_Position = vMVP;\n"
         "}\n"
     );
@@ -349,10 +352,11 @@ void DirectShaderManager::init() {
         "  vec4 center = texture2D( viewSubScatTex, gl_TexCoord[0].xy );\n"
         "  vec4 tap1   = texture2D( viewSubScatTex, gl_TexCoord[0].xy + offset );\n"
         "  vec4 tap2   = texture2D( viewSubScatTex, gl_TexCoord[0].xy - offset );\n"
-        "\n"
+        " \n"
         "  vec3 sum=vec3(0.0);\n"
         "  float weight=0.0;\n"
         "  if(center.a>0.99) {\n"
+
         "    sum+=center.rgb;\n"
         "    weight++;\n"
         "  }\n"

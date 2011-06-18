@@ -1204,8 +1204,6 @@ void PreviewThread::calcVisiblePositions(const TranslucentShape &ts) {
 	const std::vector<const TriMesh *> meshes = m_directShaderManager->getMeshes();
 
     // Vector3 top;
-    float sOffset = 1.0f / fboView->getWidth();
-    float tOffset = 1.0f / fboView->getHeight();
 
     /* render surface data from view point (pixel position on
      * the current translucent object rendered */
@@ -1269,6 +1267,7 @@ void PreviewThread::calcVisiblePositions(const TranslucentShape &ts) {
         return;
 
     /* s expansion */
+    float sOffset = 1.0f / fboView->getWidth();
 
     //glClientActiveTexture(GL_TEXTURE0);
     glActiveTexture(GL_TEXTURE0);
@@ -1287,7 +1286,8 @@ void PreviewThread::calcVisiblePositions(const TranslucentShape &ts) {
     glMatrixMode(GL_PROJECTION);
     glPushMatrix();
     glLoadIdentity();
-    glOrtho(0.0,1.0,0.0,1.0,-1.0,1.0);
+    // glOrtho: (left, right, bottom, top, znear, zfar)
+    glOrtho(0.0, 1.0, 0.0, 1.0, -1.0, 1.0);
     glMatrixMode(GL_MODELVIEW);
     glPushMatrix();
     glLoadIdentity();
@@ -1319,6 +1319,7 @@ void PreviewThread::calcVisiblePositions(const TranslucentShape &ts) {
     fboViewExpand->disableRenderToColorDepth();
 
     /* t expansion */
+    float tOffset = 1.0f / fboView->getHeight();
 
     fboViewExpand->bindColorTexture(0);
     //expand view subsurface scattering data on t axis
