@@ -223,6 +223,7 @@ public:
 		m_bsphere = scene->getBSphere();
 		m_bsphere.radius *= 1.01f;
 		m_surfaceArea = m_bsphere.radius * m_bsphere.radius * M_PI;
+		m_invSurfaceArea = 1/m_surfaceArea;
 	}
 
 	Spectrum getPower() const {
@@ -284,14 +285,14 @@ public:
 		SkyLuminaire::sample(its.p, lRec, sample);
 	}
 
-	inline Float pdf(const Point &p, const LuminaireSamplingRecord &lRec) const {
+	inline Float pdf(const Point &p, const LuminaireSamplingRecord &lRec, bool delta) const {
 #if defined(SAMPLE_UNIFORMLY)
 		return 1.0f / (4 * M_PI);
 #endif
 	}
 
-	Float pdf(const Intersection &its, const LuminaireSamplingRecord &lRec) const {
-		return SkyLuminaire::pdf(its.p, lRec);
+	Float pdf(const Intersection &its, const LuminaireSamplingRecord &lRec, bool delta) const {
+		return SkyLuminaire::pdf(its.p, lRec, delta);
 	}
 
 	/**
@@ -379,14 +380,14 @@ public:
 			return Spectrum(INV_PI);
 	}
 
-	void pdfEmission(EmissionRecord &eRec) const {
+	void pdfEmission(EmissionRecord &eRec, bool delta) const {
 		Assert(eRec.type == EmissionRecord::ENormal);
 		Float dp = dot(eRec.sRec.n, eRec.d);
 		if (dp > 0)
-			eRec.pdfDir = INV_PI * dp;
+			eRec.pdfDir = delta ? 0.0f : INV_PI * dp;
 		else
 			eRec.pdfDir = 0;
-		eRec.pdfArea = 1.0f / (4 * M_PI * m_bsphere.radius * m_bsphere.radius);
+		eRec.pdfArea = delta ? 0.0f : m_invSurfaceArea;
 	}
 
 	std::string toString() const {
@@ -489,6 +490,8 @@ private:
 	MTS_DECLARE_CLASS()
 protected:
 	Spectrum m_average;
+	Float m_surfaceArea;
+	Float m_invSurfaceArea;
 	BSphere m_bsphere;
 	Float m_exposure;
 	Float m_skyScale;
