@@ -167,10 +167,17 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
 }
 
 std::string SnowMaterialManager::getFlakeDistribution() {
+    // My (Tom) calculations (indefinite Matrizen, geht nicht):
     /* clamped cosin^20 flake distribution */
     // return "0.01314, -0.00014, 0.00061, -0.00014, 0.01295, -0.00018, 0.00061, -0.00018, -0.07397";
     /* sine^20 flake distribution */
-    return "1.6307, -0.00049, 0.00069, -0.00049, 1.63148, 0.00001, 0.00067, 0.00002, 2.12596";
+    //return "1.6307, -0.00049, 0.00069, -0.00049, 1.63148, 0.00001, 0.00067, 0.00002, 2.12596";
+
+    // Wenzels Berechnungen (definite Matrizen, notwendig)
+    /* clamped cosin^20 flake distribution,hier ist D(w) = abs(dot(w, [0, 0, 1]))^20.000000  */
+    //return 0.043496, 4.0726e-10, -1.1039e-10, 4.0726e-10, 0.043496, 1.1632e-09, -1.1039e-10, 1.1632e-09, 0.91301;
+    /* sine^20 flake distribution, hier ist D(w) = (1-dot(w, [0, 0, 1])^2)^10.000000 */
+    return 0.47827, 7.5057e-09, -4.313e-10, 7.5057e-09, 0.47827, 2.5069e-10, -4.313e-10, 2.5069e-10, 0.043454;
 }
 
 void SnowMaterialManager::resetMaterial(Shape *shape, SceneContext *context) {
