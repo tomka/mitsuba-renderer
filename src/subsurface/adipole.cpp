@@ -121,6 +121,16 @@ public:
 		m_octreeIndex = irrOctreeIndex++;
 		irrOctreeMutex->unlock();
 
+		/* How many samples should be taken when estimating the irradiance at a given point in the scene? 
+		This attribute is currently only used in conjunction with subsurface integrators and
+		can safely be ignored if the scene contains none of them. */
+		m_irrSamples = props.getInteger("irrSamples", 32);
+				
+		/* When estimating the irradiance at a given point, should indirect illumination be included
+		in the final estimate? This attribute is currently only used in conjunction with 
+		subsurface integrators and can safely be ignored if the scene contains none of them. */
+		m_irrIndirect = props.getBoolean("irrIndirect", true);
+
 		/* Multiplicative factor, which can be used to adjust the number of
 		   irradiance samples */
 		m_sampleMultiplier = props.getFloat("sampleMultiplier", 2.0f);
@@ -157,6 +167,8 @@ public:
 		m_minDelta = stream->readFloat();
 		m_maxDepth = stream->readInt();
 		m_octreeIndex = stream->readInt();
+		m_irrSamples = stream->readInt();
+		m_irrIndirect = stream->readBool();
 		m_D = ublas::symmetric_matrix<Float>(3, 3);
 		for (int i=0; i<3; ++i) 
 			for (int j=0; j<3; ++j) 
@@ -184,6 +196,8 @@ public:
 		stream->writeFloat(m_minDelta);
 		stream->writeInt(m_maxDepth);
 		stream->writeInt(m_octreeIndex);
+		stream->writeInt(m_irrSamples);
+		stream->writeBool(m_irrIndirect);
 
 		for (int i=0; i<3; ++i) 
 			for (int j=0; j<3; ++j) 
@@ -200,7 +214,7 @@ public:
 		return result;
 	}
 
-	Spectrum Lo(const Intersection &its, const Vector &d) const {
+	Spectrum Lo(const Scene *scene, const Intersection &its, const Vector &d) const {
 		if (!m_ready || m_ssFactor.isZero())
 			return Spectrum(0.0f);
 		AnisotropicDipoleQuery query(m_P, m_xr, m_xv, m_detP, m_beta, its.shFrame, m_Fdt, its.p);
@@ -332,7 +346,8 @@ public:
 		Assert(index != -1);
 
 		ref<IrradianceSamplingProcess> proc = new IrradianceSamplingProcess(
-			sampleCount, (size_t) std::ceil(sampleCount/100.0f), index, job);
+			sampleCount, (size_t) std::ceil(sampleCount/100.0f), index, 
+			m_irrSamples, m_irrIndirect, job);
 
 		proc->bindResource("scene", sceneResID);
 		scene->bindUsedResources(proc);
@@ -376,6 +391,8 @@ private:
 	ref<IrradianceOctree> m_octree;
 	int m_octreeResID, m_octreeIndex;
 	int m_maxDepth;
+	int m_irrSamples;
+	bool m_irrIndirect;
 	bool m_ready, m_requireSample;
 
 	ublas::symmetric_matrix<Float> m_D, m_P[SPECTRUM_SAMPLES];
