@@ -140,10 +140,10 @@ public:
 		return Frame::cosTheta(bRec.wo) * INV_PI;
 	}
 
-	Spectrum sample(BSDFQueryRecord &bRec) const {
+	Spectrum sample(BSDFQueryRecord &bRec, const Point2 &sample) const {
 		if (!(bRec.typeMask & m_combinedType) || bRec.wi.z <= 0)
 			return Spectrum(0.0f);
-		bRec.wo = squareToHemispherePSA(bRec.sample);
+		bRec.wo = squareToHemispherePSA(sample);
 		bRec.sampledComponent = 0;
 		bRec.sampledType = EDiffuseReflection;
 
@@ -152,10 +152,10 @@ public:
 		return reflectance(mu0, muPrime) / mu0;
 	}
 
-	Spectrum sample(BSDFQueryRecord &bRec, Float &pdf) const {
+	Spectrum sample(BSDFQueryRecord &bRec, Float &pdf, const Point2 &sample) const {
 		if (!(bRec.typeMask & m_combinedType) || bRec.wi.z <= 0)
 			return Spectrum(0.0f);
-		bRec.wo = squareToHemispherePSA(bRec.sample);
+		bRec.wo = squareToHemispherePSA(sample);
 		bRec.sampledComponent = 0;
 		bRec.sampledType = EDiffuseReflection;
 		pdf = Frame::cosTheta(bRec.wo) * INV_PI;
