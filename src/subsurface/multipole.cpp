@@ -119,12 +119,12 @@ struct IsotropicMultipoleQuery {
 		const Spectrum &sigmaTr, Float Fdt, const Point &p, const Normal &_ns,
         const Float _d, const Float numExtraDipoles)
 		: zrList(zr), zvList(zv), sigmaTr(sigmaTr), result(0.0f), Fdt(Fdt), p(p),
-          ns(_ns), d(_d), numExtraDipoles(numExtraDipoles) {
-		count = 0;
+          ns(_ns), d(_d), numExtraDipoles(numExtraDipoles), one(1.0f), count(0) {
 	}
 
 	inline void operator()(const IrradianceSample &sample) {
-		Spectrum rSqr = Spectrum((p - sample.p).lengthSquared());
+        const Spectrum negSigmaTr = sigmaTr * (-1.0f);
+		const Spectrum rSqr = Spectrum((p - sample.p).lengthSquared());
 
         Spectrum dMoR(0.0f);
         Spectrum dMoT(0.0f);
@@ -138,17 +138,17 @@ struct IsotropicMultipoleQuery {
             Spectrum dr = (rSqr + zr*zr).sqrt();
             /* Distance to the image point source */
             Spectrum dv = (rSqr + zv*zv).sqrt();
-            Spectrum C1 = (sigmaTr + Spectrum(1.0f) / dr);
-            Spectrum C2 = (sigmaTr + Spectrum(1.0f) / dv);
+            Spectrum C1 = (sigmaTr + one / dr);
+            Spectrum C2 = (sigmaTr + one / dv);
 
             /* Do not include the reduced albedo - will be canceled out later */
             dMoR += Spectrum(0.25f * INV_PI) *
-                    (  zr * C1 * ((-sigmaTr * dr).exp()) / (dr * dr)
-                     - zv * C2 * ((-sigmaTr * dv).exp()) / (dv * dv));
+                    (  zr * C1 * ((negSigmaTr * dr).exp()) / (dr * dr)
+                     - zv * C2 * ((negSigmaTr * dv).exp()) / (dv * dv));
 
             dMoT += Spectrum(0.25f * INV_PI) *
-                    ((d - zr) * C1 * ((-sigmaTr * dr).exp()) / (dr * dr)
-                     - (d + zv) * C2 * ((-sigmaTr * dv).exp()) / (dv * dv));
+                    ((d - zr) * C1 * ((negSigmaTr * dr).exp()) / (dr * dr)
+                     - (d + zv) * C2 * ((negSigmaTr * dv).exp()) / (dv * dv));
         }
 
         /* combine Mo based on R and Mo based on T to a new
@@ -212,12 +212,13 @@ struct IsotropicMultipoleQuery {
 //	SSEVector result;
 //#endif
 
-	int count;
 	Float Fdt;
 	Point p;
     Normal ns;
     Spectrum d;
     int numExtraDipoles;
+    const Spectrum one;
+	int count;
 };
 
 /**
