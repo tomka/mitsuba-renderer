@@ -500,7 +500,7 @@ public:
                 const int numEntries = (int) (m_rMax / m_lutResolution) + 1;
                 m_RdLookUpTable = new LUTType(numEntries);
                 for (int i=0; i<numEntries; ++i) {
-                    m_RdLookUpTable->at(i) = getdMoR(i * m_lutResolution);
+                    m_RdLookUpTable->at(i) = getRd(Spectrum(i * m_lutResolution));
                 }
 
                 /* Create new LUTRecord and store this LUT if it was MC integrated */
@@ -672,37 +672,26 @@ public:
 	}
 
     /// Calculate Rd based on all dipoles and the requested distance
-    Spectrum getRd(Spectrum r) {
+    Spectrum getRd(const Spectrum r) {
+        //Float dist = std::max((p - sample.p).lengthSquared(), zrMinSq); 
+		const Spectrum rSqr = r * r;
         const Spectrum one(1.0f);
         const Spectrum negSigmaTr = m_sigmaTr * (-1.0f);
-		const Spectrum rSqr = r * r;
-
-        // calulate diffuse reflectance and transmittance
-        Spectrum dr = (rSqr + m_zr*m_zr).sqrt();
-        Spectrum dv = (rSqr + m_zv*m_zv).sqrt();
-
-        // the change in Rd
-        Spectrum Rd =   (m_zr * (one + m_sigmaTr * dr) * (negSigmaTr * dr).exp() / (dr * dr * dr))
-                      + (m_zv * (one + m_sigmaTr * dv) * (negSigmaTr * dv).exp() / (dv * dv * dv));
-        return Rd;
-    }
-
-    Spectrum getdMoR(Float r) {
-        //Float dist = std::max((p - sample.p).lengthSquared(), zrMinSq); 
-		Spectrum rSqr = Spectrum(r * r);
 
         /* Distance to the real source */
         Spectrum dr = (rSqr + m_zr*m_zr).sqrt();
         /* Distance to the image point source */
         Spectrum dv = (rSqr + m_zv*m_zv).sqrt();
 
-        Spectrum C1 = m_zr * (m_sigmaTr + Spectrum(1.0f) / dr);
-        Spectrum C2 = m_zv * (m_sigmaTr + Spectrum(1.0f) / dv);
+        Spectrum C1 = m_zr * (m_sigmaTr + one / dr);
+        Spectrum C2 = m_zv * (m_sigmaTr + one / dv);
 
         /* Do not include the reduced albedo - will be canceled out later */
         Spectrum dMo = Spectrum(0.25f * INV_PI) *
-             (C1 * ((-m_sigmaTr * dr).exp()) / (dr * dr)
-            + C2 * ((-m_sigmaTr * dv).exp()) / (dv * dv));
+             (C1 * ((negSigmaTr * dr).exp()) / (dr * dr)
+            + C2 * ((negSigmaTr * dv).exp()) / (dv * dv));
+
+        dMo.clampNegative();
         return dMo;
     }
 
