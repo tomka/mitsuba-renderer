@@ -150,7 +150,7 @@ struct SnowRenderSettings {
         dipoleLutPredefineRmax(true),
         multipoleDensityFactor(1.0f), multipoleSampleFactor(1.0f), multipoleExtraDipoles(2),
         multipoleSlabThickness(0.2f), multipoleUseSingleScattering(false), multipoleMartelliDC(false),
-        multipoleUseLut(true), multipoleLutResolution(0.01), multipoleLutMCIterations(10000),
+        multipoleUseLut(true), multipoleLutResolution(0.001), multipoleLutMCIterations(10000),
         multipoleLutRmax(10.0f), multipoleLutPredefineRmax(true),
         adipoleDensityFactor(1.0f), adipoleSampleFactor(1.0f), adipoleSigmaTn(1.0f),
         // default to sin^20 flake distribution
