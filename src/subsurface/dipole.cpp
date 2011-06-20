@@ -235,7 +235,7 @@ public:
         }
 
         /* look-up-table */
-        m_useRdLookUpTable = props.getBoolean("useLookUpTable", true);
+        m_useRdLookUpTable = props.getBoolean("useLookUpTable", false);
         m_errThreshold = props.getFloat("errorThreshold", 0.01);
         m_lutResolution = props.getFloat("lutResolution", 0.01);
         m_rMaxPredefined = props.hasProperty("lutRmax");
