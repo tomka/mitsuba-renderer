@@ -62,9 +62,14 @@ public:
 
     LUTRecord getLUT(const std::string &hash) const;
 
-    std::string getMultipoleLUTHash(Float resolution, Float errorThreshold,
+    std::string getMultipoleLUTHashR(Float resolution, Float errorThreshold,
         const Spectrum &sigmaTr, const Spectrum &alphaPrime, int numExtraDipoles,
         const std::vector<Spectrum> &zrList, const std::vector<Spectrum> &zvList) const;
+
+    std::string getMultipoleLUTHashT(Float resolution, Float errorThreshold,
+        const Spectrum &sigmaTr, const Spectrum &alphaPrime, int numExtraDipoles,
+        const std::vector<Spectrum> &zrList, const std::vector<Spectrum> &zvList,
+        Float d) const;
 
     std::string getDipoleLUTHash(Float resolution, Float errorThreshold,
         const Spectrum &sigmaTr, const Spectrum &alphaPrime, 

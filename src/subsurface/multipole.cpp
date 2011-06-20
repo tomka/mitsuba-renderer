@@ -127,6 +127,7 @@ struct IsotropicMultipoleQuery {
 		Spectrum rSqr = Spectrum((p - sample.p).lengthSquared());
 
         Spectrum dMoR(0.0f);
+        Spectrum dMoT(0.0f);
         for (int i=-numExtraDipoles; i<=numExtraDipoles; ++i) {
             int idx = i + numExtraDipoles;
 
@@ -143,21 +144,20 @@ struct IsotropicMultipoleQuery {
             /* Do not include the reduced albedo - will be canceled out later */
             dMoR += Spectrum(0.25f * INV_PI) *
                     (  zr * C1 * ((-sigmaTr * dr).exp()) / (dr * dr)
-                     + zv * C2 * ((-sigmaTr * dv).exp()) / (dv * dv));
+                     - zv * C2 * ((-sigmaTr * dv).exp()) / (dv * dv));
 
-            //Spectrum dMoT = Spectrum(0.25f * INV_PI) *
-            //	 ((d - zr) * C1 * ((-sigmaTr * dr).exp()) / (dr * dr)
-            //	- (d + zv) * C2 * ((-sigmaTr * dv).exp()) / (dv * dv));
-
-            /* combine Mo based on R and Mo based on T to a new
-             * Mo based on a combined profile P. */
-            //Float cosN = dot(ns, sample.n);
-            //Spectrum dMoP = 0.5 * (cosN + 1) * dMoR
-            //    + 0.5 * (1 - cosN) * dMoT;
+            dMoT += Spectrum(0.25f * INV_PI) *
+                    ((d - zr) * C1 * ((-sigmaTr * dr).exp()) / (dr * dr)
+                     - (d + zv) * C2 * ((-sigmaTr * dv).exp()) / (dv * dv));
         }
 
-		//result += dMoP * sample.E * (sample.area * Fdt);
-		result += dMoR * sample.E * (sample.area * Fdt);
+        /* combine Mo based on R and Mo based on T to a new
+         * Mo based on a combined profile P. */
+        Float cosN = dot(ns, sample.n);
+        Spectrum dMoP = 0.5 * (cosN + 1) * dMoR
+            + 0.5 * (1 - cosN) * dMoT;
+
+		result += dMoP * sample.E * (sample.area * Fdt);
      
 		count++;
 	}
@@ -227,9 +227,10 @@ struct IsotropicMultipoleQuery {
  * distance to save one sqrt().
  */
 struct IsotropicLUTMultipoleQuery {
-	inline IsotropicLUTMultipoleQuery(const ref<LUTType> &lut, Float _res, Float _Fdt, const Point &_p)
-        : dMoR_LUT(lut), entries(lut->size()), invResolution(1.0f / _res),
-          result(0.0f), Fdt(_Fdt), p(_p), count(0) {
+	inline IsotropicLUTMultipoleQuery(const ref<LUTType> &lutR, const ref<LUTType> &lutT,
+            Float _res, Float _Fdt, const Point &_p, const Normal &_ns)
+        : dMoR_LUT(lutR), dMoT_LUT(lutT), entries(lutR->size()), invResolution(1.0f / _res),
+          result(0.0f), Fdt(_Fdt), p(_p), ns(_ns), count(0) {
 	}
 
 	inline void operator()(const IrradianceSample &sample) {
@@ -241,7 +242,14 @@ struct IsotropicLUTMultipoleQuery {
         int index = (int) (r * invResolution + 0.5f);
         if (index < entries) {
             Spectrum dMoR = dMoR_LUT->at(index);
-            result += dMoR * sample.E * (sample.area * Fdt);
+            Spectrum dMoT = dMoT_LUT->at(index);
+
+            /* combine Mo based on R and Mo based on T to a new
+             * Mo based on a combined profile P. */
+            Float cosN = dot(ns, sample.n);
+            Spectrum dMoP = 0.5 * (cosN + 1) * dMoR
+                + 0.5 * (1 - cosN) * dMoT;
+            result += dMoP * sample.E * (sample.area * Fdt);
         }
 		count++;
 	}
@@ -251,12 +259,13 @@ struct IsotropicLUTMultipoleQuery {
 	}
 
     /* a reference to a dMoR look-up-table */
-    const ref<LUTType> &dMoR_LUT;
+    const ref<LUTType> &dMoR_LUT, &dMoT_LUT;
     int entries;
     Float invResolution;
 	Spectrum result;
 	Float Fdt;
 	Point p;
+    Normal ns;
 	int count;
 };
 
@@ -392,7 +401,7 @@ public:
                 Mo = query.getResult();
         } else {
             if (m_useRdLookUpTable) {
-                IsotropicLUTMultipoleQuery query(m_RdLookUpTable, m_lutResolution, m_Fdt, its.p);
+                IsotropicLUTMultipoleQuery query(m_RdLookUpTable, m_TdLookUpTable, m_lutResolution, m_Fdt, its.p, n);
                 m_octree->execute(query);
                 Mo = query.getResult();
             } else {
@@ -485,12 +494,19 @@ public:
          * dynamic. */
         if (m_useRdLookUpTable) {
             ref<SubsurfaceMaterialManager> smm = SubsurfaceMaterialManager::getInstance();
-            std::string lutHash = smm->getMultipoleLUTHash(m_lutResolution, m_errThreshold,
+            std::string lutHashR = smm->getMultipoleLUTHashR(m_lutResolution, m_errThreshold,
                 m_sigmaTr, m_alphaPrime, m_extraDipoles, m_zr, m_zv);
-            if (smm->hasLUT(lutHash)) {
-                LUTRecord lutR = smm->getLUT(lutHash);
+            std::string lutHashT = smm->getMultipoleLUTHashT(m_lutResolution, m_errThreshold,
+                m_sigmaTr, m_alphaPrime, m_extraDipoles, m_zr, m_zv, m_slabThickness);
+            if (smm->hasLUT(lutHashR) && smm->hasLUT(lutHashT)) {
+                /* get Rd LUT */
+                LUTRecord lutR = smm->getLUT(lutHashR);
                 m_RdLookUpTable = lutR.lut;
-                AssertEx(lutR.resolution == m_lutResolution, "Cached LUT does not have requested resolution!");
+                AssertEx(lutR.resolution == m_lutResolution, "Cached Rd LUT does not have requested resolution!");
+                /* get Td LUT */
+                LUTRecord lutT = smm->getLUT(lutHashT);
+                m_TdLookUpTable = lutT.lut;
+                AssertEx(lutT.resolution == m_lutResolution, "Cached Td LUT does not have requested resolution!");
             } else {
                 boost::timer timer;
                 if (!m_rMaxPredefined) {
@@ -548,48 +564,58 @@ public:
                 timer.restart();
                 const int numEntries = (int) (m_rMax / m_lutResolution) + 1;
                 m_RdLookUpTable = new LUTType(numEntries);
+                m_TdLookUpTable = new LUTType(numEntries);
                 for (int i=0; i<numEntries; ++i) {
-                    m_RdLookUpTable->at(i) = getdMoR(i * m_lutResolution);
+                    const Spectrum r(i * m_lutResolution);
+                    m_RdLookUpTable->at(i) = getRd(r);
+                    m_TdLookUpTable->at(i) = getTd(r);
                 }
 
                 /* Create new LUTRecord and store this LUT */
-                if (!m_rMaxPredefined) {
-                    LUTRecord lutRec(m_RdLookUpTable, m_lutResolution);
-                    smm->addLUT(lutHash, lutRec);
-                    AssertEx(smm->hasLUT(lutHash), "LUT is not available, but it should be!");
-                }
+                LUTRecord lutRecR(m_RdLookUpTable, m_lutResolution);
+                smm->addLUT(lutHashR, lutRecR);
+                LUTRecord lutRecT(m_RdLookUpTable, m_lutResolution);
+                smm->addLUT(lutHashT, lutRecT);
+                AssertEx(smm->hasLUT(lutHashR), "Rd LUT is not available, but it should be!");
+                AssertEx(smm->hasLUT(lutHashT), "Td LUT is not available, but it should be!");
 
-                Log(EDebug, "Created Rd look-up-table with %i entries (took %.2fs)", numEntries, timer.elapsed());
+                Log(EDebug, "Created Rd and Td look-up-table with %i entries each (took %.2fs)", numEntries, timer.elapsed());
             }
         }
 	}
 
-    /// Calculate Rd based on all dipoles and the requested distance
-    Spectrum getRd(Spectrum r) {
+    Spectrum getRd(const Spectrum r) const {
         const Spectrum one(1.0f);
         const Spectrum negSigmaTr = m_sigmaTr * (-1.0f);
 		const Spectrum rSqr = r * r;
 
-        Spectrum Rd = Spectrum(0.0f);
+        Spectrum Rd(0.0f);
         for (int i=-m_extraDipoles; i<=m_extraDipoles; ++i) {
             int idx = i + m_extraDipoles;
-            // calulate diffuse reflectance and transmittance
+
             Spectrum zri = m_zr[idx];
-		    Spectrum dri = (rSqr + zri*zri).sqrt();
             Spectrum zvi = m_zv[idx];
+            /* Distance to the real source */
+		    Spectrum dri = (rSqr + zri*zri).sqrt();
+            /* Distance to the image point source */
 		    Spectrum dvi = (rSqr + zvi*zvi).sqrt();
 
-            // the change in Rd
-            Rd +=   (zri * (one + m_sigmaTr * dri) * (negSigmaTr * dri).exp() / (dri * dri * dri))
-                  + (zvi * (one + m_sigmaTr * dvi) * (negSigmaTr * dvi).exp() / (dvi * dvi * dvi));
+            /* Do not include the reduced albedo - will be canceled out later */
+            Rd += Spectrum(0.25f * INV_PI) *
+                 (zri * (one + m_sigmaTr * dri) * ((negSigmaTr * dri).exp())
+                        / (dri * dri * dri)
+                - zvi * (one + m_sigmaTr * dvi) * ((negSigmaTr * dvi).exp())
+                        / (dvi * dvi * dvi));
         }
         return Rd;
     }
 
-    Spectrum getdMoR(Float r) {
-		Spectrum rSqr = Spectrum(r * r);
+    Spectrum getTd(const Spectrum r) const {
+        const Spectrum one(1.0f);
+        const Spectrum negSigmaTr = m_sigmaTr * (-1.0f);
+		const Spectrum rSqr = r * r;
 
-        Spectrum dMoR(0.0f);
+        Spectrum Td(0.0f);
         for (int i=-m_extraDipoles; i<=m_extraDipoles; ++i) {
             int idx = i + m_extraDipoles;
 
@@ -600,16 +626,15 @@ public:
 		    Spectrum dri = (rSqr + zri*zri).sqrt();
             /* Distance to the image point source */
 		    Spectrum dvi = (rSqr + zvi*zvi).sqrt();
-
-            Spectrum C1 = (m_sigmaTr + Spectrum(1.0f) / dri);
-            Spectrum C2 = (m_sigmaTr + Spectrum(1.0f) / dvi);
-
             /* Do not include the reduced albedo - will be canceled out later */
-            dMoR += Spectrum(0.25f * INV_PI) *
-                 (zri * C1 * ((-m_sigmaTr * dri).exp()) / (dri * dri)
-                + zvi * C2 * ((-m_sigmaTr * dvi).exp()) / (dvi * dvi));
+            const Spectrum d = Spectrum(m_slabThickness);
+            Td += Spectrum(0.25f * INV_PI) *
+                 ((d - zri) * (one + dri * m_sigmaTr) * ((negSigmaTr * dri).exp())
+                        / (dri * dri * dri)
+                - (d - zvi) * (one + dvi * m_sigmaTr) *((negSigmaTr * dvi).exp())
+                        / (dvi * dvi * dvi));
         }
-        return dMoR;
+        return Td;
     }
 
 	/// Unpolarized fresnel reflection term for dielectric materials
@@ -721,8 +746,8 @@ private:
     Float m_slabThickness;
     /* Indicates if a look-up-table should be created and used for Rd */
     bool m_useRdLookUpTable;
-    /* Look-up-table for Rd, indexed by the distance r. */
-    ref<LUTType> m_RdLookUpTable;
+    /* Look-up-table for Rd and Td, indexed by the distance r. */
+    ref<LUTType> m_RdLookUpTable, m_TdLookUpTable;
     /* the maximum distance stored in the LUT */
     Float m_rMax;
     /* is rMax predefined? */

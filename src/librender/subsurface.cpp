@@ -109,7 +109,7 @@ SubsurfaceMaterialManager::LUTRecord SubsurfaceMaterialManager::getLUT(const std
     return m_lutRecords.find(hash)->second;
 }
 
-std::string SubsurfaceMaterialManager::getMultipoleLUTHash(Float resolution, Float errorThreshold,
+std::string SubsurfaceMaterialManager::getMultipoleLUTHashR(Float resolution, Float errorThreshold,
         const Spectrum &sigmaTr, const Spectrum &alphaPrime, int numExtraDipoles,
         const std::vector<Spectrum> &zrList, const std::vector<Spectrum> &zvList) const {
     std::ostringstream oss;
@@ -123,6 +123,16 @@ std::string SubsurfaceMaterialManager::getMultipoleLUTHash(Float resolution, Flo
     for (std::vector<Spectrum>::const_iterator it=zvList.begin(); it!=zvList.end(); ++it)
         oss << it->toString();
 
+    return oss.str();
+}
+
+std::string SubsurfaceMaterialManager::getMultipoleLUTHashT(Float resolution, Float errorThreshold,
+        const Spectrum &sigmaTr, const Spectrum &alphaPrime, int numExtraDipoles,
+        const std::vector<Spectrum> &zrList, const std::vector<Spectrum> &zvList, Float d) const {
+    std::ostringstream oss;
+    oss << getMultipoleLUTHashR(resolution, errorThreshold, sigmaTr, alphaPrime, numExtraDipoles,
+            zrList, zvList);
+    oss << ",d";
     return oss.str();
 }
 
