@@ -108,6 +108,7 @@ void IrradianceOctree::preprocess(OctreeNode *node) {
 	node->cluster.E = Spectrum(0.0f);
 	node->cluster.area = 0.0f;
 	node->cluster.p = Point(0.0f, 0.0f, 0.0f);
+    node->cluster.n = Normal(0.0f, 0.0f, 0.0f);
 	Float combinedWeight = 0.0f;
 
 	if (!node->samples.empty()) {
@@ -120,11 +121,14 @@ void IrradianceOctree::preprocess(OctreeNode *node) {
 
 			Float pointWeight = sample.E.average() * sample.area;
 			node->cluster.p += sample.p * pointWeight;
+            node->cluster.n += sample.n * pointWeight;
 			combinedWeight += pointWeight;
 		}
 		node->cluster.E /= node->cluster.area;
 		if (combinedWeight != 0)
 			node->cluster.p /= combinedWeight;
+        if (node->cluster.n.lengthSquared() > 0.0001f)
+			node->cluster.n = normalize(node->cluster.n);
 	} else {
 		int numChildren = 0;
 		/* Inner node */
@@ -140,10 +144,13 @@ void IrradianceOctree::preprocess(OctreeNode *node) {
 
 			Float pointWeight = child->cluster.E.average() * child->cluster.area;
 			node->cluster.p += child->cluster.p * pointWeight;
+			node->cluster.n += child->cluster.n * pointWeight;
 			combinedWeight += pointWeight;
 		}
 		if (combinedWeight != 0)
 			node->cluster.p /= combinedWeight;
+        if (node->cluster.n.lengthSquared() > 0.0001f)
+			node->cluster.n = normalize(node->cluster.n);
 		if (node->cluster.area != 0)
 			node->cluster.E /= node->cluster.area;
 	}
