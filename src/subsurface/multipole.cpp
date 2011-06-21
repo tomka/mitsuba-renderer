@@ -248,8 +248,8 @@ struct IsotropicLUTMultipoleQuery {
             /* combine Mo based on R and Mo based on T to a new
              * Mo based on a combined profile P. */
             Float cosN = dot(ns, sample.n);
-            Spectrum dMoP = 0.5 * (cosN + 1) * dMoR
-                + 0.5 * (1 - cosN) * dMoT;
+            Spectrum dMoP = 0.5f * (cosN + 1.0f) * dMoR
+                          + 0.5f * (1.0f - cosN) * dMoT;
             result += dMoP * sample.E * (sample.area * Fdt);
         }
 		count++;
@@ -391,7 +391,7 @@ public:
 		if (!m_ready || m_ssFactor.isZero())
 			return Spectrum(0.0f);
 
-        const Normal &n = its.shFrame.n;
+        const Normal &n = its.geoFrame.n;
 
         Spectrum Mo = Spectrum(0.0f);
         /* If there are no extra dipoles, do a srandard dipolo query */
@@ -629,13 +629,15 @@ public:
 		    Spectrum dvi = (rSqr + zvi*zvi).sqrt();
             /* Do not include the reduced albedo - will be canceled out later */
             const Spectrum d = Spectrum(m_slabThickness);
-            Td += Spectrum(0.25f * INV_PI) *
-                 ((d - zri) * (one + dri * m_sigmaTr) * ((negSigmaTr * dri).exp())
+            Td += (d - zri) * (one + dri * m_sigmaTr) * ((negSigmaTr * dri).exp())
                         / (dri * dri * dri)
                 - (d - zvi) * (one + dvi * m_sigmaTr) *((negSigmaTr * dvi).exp())
-                        / (dvi * dvi * dvi));
+                        / (dvi * dvi * dvi);
         }
-        return Td;
+        /* Unfordunately, Td can get negative */
+        Td.clampNegative();
+
+        return Spectrum(0.25f * INV_PI) * Td;
     }
 
 	/// Unpolarized fresnel reflection term for dielectric materials
