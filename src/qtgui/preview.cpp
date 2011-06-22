@@ -494,6 +494,8 @@ void PreviewThread::run() {
                     }
                     /* Calculate n0 */
                     n0 = Rd0Max / (srs.shahErrorThreshold * RdRMaxMax);
+                    if (n0 < 0)
+                        n0 = (Float) srs.shahMaxLightViewResolution;
                     /* Based on n0, a more realistic non-overlapping value can be calculated.
                      * This is done when the light is known.
                      */ 
@@ -867,6 +869,8 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
      */
     Float W = 10.0f; // ToDo: Use the actual frustum
     int n = std::min( n0 * W / (2 * srs.shahRmax), (Float) srs.shahMaxLightViewResolution);
+    if (n <= 0)
+        n = (Float) srs.shahMaxLightViewResolution;
     if (n != fboSplatSize) {
         fboSplatSize = n;
         std::cerr << "Realtime SSS: New light view resolution is " << n << "x" << n << std::endl;
