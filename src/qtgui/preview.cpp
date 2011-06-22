@@ -1491,12 +1491,13 @@ void PreviewThread::combineSplats(const TranslucentShape &ts) {
         finalContribProgram->setParameter(m_directShaderManager->param_finalContribWWLightDir, m_currentSpot.dir);
         finalContribProgram->setParameter(m_directShaderManager->param_finalContribWWLightSpecColor, m_currentSpot.specularColor);
         finalContribProgram->setParameter(m_directShaderManager->param_finalContribWWLightAperture, degToRad(m_currentSpot.aperture * 0.5f));
+
+        glUniform1i(m_directShaderManager->param_finalContribWWSubSurf, 0);
         int texOffset = 0;
         m_directShaderManager->m_wiscombeWarrenShader->bind(finalContribProgram.get(),
             m_directShaderManager->m_finalContribWiscombeWarrenParams, texOffset);
         // ToDo: Wrap FBO implementation in sub class of GLProgram
         //finalContribProgram->setParameter(m_directShaderManager->param_finalContribSubSurf, fboCumulSplat);
-        glUniform1i(m_directShaderManager->param_finalContribSubSurf, 0);
 
         //glPushMatrix();
         //curObj->getPosition(top);
