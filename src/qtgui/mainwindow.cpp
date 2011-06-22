@@ -2369,6 +2369,12 @@ void MainWindow::on_actionRender_triggered() {
 
 	Scene *scene = context->scene;
 	scene->setBlockSize(m_blockSize);
+    /* for testing purposes */
+    if (context->sceneResID != -1) {
+        Scheduler::getInstance()->unregisterResource(context->sceneResID);
+        context->sceneResID = Scheduler::getInstance()->registerResource(scene);
+    }
+
 	context->renderJob = new RenderJob("rend", scene, m_renderQueue, NULL, 
 		context->sceneResID, -1, -1, false, true);
 	context->cancelMode = ERender;
