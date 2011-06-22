@@ -405,12 +405,16 @@ void SnowMaterialManager::refreshDiffusionProfile(const SceneContext *context) {
     } else {
         diffusionProfileCache = new Bitmap(numEntries, 1, 32);
         Float maxRd = diffusionProfile[0].max();
-        Float scale = 255.0 / maxRd;
+        const Float scale = 255.0f / maxRd;
+        const Float exposure = context->snowRenderSettings.shahExposure;
         unsigned char *data = diffusionProfileCache->getData();
         for (int i = 0; i < numEntries; ++i) {
-            *data++ = (unsigned int) (diffusionProfile[i][0] * scale + 0.5);
-            *data++ = (unsigned int) (diffusionProfile[i][1] * scale + 0.5);
-            *data++ = (unsigned int) (diffusionProfile[i][2] * scale + 0.5);
+            *data++ = std::max( (unsigned int)1, (unsigned int) (diffusionProfile[i][0] * scale + 0.5));
+            *data++ = std::max( (unsigned int)1, (unsigned int) (diffusionProfile[i][1] * scale + 0.5));
+            *data++ = std::max( (unsigned int)1, (unsigned int) (diffusionProfile[i][2] * scale + 0.5));
+            //*data++ = int(255.0f * (1.0f - exp(diffusionProfile[i][0] * exposure)));
+            //*data++ = int(255.0f * (1.0f - exp(diffusionProfile[i][1] * exposure)));
+            //*data++ = int(255.0f * (1.0f - exp(diffusionProfile[i][2] * exposure)));
             *data++ = 255;
         }
 #ifdef DEBUG_DIFF_PROF
