@@ -485,7 +485,7 @@ void PreviewThread::run() {
                         if (R < data[1]) R = data[1];
                         if (R < data[2]) R = data[2];
                         Rd0Max = (Float) R;
-                        /* Find maximum R(r_max) vavue */
+                        /* Find maximum R(r_max) value */
                         R = data[dpSize - 4];
                         if (R < data[dpSize - 3]) R = data[dpSize - 3];
                         if (R < data[dpSize - 2]) R = data[dpSize - 2];
@@ -911,22 +911,15 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
 	m_framebuffer->activateTarget();
     m_framebuffer->clear();
 
-    const bool buildAlbedoMap = (srs.shahAlbedoMapType == SnowRenderSettings::EWiscombeWarrenAlbedo);
     const bool showSplatOrigins = srs.shahShowSplatOrigins;
     const bool showLight = srs.shahShowLight;
 
     // back up color buffer attriabutes
     glPushAttrib(GL_COLOR_BUFFER_BIT);
-
 	for (size_t i=0; i<meshes.size(); i++) {
         const TriMesh *mesh = meshes[i];
         if (smm.isMadeOfSnow( m_directShaderManager->getMeshes()[i] )) {
             ts.mesh = mesh;
-
-            /* If required, build en albedo map */
-            if (buildAlbedoMap) {
-                // ToDo:
-            }
 
             calcSplatPositions(ts, camPos); // in light view
 

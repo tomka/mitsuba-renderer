@@ -171,10 +171,10 @@
     </rect>
    </property>
    <property name="toolTip">
-    <string>Use a look-up-table for contributions to the radiant extitance</string>
+    <string>Use a look-up-table for contributions to the radiant extitance due to reflectance and transmittance.</string>
    </property>
    <property name="text">
-    <string>Use dMo look-up-table</string>
+    <string>Use Rd/Td look-up-table</string>
    </property>
   </widget>
   <widget class="QWidget" name="formLayoutWidget">
