@@ -245,6 +245,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_shahRTSettings->viewBufferHSpinBox, SIGNAL(valueChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_shahRTSettings->refreshSnowButton, SIGNAL(pressed()), this, SLOT(onRefreshShahSnowParameters()));
     connect(m_shahRTSettings->refreshSnowButton2, SIGNAL(pressed()), this, SLOT(onRefreshShahSnowParameters()));
+    connect(m_shahRTSettings->weightSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
 
     connect(m_wiscombeSettings->depthSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
 
@@ -1100,6 +1101,7 @@ void MainWindow::onSnowRenderModelChange() {
     srs.shahMaxLightViewResolution = m_shahRTSettings->nSpinBox->value();
     srs.shahBackbufferWidth = m_shahRTSettings->viewBufferWSpinBox->value();
     srs.shahBackbufferHeight = m_shahRTSettings->viewBufferHSpinBox->value();
+    srs.shahWeight = m_shahRTSettings->weightSpinBox->value();
 
     SnowRenderSettings::EShahDiffusionPrType shahDiffusionProfile = 
         static_cast<SnowRenderSettings::EShahDiffusionPrType>( std::min(1, shahDiffusionExample) );
@@ -1693,6 +1695,7 @@ void MainWindow::blockRenderComponentsSignals(bool block) {
     m_shahRTSettings->nSpinBox->blockSignals(block);
     m_shahRTSettings->viewBufferWSpinBox->blockSignals(block);
     m_shahRTSettings->viewBufferHSpinBox->blockSignals(block);
+    m_shahRTSettings->weightSpinBox->blockSignals(block);
     m_wiscombeSettings->depthSpinBox->blockSignals(block);
     m_hkSettings->singleScatteringSpinBox->blockSignals(block);
     m_hkSettings->multipleScatteringSpinBox->blockSignals(block);
@@ -1836,6 +1839,7 @@ void MainWindow::updateSnowRenderingComponents() {
     m_shahRTSettings->nSpinBox->setValue( srs.shahMaxLightViewResolution );
     m_shahRTSettings->viewBufferWSpinBox->setValue( srs.shahBackbufferWidth );
     m_shahRTSettings->viewBufferHSpinBox->setValue( srs.shahBackbufferHeight );
+    m_shahRTSettings->weightSpinBox->setValue( srs.shahWeight );
 
     // Wiscombe
     Float wiscombeDepth = srs.wiscombeDepth;

@@ -1456,7 +1456,8 @@ void PreviewThread::combineSplats(const TranslucentShape &ts) {
 
         GPUProgram *finalContribProgram = m_directShaderManager->m_finalContributionProgram;
         finalContribProgram->bind();
-        finalContribProgram->setParameter(m_directShaderManager->param_finalContribSampleScale, (Float) splats.size());
+        Float sampleScale = (Float) splats.size() / m_context->snowRenderSettings.shahWeight;
+        finalContribProgram->setParameter(m_directShaderManager->param_finalContribSampleScale, sampleScale);
         finalContribProgram->setParameter(m_directShaderManager->param_finalContribLightPos, m_currentSpot.pos);
         finalContribProgram->setParameter(m_directShaderManager->param_finalContribLightDir, m_currentSpot.dir);
         finalContribProgram->setParameter(m_directShaderManager->param_finalContribLightSpecColor, m_currentSpot.specularColor);
@@ -1486,7 +1487,8 @@ void PreviewThread::combineSplats(const TranslucentShape &ts) {
     } else {
         ref<GPUProgram> finalContribProgram = m_directShaderManager->m_finalContributionWWProgram;
         finalContribProgram->bind();
-        finalContribProgram->setParameter(m_directShaderManager->param_finalContribWWSampleScale, (Float) splats.size());
+        Float sampleScale = (Float) splats.size() / m_context->snowRenderSettings.shahWeight;
+        finalContribProgram->setParameter(m_directShaderManager->param_finalContribWWSampleScale, sampleScale);
         finalContribProgram->setParameter(m_directShaderManager->param_finalContribWWLightPos, m_currentSpot.pos);
         finalContribProgram->setParameter(m_directShaderManager->param_finalContribWWLightDir, m_currentSpot.dir);
         finalContribProgram->setParameter(m_directShaderManager->param_finalContribWWLightSpecColor, m_currentSpot.specularColor);

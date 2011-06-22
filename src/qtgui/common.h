@@ -139,6 +139,8 @@ struct SnowRenderSettings {
     Float shahErrorThreshold;
     int shahMaxLightViewResolution; 
     int shahBackbufferWidth, shahBackbufferHeight;
+    Float shahWeight;
+    Float shahExposure;
 
     SnowRenderSettings() :
         generalRenderMode(EOffline), surfaceRenderMode(ENoSurface), subsurfaceRenderMode(ENoSubSurface),
@@ -158,7 +160,8 @@ struct SnowRenderSettings {
         shahExpandSilhouette(true), shahShowSplatOrigins(false), shahShowLight(false),
         shahAlbedoMapType(EWiscombeWarrenAlbedo), shahDiffusionProfileType(EExampleProfile), shahDiffusionExample(4),
         shahRmax(0.5f), shahMCIterations(10000), shahPredefineRmax(true), shahSpecularColor(0.0f),
-        shahErrorThreshold(0.01), shahMaxLightViewResolution(1024), shahBackbufferWidth(100), shahBackbufferHeight(75)
+        shahErrorThreshold(0.01), shahMaxLightViewResolution(1024), shahBackbufferWidth(100),
+        shahBackbufferHeight(75), shahWeight(1.0f), shahExposure(0.1)
     {
         /* try to load last texture paths */
 	    QSettings settings("mitsuba-renderer.org", "qtgui");
