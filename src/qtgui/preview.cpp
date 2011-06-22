@@ -801,20 +801,22 @@ void PreviewThread::rtrtRenderVPL(PreviewQueueEntry &target, const VPL &vpl) {
 	m_accumBuffer = target.buffer;
 }
 
-static bool singleCheck = true;
+static bool singleCheck = false;
+static bool oglChecked = false;
 
 void PreviewThread::oglErrorCheck() {
     GLenum errCode;
     const GLubyte *errString;
 
-    if (singleCheck) {
-        singleCheck = false;
-        if ((errCode = glGetError()) != GL_NO_ERROR) {
-            errString = gluErrorString(errCode);
-           fprintf (stderr, "OpenGL Error: %s\n", errString);
-        } else {
-           std::cerr << "No OpenGL errer" << std::endl;
-        }
+    if (singleCheck && oglChecked)
+        return;
+
+    oglChecked = true;
+    if ((errCode = glGetError()) != GL_NO_ERROR) {
+        errString = gluErrorString(errCode);
+       fprintf (stderr, "OpenGL Error: %s\n", errString);
+    } else {
+       std::cerr << "No OpenGL errer" << std::endl;
     }
 }
 
