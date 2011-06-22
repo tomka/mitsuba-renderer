@@ -68,8 +68,8 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
                 BSDF::m_theClass, properties));
         } else if (surfaceMode == EHanrahanKruegerBRDF) {
             properties.setPluginName("hanrahankrueger");
-            properties.setFloat("ssFactor", srs.hkSingleScatteringFactor);
-            properties.setFloat("drFactor", srs.hkMultipleScatteringFactor);
+            properties.setSpectrum("ssFactor", Spectrum(srs.hkSingleScatteringFactor));
+            properties.setSpectrum("drFactor", Spectrum(srs.hkMultipleScatteringFactor));
             properties.setBoolean("diffuseReflectance", srs.hkUseMultipleScattering);
             bsdf = static_cast<BSDF *> (pluginManager->createObject(
                 BSDF::m_theClass, properties));
