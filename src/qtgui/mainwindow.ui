@@ -1093,12 +1093,20 @@ of snow wtih the specified value.</string>
      <addaction name="actionAllShapesSnow"/>
      <addaction name="actionAllShapesNoSnow"/>
     </widget>
+    <widget class="QMenu" name="menuRendering_strategy">
+     <property name="title">
+      <string>Rendering strategy</string>
+     </property>
+     <addaction name="actionSerialJobsRendering"/>
+     <addaction name="actionSerialSubjobsRendering"/>
+    </widget>
     <addaction name="actionStartServer"/>
     <addaction name="separator"/>
     <addaction name="menuDeveloper"/>
     <addaction name="actionSettings"/>
     <addaction name="separator"/>
     <addaction name="menuAllShapes"/>
+    <addaction name="menuRendering_strategy"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuTools"/>
@@ -1397,7 +1405,7 @@ of snow wtih the specified value.</string>
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>Visualize kd-Tree</string>
+    <string>Show kd-Tree</string>
    </property>
   </action>
   <action name="actionSceneDescription">
@@ -1441,6 +1449,16 @@ of snow wtih the specified value.</string>
   <action name="actionAllShapesNoSnow">
    <property name="text">
     <string>not made of snow</string>
+   </property>
+  </action>
+  <action name="actionSerialJobsRendering">
+   <property name="text">
+    <string>Serial jobs</string>
+   </property>
+  </action>
+  <action name="actionSerialSubjobsRendering">
+   <property name="text">
+    <string>Serial subjobs</string>
    </property>
   </action>
  </widget>

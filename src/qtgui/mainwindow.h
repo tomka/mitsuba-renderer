@@ -157,6 +157,8 @@ private slots:
 	void on_actionShowKDTree_triggered();
 	void on_actionSceneDescription_triggered();
 	void on_actionShowNormals_triggered();
+	void on_actionSerialJobsRendering_triggered();
+	void on_actionSerialSubjobsRendering_triggered();
 	void on_tabBar_currentChanged(int index);
 	bool on_tabBar_tabCloseRequested(int index);
 	void on_tabBar_tabMoved(int from, int to);

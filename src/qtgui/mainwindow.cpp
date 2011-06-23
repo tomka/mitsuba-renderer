@@ -1262,6 +1262,14 @@ void MainWindow::on_actionShowNormals_triggered() {
 		ui->glView->resetPreview();
 }
 
+void MainWindow::on_actionSerialJobsRendering_triggered() {
+    m_renderQueue->setManagedExecutionStrategy(RenderQueue::ESerial);
+}
+
+void MainWindow::on_actionSerialSubjobsRendering_triggered() {
+    m_renderQueue->setManagedExecutionStrategy(RenderQueue::ETransparent);
+}
+
 void MainWindow::changeEvent(QEvent *e) {
     QMainWindow::changeEvent(e);
     switch (e->type()) {
