@@ -104,6 +104,7 @@ void RenderJob::run() {
 	}
 
 	try {
+        Log(EDebug, "Preprocessing scene \"%s\" (ID: %i)", m_scene->getSourceFile().leaf().c_str(), m_sceneResID);
 		if (!m_scene->preprocess(m_queue, this, m_sceneResID, m_cameraResID, m_samplerResID)) {
 			m_cancelled = true;
 			Log(EWarn, "Preprocessing of scene \"%s\" did not complete successfully!",
@@ -116,6 +117,7 @@ void RenderJob::run() {
 				Log(EWarn, "Rendering of scene \"%s\" did not complete successfully!",
 					m_scene->getSourceFile().leaf().c_str());
 			}
+            Log(EDebug, "Postprocessing scene \"%s\" (ID: %i)", m_scene->getSourceFile().leaf().c_str(), m_sceneResID);
 			m_scene->postprocess(m_queue, this, m_sceneResID, m_cameraResID, m_samplerResID);
 		}
 
