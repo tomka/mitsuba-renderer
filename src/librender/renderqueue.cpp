@@ -21,7 +21,8 @@
 
 MTS_NAMESPACE_BEGIN
 
-RenderQueue::RenderQueue() {
+RenderQueue::RenderQueue(EExecutionStrategy execStrategy) {
+    m_managingStrategy = execStrategy; 
 	m_mutex = new Mutex();
 	m_joinMutex = new Mutex();
 	m_cond = new ConditionVariable(m_mutex);
@@ -63,6 +64,42 @@ void RenderQueue::flush() {
 	m_mutex->unlock();
 }
 
+void RenderQueue::managedExecution(RenderJob *thr) {
+	m_mutex->lock();
+	std::map<RenderJob *, JobRecord>::iterator it = m_jobs.find(thr);
+	if (it == m_jobs.end()) {
+		Log(EError, "RenderQueue::managedExecution() - job not found!");
+		m_mutex->unlock();
+	}
+	JobRecord &rec = (*it).second;
+    if (rec.delayed)
+		Log(EWarn, "RenderQueue::managedExecution() - job already set up for delayed execution!");
+
+    // enqueue if this is not the first job
+    bool queueJob = (m_jobs.size() > 1) && (m_managingStrategy == ESerial);
+    if (queueJob) {
+        m_waitingJobs.push(thr);
+	    Log(EDebug, "Managing execution of new job: queued");
+    } else {
+        thr->start();
+	    Log(EDebug, "Managing execution of new job: run direcly");
+    }
+    m_mutex->unlock();
+}
+
+void RenderQueue::setManagedExecutionStrategy(EExecutionStrategy es) {
+	m_mutex->lock();
+	if (m_jobs.size() > 0) {
+		Log(EWarn, "Job queue not empy - won't change managment strategy!");
+        m_mutex->unlock();
+        return;
+	}
+
+    m_managingStrategy = es;
+	Log(EDebug, "Set new managed execution strategy");
+    m_mutex->unlock();
+}
+
 void RenderQueue::removeJob(RenderJob *job, bool cancelled) {
 	m_mutex->lock();
 	std::map<RenderJob *, JobRecord>::iterator it = m_jobs.find(job);
@@ -72,13 +109,36 @@ void RenderQueue::removeJob(RenderJob *job, bool cancelled) {
 	}
 	JobRecord &rec = (*it).second;
 	unsigned int ms = m_timer->getMilliseconds() - rec.startTime;
-	Log(EInfo, "Render time: %s", timeString(ms/1000.0f, true).c_str());
+    if (rec.delayed)
+	    Log(EInfo, "Render time: %s", timeString(ms/1000.0f, true).c_str());
+    else
+    	Log(EInfo, "Render time: %s after waiting %s", timeString(ms/1000.0f, true).c_str(),
+            timeString(rec.waitTime/1000.0f, true).c_str());
 	m_jobs.erase(job);
 	m_cond->broadcast();
 	m_joinMutex->lock();
 	m_joinList.push_back(job);
 	m_joinMutex->unlock();
 	signalFinishJob(job, cancelled);
+
+    // execute a potentially delayed job
+    if (m_waitingJobs.size() > 0) {
+        RenderJob *job = m_waitingJobs.front();
+        m_waitingJobs.pop();
+
+        std::map<RenderJob *, JobRecord>::iterator it = m_jobs.find(job);
+        if (it == m_jobs.end()) {
+            Log(EError, "RenderQueue::removeRenderJob() - queued job not found!");
+            m_mutex->unlock();
+        }
+	    rec = (*it).second;
+        // set start time
+        unsigned int origStartTime = rec.startTime;
+        rec.startTime = m_timer->getMilliseconds();
+        rec.waitTime = m_timer->getMilliseconds() - origStartTime;
+        // finally, start the waiting job
+        job->start();
+    }
 	m_mutex->unlock();
 }
 	

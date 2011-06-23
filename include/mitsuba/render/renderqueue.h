@@ -21,6 +21,7 @@
 
 #include <mitsuba/mitsuba.h>
 #include <mitsuba/render/rectwu.h>
+#include <queue>
 
 MTS_NAMESPACE_BEGIN
 
@@ -58,8 +59,14 @@ protected:
  */
 class MTS_EXPORT_RENDER RenderQueue : public Object {
 public:
+    enum EExecutionStrategy {
+        ESerial, // start a new job only if no other is executing
+        ETransparent // behaves just as usual
+    };
+
+public:
 	/// Create a new render queue
-	RenderQueue();
+	RenderQueue(EExecutionStrategy execStrategy = ETransparent);
 
 	/// Return the current number of jobs in the queue
 	inline size_t getJobCount() const { return m_jobs.size(); }
@@ -88,6 +95,15 @@ public:
 	/// Cause all render jobs to write out the current image
 	void flush();
 
+    /**
+     *  Managed execution of a previously registered job. For
+     *  now this leads only to serial execution of the single jobs.
+     */
+    void managedExecution(RenderJob *thr);
+
+    /// change the managed execution strategy
+    void setManagedExecutionStrategy(EExecutionStrategy es);
+
 	/* Event distribution */
 	void signalWorkBegin(const RenderJob *job, const RectangularWorkUnit *wu, int worker);
 	void signalWorkEnd(const RenderJob *job, const ImageBlock *block);
@@ -102,10 +118,14 @@ private:
 	struct JobRecord {
 		/* Only starting time for now */
 		unsigned int startTime;
+        /* The time the job has been waiting due to delayed execution */
+        unsigned int waitTime;
+        /* indicates if the job is or was delayed */
+        bool delayed;
 
 		inline JobRecord() { }
 		inline JobRecord(unsigned int startTime)
-			: startTime(startTime) {
+			: startTime(startTime), waitTime(0), delayed(false) {
 		}
 	};
 
@@ -115,6 +135,8 @@ private:
 	mutable ref<ConditionVariable> m_cond;
 	ref<Timer> m_timer;
 	std::vector<RenderListener *> m_listeners;
+    std::queue<RenderJob *> m_waitingJobs;
+    EExecutionStrategy m_managingStrategy;
 };
 
 MTS_NAMESPACE_END

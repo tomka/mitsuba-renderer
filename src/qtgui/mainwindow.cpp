@@ -165,7 +165,8 @@ MainWindow::MainWindow(QWidget *parent) :
 	m_listenPort = settings.value("listenPort", MTS_DEFAULT_PORT).toInt();
 	m_nodeName = settings.value("nodeName", getFQDN().c_str()).toString();
 
-	m_renderQueue = new RenderQueue();
+    // create render queue that manages incoming jobs one after another
+	m_renderQueue = new RenderQueue(RenderQueue::ESerial);
 	m_renderListener = new QRenderListener();
 	m_renderQueue->registerListener(m_renderListener);
 
@@ -2404,7 +2405,7 @@ void MainWindow::on_actionRender_triggered() {
     std::cerr << context->snowMaterialManager.toString() << std::endl
               << context->snow.toString() << std::endl;
 	updateStatus();
-	context->renderJob->start();
+    m_renderQueue->managedExecution(context->renderJob);
 }
 
 void MainWindow::on_actionRefresh_triggered() {
