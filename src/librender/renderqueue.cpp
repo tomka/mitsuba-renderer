@@ -123,21 +123,22 @@ void RenderQueue::removeJob(RenderJob *job, bool cancelled) {
 
     // execute a potentially delayed job
     if (m_waitingJobs.size() > 0) {
-        RenderJob *job = m_waitingJobs.front();
+        RenderJob *waitingJob = m_waitingJobs.front();
         m_waitingJobs.pop();
 
-        std::map<RenderJob *, JobRecord>::iterator it = m_jobs.find(job);
+        it = m_jobs.find(waitingJob);
         if (it == m_jobs.end()) {
             Log(EError, "RenderQueue::removeRenderJob() - queued job not found!");
             m_mutex->unlock();
         }
-	    rec = (*it).second;
+	    JobRecord waitRec = (*it).second;
         // set start time
-        unsigned int origStartTime = rec.startTime;
-        rec.startTime = m_timer->getMilliseconds();
-        rec.waitTime = m_timer->getMilliseconds() - origStartTime;
+        unsigned int origStartTime = waitRec.startTime;
+        waitRec.startTime = m_timer->getMilliseconds();
+        waitRec.waitTime = m_timer->getMilliseconds() - origStartTime;
+        m_jobs[waitingJob] = waitRec;
         // finally, start the waiting job
-        job->start();
+        waitingJob->start();
     }
 	m_mutex->unlock();
 }
