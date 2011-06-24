@@ -82,7 +82,7 @@ void RenderQueue::managedExecution(RenderJob *thr) {
 	    Log(EDebug, "Managing execution of new job: queued");
     } else {
         thr->start();
-	    Log(EDebug, "Managing execution of new job: run direcly");
+	    Log(EDebug, "Managing execution of new job: run directly");
     }
     m_mutex->unlock();
 }
