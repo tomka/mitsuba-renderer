@@ -132,7 +132,7 @@ std::string SubsurfaceMaterialManager::getMultipoleLUTHashT(Float resolution, Fl
     std::ostringstream oss;
     oss << getMultipoleLUTHashR(resolution, errorThreshold, sigmaTr, alphaPrime, numExtraDipoles,
             zrList, zvList);
-    oss << ",d";
+    oss << ",d=" << d;
     return oss.str();
 }
 
