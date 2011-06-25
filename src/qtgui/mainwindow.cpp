@@ -1669,7 +1669,7 @@ void MainWindow::updateSnowComponents() {
     ui->wl700SpinBox->blockSignals(false);
 }
 
-void MainWindow::updateSnowOnShape(SceneContext* context, Shape* shape, bool hasSnow) {
+void MainWindow::updateSnowOnShape(SceneContext* context, Shape* shape, bool hasSnow, bool updateUi) {
 	on_tabBar_currentChanged(-1);
 	qApp->processEvents();
 
@@ -1678,13 +1678,16 @@ void MainWindow::updateSnowOnShape(SceneContext* context, Shape* shape, bool has
     } else {
         context->snowMaterialManager.resetMaterial(shape, context);
     }
-    /* expects allowed on control on context and preview data (i.e. should not be active) */
-    /* Reset preview data */
-    context->previewBuffer.vplSampleOffset = 0;
-    context->pathLength = context->detectPathLength();
-	int index = ui->tabBar->currentIndex();
-    if (index != -1)
-        on_tabBar_currentChanged(index);
+
+    if (updateUi) {
+        /* expects allowed on control on context and preview data (i.e. should not be active) */
+        /* Reset preview data */
+        context->previewBuffer.vplSampleOffset = 0;
+        context->pathLength = context->detectPathLength();
+        int index = ui->tabBar->currentIndex();
+        if (index != -1)
+            on_tabBar_currentChanged(index);
+    }
 }
 
 void MainWindow::blockRenderComponentsSignals(bool block) {
@@ -2755,7 +2758,15 @@ void MainWindow::on_actionAllShapesNoSnow_triggered() {
 	SceneContext *context = m_context[currentIndex];
     const shapeListType shapes = context->scene->getShapes();
     for (shapeListType::const_iterator it = shapes.begin(); it != shapes.end(); it++)
-            updateSnowOnShape(context, *it, false);
+            updateSnowOnShape(context, *it, false, false);
+
+    /* expects allowed on control on context and preview data (i.e. should not be active) */
+    /* Reset preview data */
+    context->previewBuffer.vplSampleOffset = 0;
+    context->pathLength = context->detectPathLength();
+    int index = ui->tabBar->currentIndex();
+    if (index != -1)
+        on_tabBar_currentChanged(index);
     updateUI();
 }
 
