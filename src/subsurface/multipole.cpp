@@ -229,14 +229,16 @@ struct IsotropicMultipoleQuery {
  */
 struct IsotropicLUTMultipoleQuery {
 	inline IsotropicLUTMultipoleQuery(const ref<LUTType> &lutR, const ref<LUTType> &lutT,
-            Float _res, Float _Fdt, const Point &_p, const Normal &_ns)
+            Float _res, Float _Fdt, const Point &_p, const Normal &_ns, Float _minDist)
         : dMoR_LUT(lutR), dMoT_LUT(lutT), entries(lutR->size()), invResolution(1.0f / _res),
-          result(0.0f), Fdt(_Fdt), p(_p), ns(_ns), count(0) {
+          result(0.0f), Fdt(_Fdt), p(_p), ns(_ns), count(0), minDist(_minDist) {
 	}
 
 	inline void operator()(const IrradianceSample &sample) {
 	    //Float rSqr = (p - sample.p).lengthSquared();
 	    Float r = (p - sample.p).length();
+        // Avoid singularities (see Jensen et al. 2001)
+        r = std::max(r, minDist);
         /* Look up dMo for the distance. As in the normal query,the
          * reduced albedo is not included. It will be canceled out
          * later. The index is rounded to the next nearest integer. */
@@ -268,6 +270,7 @@ struct IsotropicLUTMultipoleQuery {
 	Point p;
     Normal ns;
 	int count;
+    Float minDist;
 };
 
 
@@ -402,7 +405,7 @@ public:
                 Mo = query.getResult();
         } else {
             if (m_useRdLookUpTable) {
-                IsotropicLUTMultipoleQuery query(m_RdLookUpTable, m_TdLookUpTable, m_lutResolution, m_Fdt, its.p, n);
+                IsotropicLUTMultipoleQuery query(m_RdLookUpTable, m_TdLookUpTable, m_lutResolution, m_Fdt, its.p, n, m_minMFP);
                 m_octree->execute(query);
                 Mo = query.getResult();
             } else {

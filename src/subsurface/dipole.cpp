@@ -130,14 +130,15 @@ struct IsotropicDipoleQuery {
  */
 struct IsotropicLUTDipoleQuery {
 	inline IsotropicLUTDipoleQuery(const ref<LUTType> &lut, Float _res, 
-		    Float Fdt, const Point &p) 
+		    Float Fdt, const Point &p, Float _minDist)
 		: dMo_LUT(lut), entries(lut->size()), invResolution(1.0f / _res),
-          result(0.0f), Fdt(Fdt), p(p), count(0) {
+          result(0.0f), Fdt(Fdt), p(p), count(0), minDist(_minDist) {
 	}
 
 	inline void operator()(const IrradianceSample &sample) {
-        //Float dist = std::max((p - sample.p).lengthSquared(), zrMinSq);
 	    Float r = (p - sample.p).length();
+        // Avoid singularities (see Jensen et al. 2001)
+        r = std::max(r, minDist);
         /* Look up dMo for the distance. As in the normal query,the
          * reduced albedo is not included. It will be canceled out
          * later. The index is rounded to the next nearest integer. */
@@ -163,6 +164,7 @@ struct IsotropicLUTDipoleQuery {
 	Float Fdt;
 	Point p;
 	int count;
+    Float minDist;
 };
 
 static ref<Mutex> irrOctreeMutex = new Mutex();
@@ -327,7 +329,7 @@ public:
         } else {
             Spectrum Mo;
             if (m_useRdLookUpTable) {
-                IsotropicLUTDipoleQuery query(m_RdLookUpTable, m_lutResolution, m_Fdt, its.p);
+                IsotropicLUTDipoleQuery query(m_RdLookUpTable, m_lutResolution, m_Fdt, its.p, m_minMFP);
                 m_octree->execute(query);
                 // compute multiple scattering term
                 Mo = query.getResult();
