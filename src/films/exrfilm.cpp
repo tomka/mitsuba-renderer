@@ -52,7 +52,7 @@ public:
 		/* Should an alpha channel be added to the output image? */
 		m_hasAlpha = props.getBoolean("alpha", true);
 		/* Should an Mitsuba banner be added to the output image? */
-		m_hasBanner = props.getBoolean("banner", true);
+		m_hasBanner = props.getBoolean("banner", false);
 	}
 
 	EXRFilm(Stream *stream, InstanceManager *manager) 

@@ -59,7 +59,7 @@ public:
 		/* Should an alpha channel be added to the output image? */
 		m_hasAlpha = props.getBoolean("alpha", true);
 		/* Should an Mitsuba banner be added to the output image? */
-		m_hasBanner = props.getBoolean("banner", true);
+		m_hasBanner = props.getBoolean("banner", false);
 		/* Bits per pixel including alpha (must be 8, 16, 24 or 32) */
 		m_bpp = props.getInteger("bpp", -1);
 		/* Gamma value for the correction. Negative values switch to sRGB */
