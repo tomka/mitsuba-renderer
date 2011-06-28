@@ -353,14 +353,23 @@ public:
              * one shadow ray per light. Then per shadow ray a number of samples
              * is used to calculate the contribution due to that one. */
             if (m_singleScattering) {
-                const int nrSamples = 5;
-                Float singleScatteringLo = 0.0f;
-                for (int i=0; i < nrSamples; ++i) {
-                    Vector wo;
-                    //singleScatteringLo += LoSingleScattering(wo, d, its);
-                }
 
-                //Lo += singleScatteringLo / nrSamples;
+
+                /* BSSRDF single scattering -- under construction */
+                /*
+                if (m_useRdLookUpTable) {
+
+                } else {
+                    const int nrSamples = 1;
+                    Spectrum LoSS = Spectrum(0.0f);
+                    for (int i=0; i < nrSamples; ++i) {
+                        Vector wo;
+                        //LoSS += LoSingleScattering(wo, d, its);
+                    }
+
+                    Lo += LoSS / nrSamples;
+                }
+                */
             }
 
             return Lo;
