@@ -53,27 +53,25 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
         SnowRenderSettings &srs = context->snowRenderSettings;
 
         if (surfaceMode == ENoSurface) {
-            bsdf = NULL;
+            properties.setPluginName("lambertian");
+            properties.setSpectrum("reflectance", Spectrum(0.0f));
         } else if (surfaceMode == EWiscombeWarrenAlbedo) {
             properties.setPluginName("wiscombe");
             properties.setFloat("depth",srs.wiscombeDepth);
             properties.setSpectrum("singleScatteringAlbedo", snow.singleScatteringAlbedo);
-            bsdf = static_cast<BSDF *> (pluginManager->createObject(
-                BSDF::m_theClass, properties));
         } else if (surfaceMode == EWiscombeWarrenBRDF) {
             properties.setPluginName("wiscombe");
             properties.setFloat("depth", srs.wiscombeDepth);
             properties.setSpectrum("singleScatteringAlbedo", snow.singleScatteringAlbedo);
-            bsdf = static_cast<BSDF *> (pluginManager->createObject(
-                BSDF::m_theClass, properties));
         } else if (surfaceMode == EHanrahanKruegerBRDF) {
             properties.setPluginName("hanrahankrueger");
             properties.setSpectrum("ssFactor", Spectrum(srs.hkSingleScatteringFactor));
             properties.setSpectrum("drFactor", Spectrum(srs.hkMultipleScatteringFactor));
             properties.setBoolean("diffuseReflectance", srs.hkUseMultipleScattering);
-            bsdf = static_cast<BSDF *> (pluginManager->createObject(
-                BSDF::m_theClass, properties));
         }
+
+        bsdf = static_cast<BSDF *> (pluginManager->createObject(
+            BSDF::m_theClass, properties));
 
         if (subsurfaceMode == ENoSubSurface) {
             subsurface = NULL; 
