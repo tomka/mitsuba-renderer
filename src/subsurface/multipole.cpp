@@ -573,6 +573,7 @@ public:
                     const Spectrum r(i * m_lutResolution);
                     m_RdLookUpTable->at(i) = getRd(r);
                     m_TdLookUpTable->at(i) = getTd(r);
+                    //std::cerr << "r: " << (i * m_lutResolution) << " Rd: " << m_RdLookUpTable->at(i).toString() << "Td: " << m_TdLookUpTable->at(i).toString() << std::endl;
                 }
 
                 /* Create new LUTRecord and store this LUT */

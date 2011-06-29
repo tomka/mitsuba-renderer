@@ -2382,7 +2382,8 @@ void MainWindow::on_actionRender_triggered() {
 
 	Scene *scene = context->scene;
 	scene->setBlockSize(m_blockSize);
-    /* for testing purposes */
+
+    /* Avoids a segfault that misteriously appears sometimes. */
     if (context->sceneResID != -1) {
         Scheduler::getInstance()->unregisterResource(context->sceneResID);
         context->sceneResID = Scheduler::getInstance()->registerResource(scene);
