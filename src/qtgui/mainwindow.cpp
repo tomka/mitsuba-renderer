@@ -1652,6 +1652,7 @@ void MainWindow::updateSnowComponents() {
     Spectrum albedo = getAlbedo(snow.iceSigmaA, snow.grainsize);
     ui->albedoLabel->setText(QString::number(albedo.average(), 'g', 2));
     ui->ssalbedoLabel->setText(QString::number(snow.singleScatteringAlbedo.average(), 'g', 2));
+    ui->mfpLabel->setText(QString::number( (1.0f /snow.sigmaT).average()) + "m" );
     bool showSsAlbedoInput = context->snow.calcMode == SnowProperties::EPhenomenological;
     ui->ssAlbedoSpinBox->setEnabled(showSsAlbedoInput);
     ui->ssAlbedoLabel->setEnabled(showSsAlbedoInput);
