@@ -441,7 +441,7 @@ void DirectShaderManager::init() {
         "  float dist = length(visSurfPos - splatOrigin);\n"
            // Texture coordinate in 1D diffusion profile
         "  float dist2splatCenter = dist/(billboardRadius);\n"
-           // gl_TexCoord[0].xyz contains the splat color at origin
+           // gl_TexCoord[0].xyz contains the splat color (the received light) at origin
         "  vec3 finalPixelColor=gl_TexCoord[0].xyz * texture2D( translucencyTex, vec2(dist2splatCenter,0.5)).rgb;\n"
            // Assign final color and count up alpha
         "  gl_FragColor = vec4(finalPixelColor, 1.0);\n"
