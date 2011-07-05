@@ -171,6 +171,7 @@ private:
 
     static unsigned int intColFormRGBF[2];
     static unsigned int intColFormRGBAF[2];
+    static unsigned int intColFormRGBAF32[2];
     static unsigned int filter[2];
     static unsigned int filterL[2];
     static unsigned int wrap[2];

@@ -35,6 +35,7 @@ GLEWContext *glewGetContext() {
 
 unsigned int PreviewThread::intColFormRGBF[2] = {GL_RGB16F_ARB, GL_RGB16F_ARB};
 unsigned int PreviewThread::intColFormRGBAF[2] = {GL_RGBA16F_ARB, GL_RGBA16F_ARB};
+unsigned int PreviewThread::intColFormRGBAF32[2] = {GL_RGBA32F_ARB, GL_RGBA32F_ARB};
 unsigned int PreviewThread::filter[2] = {GL_NEAREST, GL_NEAREST};
 unsigned int PreviewThread::filterL[2] = {GL_LINEAR, GL_LINEAR};
 unsigned int PreviewThread::wrap[2] = {GL_CLAMP, GL_CLAMP};
@@ -900,7 +901,7 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
             wrap,wrap,filter,filter,FBO_DepthBufferType_TEXTURE,GL_NEAREST,GL_NEAREST,GL_CLAMP,GL_CLAMP);
         fboViewExpand->init(fboCumulSplatWidth,fboCumulSplatHeight,intColFormRGBAF,
             wrap,wrap,filter,filter,FBO_DepthBufferType_TEXTURE,GL_NEAREST,GL_NEAREST,GL_CLAMP,GL_CLAMP);
-        fboCumulSplat->init(fboCumulSplatWidth,fboCumulSplatHeight,intColFormRGBAF,
+        fboCumulSplat->init(fboCumulSplatWidth,fboCumulSplatHeight,intColFormRGBAF32,
             wrap,wrap,filterL,filterL,FBO_DepthBufferType_NONE,0,0,0,0);
         fboTmp->init(fboCumulSplatWidth,fboCumulSplatHeight,intColFormRGBF,
             wrap,wrap,filterL,filterL,FBO_DepthBufferType_NONE,0,0,0,0);
