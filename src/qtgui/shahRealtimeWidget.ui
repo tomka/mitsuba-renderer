@@ -81,7 +81,7 @@
       <x>0</x>
       <y>0</y>
       <width>141</width>
-      <height>21</height>
+      <height>28</height>
      </rect>
     </property>
     <layout class="QGridLayout" name="gridLayout_7">
@@ -227,10 +227,10 @@
   <widget class="QWidget" name="formLayoutWidget_2">
    <property name="geometry">
     <rect>
-     <x>10</x>
+     <x>20</x>
      <y>160</y>
-     <width>161</width>
-     <height>126</height>
+     <width>151</width>
+     <height>131</height>
     </rect>
    </property>
    <layout class="QFormLayout" name="formLayout_2">
@@ -317,7 +317,7 @@ splats are drawn at max.</string>
     <item row="4" column="1">
      <widget class="QDoubleSpinBox" name="weightSpinBox">
       <property name="maximum">
-       <double>1000.000000000000000</double>
+       <double>100000.000000000000000</double>
       </property>
       <property name="singleStep">
        <double>0.100000000000000</double>
@@ -331,8 +331,8 @@ splats are drawn at max.</string>
     <rect>
      <x>20</x>
      <y>100</y>
-     <width>151</width>
-     <height>48</height>
+     <width>155</width>
+     <height>50</height>
     </rect>
    </property>
    <layout class="QGridLayout" name="gridLayout">
