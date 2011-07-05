@@ -76,7 +76,7 @@ public:
     /**
      * Calculate the dipole diffusion napproximation.
      */
-    Spectrum getRd(Spectrum &r, Spectrum &sigmaTr, Spectrum &zv, Spectrum &zr);
+    Spectrum getRd(const Spectrum &r, const Spectrum &sigmaTr, const Spectrum &zv, const Spectrum &zr);
 
 protected:
     /**

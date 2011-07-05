@@ -273,20 +273,20 @@ void SnowMaterialManager::refreshDiffusionProfile(const SceneContext *context) {
     const bool rMaxPredefined = context->snowRenderSettings.shahPredefineRmax;
     const Float predefinedRmax = context->snowRenderSettings.shahRmax;
 
-    Spectrum sigmaSPrime = sp.sigmaS * (1 - sp.g);
-    Spectrum sigmaTPrime = sigmaSPrime + sp.sigmaA;
+    const Spectrum sigmaSPrime = sp.sigmaS * (1 - sp.g);
+    const Spectrum sigmaTPrime = sigmaSPrime + sp.sigmaA;
 
     /* extinction coefficient */
-    Spectrum sigmaT = sp.sigmaA + sp.sigmaS;
+    const Spectrum sigmaT = sp.sigmaA + sp.sigmaS;
 
     /* Effective transport extinction coefficient */
-    Spectrum sigmaTr = (sp.sigmaA * sigmaTPrime * 3.0f).sqrt();
+    const Spectrum sigmaTr = (sp.sigmaA * sigmaTPrime * 3.0f).sqrt();
 
     /* Reduced albedo */
-    Spectrum alphaPrime = sigmaSPrime / sigmaTPrime;
+    const Spectrum alphaPrime = sigmaSPrime / sigmaTPrime;
 
     /* Mean-free path (avg. distance traveled through the medium) */
-    Spectrum mfp = Spectrum(1.0f) / sigmaTPrime;
+    const Spectrum mfp = Spectrum(1.0f) / sigmaTPrime;
 
     Float Fdr;
     if (sp.ior > 1) {
@@ -310,13 +310,13 @@ void SnowMaterialManager::refreshDiffusionProfile(const SceneContext *context) {
     }
 
     /* Approximate dipole boundary condition term */
-    Float A = (1 + Fdr) / Fdt;
+    const Float A = (1 + Fdr) / Fdt;
 
     /* Distance of the dipole point sources to the surface */
-    Spectrum zr = mfp;
-    Spectrum zv = mfp * (1.0f + 4.0f/3.0f * A);
+    const Spectrum zr = mfp;
+    const Spectrum zv = mfp * (1.0f + 4.0f/3.0f * A);
 
-    const Spectrum invSigmaTr = 1.0f / sigmaTr;
+    const Spectrum invSigmaTr = Spectrum(1.0f) / sigmaTr;
     const Float inv4Pi = 1.0f / (4 * M_PI);
 
     Float rMax = 0.0f;
@@ -372,13 +372,13 @@ void SnowMaterialManager::refreshDiffusionProfile(const SceneContext *context) {
     std::vector<Spectrum> diffusionProfile(numEntries);
     for (int i=0; i<numEntries; ++i) {
         Spectrum r = Spectrum(i * lutResolution);
-        diffusionProfile.at(i) = getRd( r, sigmaTr, zv, zr);
+        diffusionProfile.at(i) = getRd(r, sigmaTr, zv, zr);
     }
     SLog(EDebug, "Created Rd diffusion profile with %i entries.", numEntries);
 
     /* Create the diffuson profile bitmap */
     diffusionProfileRmax = rMax;
-    bool useHDR = false;
+    bool useHDR = true;
 
     if (useHDR) {
         diffusionProfileCache = new Bitmap(numEntries, 1, 128);
@@ -429,21 +429,28 @@ void SnowMaterialManager::refreshDiffusionProfile(const SceneContext *context) {
     }
 }
 
-
 /// Calculate Rd based on all dipoles and the requested distance
-Spectrum SnowMaterialManager::getRd(Spectrum &r, Spectrum &sigmaTr, Spectrum &zv, Spectrum &zr) { 
+Spectrum SnowMaterialManager::getRd(const Spectrum &r, const Spectrum &sigmaTr,
+        const Spectrum &zv, const Spectrum &zr) { 
+    //Float dist = std::max((p - sample.p).lengthSquared(), zrMinSq); 
+    const Spectrum rSqr = r * r;
     const Spectrum one(1.0f);
     const Spectrum negSigmaTr = sigmaTr * (-1.0f);
-    const Spectrum rSqr = r * r; 
-                    
-    // calulate diffuse reflectance and transmittance 
+
+    /* Distance to the real source */
     Spectrum dr = (rSqr + zr*zr).sqrt();
+    /* Distance to the image point source */
     Spectrum dv = (rSqr + zv*zv).sqrt();
-                    
-    // the change in Rd
-    Spectrum Rd =   (zr * (one + sigmaTr * dr) * (negSigmaTr * dr).exp() / (dr * dr * dr))
-                  + (zv * (one + sigmaTr * dv) * (negSigmaTr * dv).exp() / (dv * dv * dv));
-    return Rd;  
+
+    Spectrum C1 = zr * (sigmaTr + one / dr);
+    Spectrum C2 = zv * (sigmaTr + one / dv);
+
+    /* Do not include the reduced albedo - will be canceled out later */
+    Spectrum Rd = Spectrum(0.25f * INV_PI) *
+         (C1 * ((negSigmaTr * dr).exp()) / (dr * dr)
+        + C2 * ((negSigmaTr * dv).exp()) / (dv * dv));
+
+    return Rd;
 }
 
 MTS_NAMESPACE_END
