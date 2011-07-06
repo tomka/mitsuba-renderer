@@ -363,7 +363,7 @@ public:
      */
     Transform getLuminaireToWorld() const { return m_luminaireToWorld; }
 
-    Float getAperture() const { return 60.0f; }
+    Float getAperture() const {  return 40.0f; }
     
 protected:
     /// Create a new luminaire

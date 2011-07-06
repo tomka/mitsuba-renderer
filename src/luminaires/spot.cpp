@@ -80,6 +80,10 @@ public:
 				(m_cutoffAngle - m_beamWidth)));
 	}
 
+    Float getAperture() const {
+        return radToDeg(m_cutoffAngle);
+    }
+
 	inline Spectrum falloffCurve(const Vector &d, bool throughputOnly = false) const {
 		Spectrum result(throughputOnly ? Spectrum(1.0f) : m_intensity);
 		Vector localDir = m_worldToLuminaire(d);
