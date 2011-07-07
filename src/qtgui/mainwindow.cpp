@@ -587,6 +587,10 @@ void MainWindow::onImportDialogClose(int reason) {
 	m_currentChild = NULL;
 }
 
+void MainWindow::on_actionNavigationControls_triggered() {
+
+}
+
 void MainWindow::on_actionDuplicateTab_triggered() {
 	int currentIndex = ui->tabBar->currentIndex();
 	if (m_contextIndex != -1)
