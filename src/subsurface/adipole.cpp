@@ -214,7 +214,8 @@ public:
 		return result;
 	}
 
-	Spectrum Lo(const Scene *scene, const Intersection &its, const Vector &d) const {
+	Spectrum Lo(const Scene *scene, Sampler *sampler, const Intersection &its,
+            const Vector &d, int depth) const {
 		if (!m_ready || m_ssFactor.isZero())
 			return Spectrum(0.0f);
 		AnisotropicDipoleQuery query(m_P, m_xr, m_xv, m_detP, m_beta, its.shFrame, m_Fdt, its.p);

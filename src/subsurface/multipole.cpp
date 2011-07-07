@@ -390,7 +390,8 @@ public:
         stream->writeFloat(m_lutResolution);
 	}
 
-	Spectrum Lo(const Scene *scene, const Intersection &its, const Vector &d) const {
+	Spectrum Lo(const Scene *scene, Sampler *sampler,  const Intersection &its,
+            const Vector &d, int depth) const {
 		if (!m_ready || m_ssFactor.isZero())
 			return Spectrum(0.0f);
 
