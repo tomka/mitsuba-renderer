@@ -855,11 +855,13 @@ void DirectShaderManager::configure(const BSDF *bsdf,
 	program->setParameter(config.param_lightPos, spot.pos);
 	program->setParameter(config.param_camPos, camPos);
 	//program->setParameter(config.param_diffuseSources, m_diffuseSources);
+
 	//Spectrum power = spot.color;
 	//if (m_diffuseSources && vpl.type == ESurfaceVPL)
 	//	power *= vpl.its.shape->getBSDF()->getDiffuseReflectance(vpl.its) * INV_PI;
-    // ToDo: 100 is just a migic number, the light is too dark without it
-	program->setParameter(config.param_lightPower, spot.color * 100 /* power */);
+
+    // ToDo: 500 is just a migic number, the light is too dark without it
+	program->setParameter(config.param_lightPower, spot.color * 500 /* power */);
 	program->setParameter(config.param_diffuseReceivers, m_diffuseReceivers);
 	program->setParameter(config.param_nearClip, m_nearClip);
 	program->setParameter(config.param_invClipRange, m_invClipRange);

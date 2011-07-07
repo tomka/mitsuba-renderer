@@ -908,7 +908,6 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
 
     }
 
-    // ToDo: Make this dynamic
     TranslucentShape ts;
     ts.albedoMap = albedoMap;
     ts.diffusionMap = diffusionMap;
