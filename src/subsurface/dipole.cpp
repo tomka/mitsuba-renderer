@@ -593,7 +593,7 @@ public:
                 val *= 2 * M_PI / numSamples;
 
                 const Spectrum rho_dt = Spectrum(1.0f) - val;
-                std::cerr << "t: " << theta << " p: " << phi << " bsdf: " << val << std::cerr;
+                std::cerr << "t: " << theta << " p: " << phi << " bsdf: " << val.toString() << std::cerr;
                 m_roughSurfaceDtLut[i][j] = rho_dt;
             }
         }
