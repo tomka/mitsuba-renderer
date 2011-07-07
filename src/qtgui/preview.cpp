@@ -708,13 +708,13 @@ void PreviewThread::oglRenderVPL(PreviewQueueEntry &target, const VPL &vpl) {
 	}
 }
 
-void PreviewThread::oglRenderNormals(const std::vector<const TriMesh *> meshes) {
+void PreviewThread::oglRenderNormals(const std::vector<std::pair<const TriMesh *, Transform> > meshes) {
     Float scale = m_context->normalScaling;
     Spectrum normalColor;
     Normal n(0.0f);
 
     for (size_t j=0; j<meshes.size(); j++) {
-        const TriMesh *mesh = meshes[j];
+        const TriMesh *mesh = meshes[j].first;
         if (mesh->hasVertexNormals()) {
             normalColor.fromLinearRGB(0.8f, 0.2f, 0.0f);
             m_renderer->setColor(normalColor);
@@ -860,7 +860,7 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
     m_currentSpot.aperture = spot->getAperture();
     m_currentSpot.pos = spotTransform(Point(0, 0, 0));
     m_currentSpot.dir =  spotTransform(Vector(0.0f, 0.0f, 1.0f));
-    eRec.P.toLinearRGB(spotR, spotG, spotB);
+    eRec.value.toLinearRGB(spotR, spotG, spotB);
     m_currentSpot.color =  Vector3(spotR, spotG, spotB);
     srs.shahSpecularColor.toLinearRGB(spotR, spotG, spotB);
     m_currentSpot.specularColor = Vector3(spotR, spotG, spotB);

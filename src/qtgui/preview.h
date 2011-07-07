@@ -95,7 +95,7 @@ protected:
 	/// Render a single VPL using OpenGL
 	void oglRenderVPL(PreviewQueueEntry &target, const VPL &vpl);
     /// Render face or vertex normals of all meshes
-    void oglRenderNormals(const std::vector<const TriMesh *> meshes);
+    void oglRenderNormals(const std::vector<std::pair<const TriMesh *, Transform> > meshes);
 	/// Render a single VPL using real-time coherent ray tracing
 	void rtrtRenderVPL(PreviewQueueEntry &target, const VPL &vpl);
 
