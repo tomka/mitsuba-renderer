@@ -1052,6 +1052,8 @@ void MainWindow::onSnowRenderModelChange() {
         surfaceRenderMode = EWiscombeWarrenBRDF;
     else if (surfaceIdx == 3)
         surfaceRenderMode = EHanrahanKruegerBRDF;
+    else if (surfaceIdx == 4)
+        surfaceRenderMode = EMicrofacetBRDF;
     else
         surfaceRenderMode = ENoSurface;
 
@@ -1810,6 +1812,9 @@ void MainWindow::updateSnowRenderingComponents() {
     } else if (surfaceRenderMode == EHanrahanKruegerBRDF) {
         surfaceIdx = 3;
         if (offlineRendering) m_hkWidget->show();
+    } else if (surfaceRenderMode == EMicrofacetBRDF) {
+        surfaceIdx = 4;
+        //if (offlineRendering) m_mfWidget->show();
     }
 
     if (subsurfaceRenderMode == ENoSubSurface)

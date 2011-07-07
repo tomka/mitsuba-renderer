@@ -136,7 +136,7 @@
        <enum>QTabWidget::North</enum>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>2</number>
       </property>
       <widget class="QWidget" name="sceneTab">
        <property name="sizePolicy">
@@ -264,7 +264,7 @@
          <property name="geometry">
           <rect>
            <x>0</x>
-           <y>0</y>
+           <y>-50</y>
            <width>175</width>
            <height>600</height>
           </rect>
@@ -286,7 +286,7 @@
            <rect>
             <x>10</x>
             <y>10</y>
-            <width>167</width>
+            <width>172</width>
             <height>31</height>
            </rect>
           </property>
@@ -368,7 +368,7 @@
             <rect>
              <x>10</x>
              <y>20</y>
-             <width>147</width>
+             <width>156</width>
              <height>74</height>
             </rect>
            </property>
@@ -514,7 +514,7 @@
             <rect>
              <x>10</x>
              <y>130</y>
-             <width>142</width>
+             <width>146</width>
              <height>81</height>
             </rect>
            </property>
@@ -625,8 +625,8 @@
             <rect>
              <x>10</x>
              <y>20</y>
-             <width>144</width>
-             <height>74</height>
+             <width>243</width>
+             <height>77</height>
             </rect>
            </property>
            <layout class="QFormLayout" name="formLayout_5">
@@ -852,7 +852,7 @@ of snow wtih the specified value.</string>
            <x>0</x>
            <y>0</y>
            <width>181</width>
-           <height>22</height>
+           <height>23</height>
           </rect>
          </property>
          <layout class="QFormLayout" name="formLayout_6">
@@ -893,7 +893,7 @@ of snow wtih the specified value.</string>
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>181</width>
+            <width>183</width>
             <height>51</height>
            </rect>
           </property>
@@ -952,12 +952,17 @@ of snow wtih the specified value.</string>
              </item>
              <item>
               <property name="text">
-               <string>Wiscombe-Warren</string>
+               <string>Wiscombe-Warren (BRDF)</string>
               </property>
              </item>
              <item>
               <property name="text">
                <string>Hanrahan-Krueger</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Microfacet</string>
               </property>
              </item>
             </widget>
@@ -1032,7 +1037,7 @@ of snow wtih the specified value.</string>
      <x>0</x>
      <y>0</y>
      <width>737</width>
-     <height>19</height>
+     <height>18</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

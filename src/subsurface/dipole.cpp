@@ -248,6 +248,7 @@ public:
             m_rMax = props.getFloat("lutRmax");
         }
         m_mcIterations = props.getInteger("mcIterations", 10000);
+        m_hasRoughSurface = props.getBoolean("hasRoughSurface", false);
 
 		m_ready = false;
 		m_octreeResID = -1;
@@ -269,6 +270,7 @@ public:
         m_errThreshold = stream->readFloat();
         m_lutResolution = stream->readFloat();
         m_mcIterations = stream->readInt();
+        m_hasRoughSurface = stream->readBool(); 
 		m_ready = false;
 		m_octreeResID = -1;
 		configure();
@@ -300,6 +302,7 @@ public:
         stream->writeFloat(m_errThreshold);
         stream->writeFloat(m_lutResolution);
         stream->writeInt(m_mcIterations);
+        stream->writeBool(m_hasRoughSurface);
 	}
 
 	Spectrum Lo(const Scene *scene, Sampler *sampler,
@@ -377,6 +380,7 @@ public:
 	}
 
 	void configure() {
+        boost::timer timer;
 		m_sigmaSPrime = m_sigmaS * (1-m_g);
 		m_sigmaTPrime = m_sigmaSPrime + m_sigmaA;
 
@@ -395,31 +399,41 @@ public:
 		for (int lambda=0; lambda<SPECTRUM_SAMPLES; lambda++)
 			m_minMFP = std::min(m_minMFP, m_mfp[lambda]);
 
-        if (m_eta > 1) {
-            /* Average reflectance due to mismatched indices of refraction
-               at the boundary - [Groenhuis et al. 1983]*/
-            m_Fdr = -1.440f / (m_eta * m_eta) + 0.710f / m_eta
-                + 0.668f + 0.0636f * m_eta;
+        if (!m_hasRoughSurface) {
+            if (m_eta > 1) {
+                /* Average reflectance due to mismatched indices of refraction
+                   at the boundary - [Groenhuis et al. 1983]*/
+                m_Fdr = -1.440f / (m_eta * m_eta) + 0.710f / m_eta
+                    + 0.668f + 0.0636f * m_eta;
+            } else {
+                /* Average reflectance due to mismatched indices of refraction
+                   at the boundary - [Egan et al. 1973]*/
+                m_Fdr = -0.4399f + 0.7099f / m_eta - 0.3319f / (m_eta * m_eta)
+                    + 0.0636f / (m_eta * m_eta * m_eta);
+            }
+
         } else {
-            /* Average reflectance due to mismatched indices of refraction
-               at the boundary - [Egan et al. 1973]*/
-            m_Fdr = -0.4399f + 0.7099f / m_eta - 0.3319f / (m_eta * m_eta)
-                + 0.0636f / (m_eta * m_eta * m_eta);
+            /* Monte-Carlo Integration to calculate m_Fdr based
+             * on the microfacet model. */
+            Log(EDebug, "Creating rough surface BRDF look-up-table");
+            timer.restart();
+            configureRoughSurface();
+            Log(EDebug, "Created rough surface BRDF look-up-table (took %.2fs)", timer.elapsed());
+        }
+
+        /* Average transmittance at the boundary */
+        m_Fdt = 1.0f - m_Fdr;
+
+        /* Approximate dipole boundary condition term */
+        m_A = (1 + m_Fdr) / m_Fdt;
+
+        if (m_eta == 1.0f) {
+            m_Fdr = (Float) 0.0f;
+            m_Fdt = (Float) 1.0f;
         }
 
 		/* Reduced albedo */
 		m_alphaPrime = m_sigmaSPrime / m_sigmaTPrime;
-
-		/* Average transmittance at the boundary */
-		m_Fdt = 1.0f - m_Fdr;
-
-		if (m_eta == 1.0f) {
-			m_Fdr = (Float) 0.0f;
-			m_Fdt = (Float) 1.0f;
-		}
-
-		/* Approximate dipole boundary condition term */
-		m_A = (1 + m_Fdr) / m_Fdt;
 
 		/* Effective transport extinction coefficient */
 		m_sigmaTr = (m_sigmaA * m_sigmaTPrime * 3.0f).sqrt();
@@ -454,8 +468,8 @@ public:
                 m_RdLookUpTable = lutR.lut;
                 AssertEx(lutR.resolution == m_lutResolution, "Cached LUT does not have requested resolution!");
             } else {
-                boost::timer timer;
                 if (!m_rMaxPredefined) {
+                    timer.restart();
                     const Spectrum invSigmaTr = 1.0f / m_sigmaTr;
                     const Float inv4Pi = 1.0f / (4 * M_PI);
                     ref<Random> random = new Random();
@@ -512,6 +526,7 @@ public:
                 m_RdLookUpTable = new LUTType(numEntries);
                 for (int i=0; i<numEntries; ++i) {
                     m_RdLookUpTable->at(i) = getRd(Spectrum(i * m_lutResolution));
+                    //std::cerr << "r: " << (i * m_lutResolution) << " Rd: " << m_RdLookUpTable->at(i).toString() << std::endl;
                 }
 
                 /* Create new LUTRecord and store this LUT if it was MC integrated */
@@ -522,6 +537,64 @@ public:
                 }
 
                 Log(EDebug, "Created Rd look-up-table with %i entries (took %.2fs)", numEntries, timer.elapsed());
+            }
+        }
+    }
+
+    /* Calculates m_Fdt, m_Fdr and m_A based on the microfacet
+     * model. This is done like descrbed in [Donner ard Jensen 2005]
+     **/
+    void configureRoughSurface() {
+        PluginManager *pluginManager = PluginManager::getInstance();
+        Properties props;
+        props.setPluginName("microfacet");
+        props.setSpectrum("diffuseReflectance", Spectrum(0.0f));
+        props.setSpectrum("specularReflectance", Spectrum(1.0f));
+        props.setFloat("diffuseAmount", 1.0f);
+        props.setFloat("specularAmount", 1.0f);
+        props.setFloat("alphaB", .1f);
+        props.setFloat("intIOR", m_eta);
+        ref<BSDF> bsdf = static_cast<BSDF *> (pluginManager->createObject(
+                BSDF::m_theClass, props));
+
+        ref<Sampler> sampler = static_cast<Sampler *> (PluginManager::getInstance()->
+            createObject(Sampler::m_theClass, Properties("independent")));
+
+        // get rho_dr
+        const Float rho_dr = bsdf->getDiffuseReflectance(Intersection()).average();
+        m_Fdr = rho_dr;
+
+        /* build rho_dt look-up-table */
+        m_roughSurfaceDtLutStep = 0.1;
+        const int numLutEntriesTheta = M_PI / m_roughSurfaceDtLutStep;
+        const int numLutEntriesPhi = 2 * M_PI / m_roughSurfaceDtLutStep;
+
+        m_roughSurfaceDtLut.resize(numLutEntriesTheta);
+
+        // iterate over all angles the look-up-table is built for
+        for (int i=0; i<numLutEntriesTheta; ++i) {
+            const Float theta = i * m_roughSurfaceDtLutStep;
+            m_roughSurfaceDtLut[i].resize(numLutEntriesPhi);
+            for (int j=0; j<numLutEntriesTheta; ++j) {
+                const Float phi = j * m_roughSurfaceDtLutStep;
+
+                const int numSamples = 100;
+                Intersection its;
+                Spectrum val = Spectrum(0.0f);
+                for (int k=0; k<numSamples; ++k) {
+                    its.wi = sphericalDirection(theta, phi);
+                    /* Allocate a record for querying the BSDF */
+                    BSDFQueryRecord bRec(its);
+
+                    /* Evaluate BSDF * cos(theta) */
+                    const Spectrum bsdfVal = bsdf->sampleCos(bRec, sampler->next2D());
+                    val += bsdfVal;
+                }
+                val *= 2 * M_PI / numSamples;
+
+                const Spectrum rho_dt = Spectrum(1.0f) - val;
+                std::cerr << "t: " << theta << " p: " << phi << " bsdf: " << val << std::cerr;
+                m_roughSurfaceDtLut[i][j] = rho_dt;
             }
         }
     }
@@ -910,6 +983,9 @@ private:
 	bool m_ready, m_requireSample, m_singleScattering, m_dumpIrrtree;
     std::string m_dumpIrrtreePath;
     mutable ThreadLocal<Random> m_random;
+    bool m_hasRoughSurface;
+    Float m_roughSurfaceDtLutStep;
+    std::vector< std::vector<Spectrum> > m_roughSurfaceDtLut;
     bool m_useTextures;
     ref<Texture> m_zvTex;
     ref<Texture> m_zrTex;

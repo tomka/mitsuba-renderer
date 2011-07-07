@@ -56,7 +56,8 @@ enum ESurfaceRenderMode {
     ENoSurface = 0,
     EWiscombeWarrenAlbedo,
     EWiscombeWarrenBRDF,
-    EHanrahanKruegerBRDF
+    EHanrahanKruegerBRDF,
+    EMicrofacetBRDF
 };
 
 /* Different sub-surface rendering modes */
