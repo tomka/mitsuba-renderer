@@ -37,9 +37,14 @@ public:
 		std::string wrapMode = props.getString("wrapMode", "repeat");
 
 		if (filterType == "ewa")
-			m_anisotropic = true;
-		else if (filterType == "isotropic")
-			m_anisotropic = false;
+			m_filterType = MIPMap::EEWA;
+		else if (filterType == "trilinear")
+			m_filterType = MIPMap::ETrilinear;
+		else if (filterType == "none")
+			m_filterType = MIPMap::ENone;
+		else
+			Log(EError, "Unknown filter type '%s' -- must be "
+				"'ewa', 'isotropic', or 'none'!", filterType.c_str());
 
 		if (wrapMode == "repeat")
 			m_wrapMode = MIPMap::ERepeat;
@@ -73,7 +78,7 @@ public:
 	 : Texture2D(stream, manager) {
 		m_filename = stream->readString();
 		Log(EInfo, "Unserializing texture \"%s\"", m_filename.leaf().c_str());
-		stream->writeBool(m_anisotropic);
+		stream->writeInt(m_filterType);
 		stream->writeUInt(m_wrapMode);
 		stream->writeFloat(m_maxAnisotropy);
 		int size = stream->readInt();
@@ -87,7 +92,7 @@ public:
 	void serialize(Stream *stream, InstanceManager *manager) const {
 		Texture2D::serialize(stream, manager);
 		stream->writeString(m_filename.file_string());
-		stream->writeBool(m_anisotropic);
+		stream->writeInt(m_filterType);
         stream->writeUInt(m_wrapMode);
 		stream->writeFloat(m_maxAnisotropy);
 		ref<Stream> is = new FileStream(m_filename, FileStream::EReadOnly);
@@ -114,7 +119,7 @@ public:
         }
 
 		// m_mipmap = MIPMap::fromBitmap(bitmap);
-		m_mipmap = MIPMap::fromBitmap(bitmap, !m_anisotropic,
+		m_mipmap = MIPMap::fromBitmap(bitmap, m_filterType,
 				m_wrapMode, m_maxAnisotropy);
 		m_average = m_mipmap->triangle(m_mipmap->getLevels()-1, 0, 0);
 		m_maximum = m_mipmap->getMaximum();
@@ -152,7 +157,7 @@ protected:
 	ref<MIPMap> m_mipmap;
 	fs::path m_filename;
 	Spectrum m_average, m_maximum;
-	bool m_anisotropic;
+	MIPMap::EFilterType m_filterType;
 	MIPMap::EWrapMode m_wrapMode;
 	Float m_maxAnisotropy;
 };
