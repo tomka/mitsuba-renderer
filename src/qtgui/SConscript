@@ -16,7 +16,7 @@ def scanFiles(dir, accept=["*.cpp"], reject=[]) :
 			sources+=glob.glob(path + "/" + pattern)
 	for pattern in reject:
 		sources = filter((lambda a : a.rfind(pattern) == -1), sources)
-	sources = map((lambda a : os.path.basename(a)), sources)
+	#sources = map((lambda a : os.path.basename(a)), sources)
 	return unique(sources)
 
 if hasQt:
