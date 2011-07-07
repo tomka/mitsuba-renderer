@@ -44,7 +44,7 @@ enum ESelectionMode {
 	ENothing = 0,
 	EShape,
 	EScene
-}
+};
 
 enum EGeneralRenderMode {
     ERealtime = 0,
