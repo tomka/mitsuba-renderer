@@ -737,7 +737,7 @@ Vector refract(const Vector& wi, const Normal& n, Float eta) {
         return eta * wi - (eta * c + sqrtf(k)) * n;
 }
 
-Float radicalInverse(int b, int i) {
+Float radicalInverse(int b, size_t i) {
 	Float invB = (Float) 1 / (Float) b;
 	Float x = 0.0f, f = invB;
 	
