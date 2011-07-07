@@ -422,9 +422,10 @@ void PreviewThread::run() {
 				m_directShaderManager->setDiffuseReceivers(m_context->diffuseReceivers);
 
 				if (m_timer->getMilliseconds() > 1000) {
-					Float count = m_vplsPerSecond / (Float) m_timer->getMilliseconds() * 1000;
+                    Float time = (Float) m_timer->getMilliseconds() / m_vplsPerSecond;
+					Float count = 1.0 / time * 1000;
 					if (!m_motion)
-						emit statusMessage(QString(formatString("%.1f Frames/sec", count).c_str()));
+						emit statusMessage(QString(formatString("%.2f Frames/sec -- %.0f msec/Frame", count, time).c_str()));
 					m_vplsPerSecond = 0;
 					m_timer->reset();
 				}
