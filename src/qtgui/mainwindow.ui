@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>737</width>
-    <height>664</height>
+    <height>692</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -136,7 +136,7 @@
        <enum>QTabWidget::North</enum>
       </property>
       <property name="currentIndex">
-       <number>2</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="sceneTab">
        <property name="sizePolicy">
@@ -368,7 +368,7 @@
             <rect>
              <x>10</x>
              <y>20</y>
-             <width>156</width>
+             <width>151</width>
              <height>74</height>
             </rect>
            </property>
@@ -625,7 +625,7 @@
             <rect>
              <x>10</x>
              <y>20</y>
-             <width>243</width>
+             <width>141</width>
              <height>77</height>
             </rect>
            </property>
@@ -819,7 +819,7 @@ of snow wtih the specified value.</string>
           <x>10</x>
           <y>10</y>
           <width>181</width>
-          <height>541</height>
+          <height>565</height>
          </rect>
         </property>
         <widget class="Line" name="line_2">
@@ -841,7 +841,7 @@ of snow wtih the specified value.</string>
            <x>0</x>
            <y>100</y>
            <width>181</width>
-           <height>441</height>
+           <height>461</height>
           </rect>
          </property>
          <layout class="QVBoxLayout" name="materialSettingsLayout"/>
@@ -1073,6 +1073,7 @@ of snow wtih the specified value.</string>
      <bool>false</bool>
     </property>
     <addaction name="actionReferenceManual"/>
+    <addaction name="actionNavigationControls"/>
     <addaction name="separator"/>
     <addaction name="actionFeedback"/>
     <addaction name="actionReportBug"/>
@@ -1333,6 +1334,15 @@ of snow wtih the specified value.</string>
    </property>
    <property name="text">
     <string>Check for &amp;Updates ..</string>
+   </property>
+  </action>
+  <action name="actionNavigationControls">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/resources/controls.png</normaloff>:/resources/controls.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Navigation Controls</string>
    </property>
   </action>
   <action name="actionReferenceManual">

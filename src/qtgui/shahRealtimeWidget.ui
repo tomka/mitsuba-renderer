@@ -81,7 +81,7 @@
       <x>0</x>
       <y>0</y>
       <width>141</width>
-      <height>28</height>
+      <height>21</height>
      </rect>
     </property>
     <layout class="QGridLayout" name="gridLayout_7">
@@ -229,7 +229,7 @@
     <rect>
      <x>10</x>
      <y>160</y>
-     <width>151</width>
+     <width>161</width>
      <height>131</height>
     </rect>
    </property>
@@ -331,7 +331,7 @@ splats are drawn at max.</string>
     <rect>
      <x>20</x>
      <y>100</y>
-     <width>155</width>
+     <width>151</width>
      <height>50</height>
     </rect>
    </property>
