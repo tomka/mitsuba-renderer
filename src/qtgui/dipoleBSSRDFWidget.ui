@@ -7,19 +7,19 @@
     <x>0</x>
     <y>0</y>
     <width>180</width>
-    <height>350</height>
+    <height>370</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
     <width>180</width>
-    <height>350</height>
+    <height>370</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
     <width>16777214</width>
-    <height>350</height>
+    <height>370</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -33,7 +33,7 @@
     <rect>
      <x>10</x>
      <y>20</y>
-     <width>167</width>
+     <width>161</width>
      <height>51</height>
     </rect>
    </property>
@@ -100,7 +100,7 @@
     <rect>
      <x>10</x>
      <y>80</y>
-     <width>161</width>
+     <width>159</width>
      <height>19</height>
     </rect>
    </property>
@@ -112,7 +112,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>99</y>
+     <y>120</y>
      <width>161</width>
      <height>20</height>
     </rect>
@@ -125,7 +125,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>120</y>
+     <y>141</y>
      <width>91</width>
      <height>19</height>
     </rect>
@@ -138,7 +138,7 @@
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>140</y>
+     <y>161</y>
      <width>161</width>
      <height>71</height>
     </rect>
@@ -216,12 +216,18 @@
       <x>0</x>
       <y>20</y>
       <width>151</width>
-      <height>21</height>
+      <height>28</height>
      </rect>
     </property>
     <layout class="QGridLayout" name="gridLayout_4">
      <item row="0" column="0">
       <widget class="QLabel" name="label_5">
+       <property name="maximumSize">
+        <size>
+         <width>22</width>
+         <height>16777215</height>
+        </size>
+       </property>
        <property name="toolTip">
         <string>SigmaTr, the transport coefficient.</string>
        </property>
@@ -233,9 +239,6 @@ p, li { white-space: pre-wrap; }
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:10pt;&quot;&gt;σ&lt;/span&gt;&lt;span style=&quot; font-size:10pt; vertical-align:sub;&quot;&gt;tr    &lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
        </property>
       </widget>
-     </item>
-     <item row="0" column="1">
-      <widget class="QLineEdit" name="textureSigmaTrEdit"/>
      </item>
      <item row="0" column="2">
       <widget class="QPushButton" name="textureSigmaTrButton">
@@ -253,6 +256,9 @@ p, li { white-space: pre-wrap; }
          <normaloff>:/resources/open16.png</normaloff>:/resources/open16.png</iconset>
        </property>
       </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QLineEdit" name="textureSigmaTrEdit"/>
      </item>
     </layout>
    </widget>
@@ -315,7 +321,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>305</y>
+     <y>322</y>
      <width>161</width>
      <height>19</height>
     </rect>
@@ -328,7 +334,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>323</y>
+     <y>340</y>
      <width>151</width>
      <height>21</height>
     </rect>
@@ -381,16 +387,14 @@ p, li { white-space: pre-wrap; }
      </item>
     </layout>
    </widget>
-   <zorder>gridLayoutWidget_6</zorder>
-   <zorder>gridLayoutWidget_6</zorder>
   </widget>
   <widget class="QWidget" name="formLayoutWidget">
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>230</y>
-     <width>153</width>
-     <height>74</height>
+     <y>247</y>
+     <width>160</width>
+     <height>77</height>
     </rect>
    </property>
    <layout class="QFormLayout" name="formLayout">
@@ -481,7 +485,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>213</y>
+     <y>230</y>
      <width>161</width>
      <height>19</height>
     </rect>
@@ -491,6 +495,23 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="text">
     <string>Use Rd look-up-table</string>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="roughSurfaceCheckBox">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>100</y>
+     <width>111</width>
+     <height>18</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>Triggers the replacement of Fresnel-Reflectance with numerial integrated
+BSDF values of a microfacet model.</string>
+   </property>
+   <property name="text">
+    <string>Rough Surface</string>
    </property>
   </widget>
  </widget>

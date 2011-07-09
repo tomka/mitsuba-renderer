@@ -51,7 +51,6 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
         BSDF *bsdf = NULL;
         Subsurface *subsurface = NULL;
         SnowRenderSettings &srs = context->snowRenderSettings;
-        bool hasRoughSurface = false;
 
         if (surfaceMode == ENoSurface) {
             properties.setPluginName("lambertian");
@@ -70,14 +69,10 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
             properties.setSpectrum("drFactor", Spectrum(srs.hkMultipleScatteringFactor));
             properties.setBoolean("diffuseReflectance", srs.hkUseMultipleScattering);
         } else if (surfaceMode == EMicrofacetBRDF) {
-            properties.setPluginName("microfacet");
-            properties.setSpectrum("diffuseReflectance", Spectrum(0.0f));
-            properties.setSpectrum("specularReflectance", Spectrum(1.0f));
-            properties.setFloat("diffuseAmount", 1.0f);
-            properties.setFloat("specularAmount", 1.0f);
-            properties.setFloat("alphaB", .1f);
+            properties.setPluginName("roughglass");
+            properties.setFloat("alpha", 0.9f);
             properties.setFloat("intIOR", snow.ior);
-            hasRoughSurface = true;
+            properties.setString("distribution", "ggx");
         }
 
         bsdf = static_cast<BSDF *> (pluginManager->createObject(
@@ -93,7 +88,7 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
             properties.setBoolean("useMartelliD", srs.dipoleMartelliDC);
             properties.setBoolean("useTexture", srs.dipoleTexture);
             properties.setBoolean("dumpIrrtree", srs.dipoleDumpIrrtree);
-            properties.setBoolean("hasRoughSurface", hasRoughSurface);
+            properties.setBoolean("hasRoughSurface", srs.dipoleHasRoughSurface);
             properties.setString("dumpIrrtreePath", srs.dipoleDumpIrrtreePath);
             if (srs.dipoleLutPredefineRmax) {
                 properties.setFloat("lutRmax", srs.dipoleLutRmax);

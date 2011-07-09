@@ -257,6 +257,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_dipoleSettings->subsurfaceSizeSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_dipoleSettings->subsurfaceSampleFactorSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onSnowRenderModelChange()));
     connect(m_dipoleSettings->singleScatteringCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
+    connect(m_dipoleSettings->roughSurfaceCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_dipoleSettings->martelliDCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onSnowRenderModelChange()));
     connect(m_dipoleSettings->textureCheckBox, SIGNAL(stateChanged(int)), this, SLOT(onDipoleTextureSettingsChanged()));
     connect(m_dipoleSettings->textureZrButton, SIGNAL(pressed()), this, SLOT(onDipoleZrTextureLoad()));
@@ -1173,6 +1174,7 @@ void MainWindow::onSnowRenderModelChange() {
     srs.dipoleDensityFactor = m_dipoleSettings->subsurfaceSizeSpinBox->value();
     srs.dipoleSampleFactor = m_dipoleSettings->subsurfaceSampleFactorSpinBox->value();
     srs.dipoleUseSingleScattering = m_dipoleSettings->singleScatteringCheckBox->isChecked();
+    srs.dipoleHasRoughSurface = m_dipoleSettings->roughSurfaceCheckBox->isChecked();
     srs.dipoleMartelliDC = m_dipoleSettings->martelliDCheckBox->isChecked();
     srs.dipoleDumpIrrtree = m_dipoleSettings->irrDumpCheckBox->isChecked();
     srs.dipoleDumpIrrtreePath = m_dipoleSettings->irrDumpPathEdit->text().toStdString();
@@ -1729,6 +1731,7 @@ void MainWindow::blockRenderComponentsSignals(bool block) {
     m_dipoleSettings->subsurfaceSizeSpinBox->blockSignals(block);
     m_dipoleSettings->subsurfaceSampleFactorSpinBox->blockSignals(block);
     m_dipoleSettings->singleScatteringCheckBox->blockSignals(block);
+    m_dipoleSettings->roughSurfaceCheckBox->blockSignals(block);
     m_dipoleSettings->martelliDCheckBox->blockSignals(block);
     m_dipoleSettings->textureCheckBox->blockSignals(block);
     m_dipoleSettings->textureZrEdit->blockSignals(block);
@@ -1894,6 +1897,7 @@ void MainWindow::updateSnowRenderingComponents() {
     m_dipoleSettings->subsurfaceSizeSpinBox->setValue(dipoleDensityFactor);
     m_dipoleSettings->subsurfaceSampleFactorSpinBox->setValue(dipoleSampleFactor);
     m_dipoleSettings->singleScatteringCheckBox->setChecked(dipoleUseSingleScattering);
+    m_dipoleSettings->roughSurfaceCheckBox->setChecked(srs.dipoleHasRoughSurface);
     m_dipoleSettings->martelliDCheckBox->setChecked(dipoleUseMartelliDC);
     m_dipoleSettings->textureCheckBox->setChecked(srs.dipoleTexture);
     m_dipoleSettings->textureZrEdit->setText(dipoleZrTex);

@@ -18,17 +18,28 @@
 
 #include <mitsuba/render/scene.h>
 #include <mitsuba/core/plugin.h>
+#include <mitsuba/core/quad.h>
 #include <mitsuba/core/util.h>
 #include <mitsuba/core/bitmap.h>
 #include <mitsuba/core/mstream.h>
 #include <mitsuba/core/fstream.h>
 #include <mitsuba/core/fresolver.h>
+#include <boost/bind.hpp>
 #include <boost/timer.hpp>
 #include "irrtree.h"
 
 //#define NO_SSE_QUERY
 
 MTS_NAMESPACE_BEGIN
+
+/* Relative bound on what is still accepted as roundoff 
+   error -- be quite tolerant */
+#if defined(SINGLE_PRECISION)
+	#define ERROR_REQ 1e-2f
+#else
+	#define ERROR_REQ 1e-5
+#endif
+
 
 typedef SubsurfaceMaterialManager::LUTType LUTType;
 typedef SubsurfaceMaterialManager::LUTRecord LUTRecord;
@@ -167,6 +178,8 @@ struct IsotropicLUTDipoleQuery {
     Float minDist;
 };
 
+
+
 static ref<Mutex> irrOctreeMutex = new Mutex();
 static int irrOctreeIndex = 0;
 
@@ -178,6 +191,170 @@ static int irrOctreeIndex = 0;
  *   Materials" by Herik Wann Jensen and Juan Buhler, in SIGGRAPH 02)
  */
 class IsotropicDipole : public Subsurface {
+protected:
+
+    /**
+     * Replayable fake sampler
+     */
+    class FakeSampler : public Sampler {
+    public:
+        FakeSampler(Sampler *sampler)
+            : Sampler(Properties()), m_sampler(sampler) { }
+
+        Float next1D() {
+            while (m_sampleIndex >= m_values.size())
+                m_values.push_back(m_sampler->next1D());
+            return m_values[m_sampleIndex++];
+        }
+
+        Point2 next2D() {
+            return Point2(next1D(), next1D());
+        }
+
+        void clear() {
+            m_values.clear();
+            m_sampleIndex = 0;
+        }
+
+        void rewind() {
+            m_sampleIndex = 0;
+        }
+        
+        Float independent1D() { SLog(EError, "Not supported!"); return 0; }
+        Point2 independent2D() { SLog(EError, "Not supported!"); return Point2(0.0f); }
+
+        ref<Sampler> clone() {
+            SLog(EError, "Not supported!");
+            return NULL;
+        }
+
+        std::string toString() const { return "FakeSampler[]"; }
+    private:
+        ref<Sampler> m_sampler;
+        std::vector<Float> m_values;
+    };
+
+    /// Adapter to use BSDFs in the chi-square test
+    class BSDFAdapter {
+    public:
+        BSDFAdapter(const BSDF *bsdf, Sampler *sampler, const Vector &wi, 
+                int component, bool passSamplerToBSDF)
+            : m_bsdf(bsdf), m_sampler(sampler), m_wi(wi), m_component(component),
+              m_largestWeight(0), m_passSamplerToBSDF(passSamplerToBSDF) {
+            m_fakeSampler = new FakeSampler(m_sampler);
+        }
+
+        std::pair<Vector, Float> generateSample() {
+            Point2 sample(m_sampler->next2D());
+            Intersection its;
+            BSDFQueryRecord bRec(its);
+            bRec.component = m_component;
+            bRec.wi = m_wi;
+            
+            #if defined(MTS_DEBUG_FP)
+                enableFPExceptions();
+            #endif
+
+            Float pdfVal;
+
+            /* Only make the sampler available to the BSDF when requested
+               by the testcase. This allows testing both sampling variants
+               where applicable: those that can improve by having access to 
+               an arbitrary random number stream vs. those that only use
+               a single uniform 2D sample */
+
+            if (m_passSamplerToBSDF)
+                bRec.sampler = m_fakeSampler;
+
+            /* Check the various sampling routines for agreement amongst each other */
+            m_fakeSampler->clear();
+            Spectrum f = m_bsdf->sample(bRec, pdfVal, sample);
+            m_fakeSampler->rewind();
+            Spectrum sampled = m_bsdf->sample(bRec, sample);
+
+            if (f.isZero() || pdfVal == 0) {
+                if (!sampled.isZero()) 
+                    Log(EWarn, "Inconsistency (1): f=%s, pdf=%f, sampled f/pdf=%s, bRec=%s",
+                        f.toString().c_str(), pdfVal, sampled.toString().c_str(), bRec.toString().c_str());
+                #if defined(MTS_DEBUG_FP)
+                    disableFPExceptions();
+                #endif
+                return std::make_pair(bRec.wo, 0.0f);
+            } else if (sampled.isZero()) {
+                if (!f.isZero() && pdfVal != 0)
+                    Log(EWarn, "Inconsistency (2): f=%s, pdf=%f, sampled f/pdf=%s, bRec=%s",
+                        f.toString().c_str(), pdfVal, sampled.toString().c_str(), bRec.toString().c_str());
+                #if defined(MTS_DEBUG_FP)
+                    disableFPExceptions();
+                #endif
+                return std::make_pair(bRec.wo, 0.0f);
+            }
+
+            Spectrum sampled2 = f/pdfVal;
+            if (!sampled.isValid() || !sampled2.isValid()) {
+                Log(EWarn, "Ooops: f=%s, pdf=%f, sampled f/pdf=%s, bRec=%s",
+                    f.toString().c_str(), pdfVal, sampled.toString().c_str(), bRec.toString().c_str());
+                return std::make_pair(bRec.wo, 0.0f);
+            }
+
+            bool mismatch = false;
+            for (int i=0; i<SPECTRUM_SAMPLES; ++i) {
+                Float a = sampled[i], b = sampled2[i];
+                Float min = std::min(a, b);
+                Float err = std::abs(a - b);
+                m_largestWeight = std::max(m_largestWeight, a * std::abs(Frame::cosTheta(bRec.wo)));
+
+                if (min < ERROR_REQ && err > ERROR_REQ) // absolute error threshold
+                    mismatch = true;
+                else if (min > ERROR_REQ && err/min > ERROR_REQ) // relative error threshold
+                    mismatch = true;
+            }
+
+            if (mismatch)
+                Log(EWarn, "Potential inconsistency (3): f/pdf=%s, sampled f/pdf=%s",
+                    sampled2.toString().c_str(), sampled.toString().c_str());
+            
+            #if defined(MTS_DEBUG_FP)
+                disableFPExceptions();
+            #endif
+
+            return std::make_pair(bRec.wo, 1.0f);
+        }
+
+        Float pdf(const Vector &wo) {
+            Intersection its;
+            BSDFQueryRecord bRec(its);
+            bRec.component = m_component;
+            bRec.wi = m_wi;
+            bRec.wo = wo;
+            if (m_passSamplerToBSDF)
+                bRec.sampler = m_sampler;
+
+            #if defined(MTS_DEBUG_FP)
+                enableFPExceptions();
+            #endif
+
+            if (m_bsdf->f(bRec).isZero())
+                return 0.0f;
+            Float result = m_bsdf->pdf(bRec);
+
+            #if defined(MTS_DEBUG_FP)
+                disableFPExceptions();
+            #endif
+            return result;
+        }
+
+        inline Float getLargestWeight() const { return m_largestWeight; }
+    private:
+        ref<const BSDF> m_bsdf;
+        ref<Sampler> m_sampler;
+        ref<FakeSampler> m_fakeSampler;
+        Vector m_wi;
+        int m_component;
+        Float m_largestWeight;
+        bool m_passSamplerToBSDF;
+    };
+
 public:
 	IsotropicDipole(const Properties &props) 
 		: Subsurface(props) {
@@ -249,6 +426,8 @@ public:
         }
         m_mcIterations = props.getInteger("mcIterations", 10000);
         m_hasRoughSurface = props.getBoolean("hasRoughSurface", false);
+		m_roughSurfaceThetaBins = props.getInteger("maxDepth", 30);
+		m_roughSurfacePhiBins = props.getInteger("maxDepth", 2*m_roughSurfaceThetaBins);
 
 		m_ready = false;
 		m_octreeResID = -1;
@@ -271,6 +450,8 @@ public:
         m_lutResolution = stream->readFloat();
         m_mcIterations = stream->readInt();
         m_hasRoughSurface = stream->readBool(); 
+		m_roughSurfaceThetaBins = stream->readInt();
+		m_roughSurfacePhiBins = stream->readInt();
 		m_ready = false;
 		m_octreeResID = -1;
 		configure();
@@ -279,6 +460,8 @@ public:
 	virtual ~IsotropicDipole() {
 		if (m_octreeResID != -1)
 			Scheduler::getInstance()->unregisterResource(m_octreeResID);
+        if (m_roughSurfaceDtTable)
+            delete[] m_roughSurfaceDtTable;
 	}
 
 	void bindUsedResources(ParallelProcess *proc) const {
@@ -303,6 +486,8 @@ public:
         stream->writeFloat(m_lutResolution);
         stream->writeInt(m_mcIterations);
         stream->writeBool(m_hasRoughSurface);
+        stream->writeInt(m_roughSurfaceThetaBins);
+        stream->writeInt(m_roughSurfacePhiBins);
 	}
 
 	Spectrum Lo(const Scene *scene, Sampler *sampler,
@@ -325,7 +510,17 @@ public:
             if (m_eta == 1.0f) {
                 Lo = Mo * m_ssFactor * INV_PI;
             } else {
-                Float Ft = 1.0f - fresnel(absDot(n, d));
+                Float Ft;
+                if (!m_hasRoughSurface)
+                    Ft = 1.0f - fresnel(absDot(n, d));
+                else {
+                    Point2 co = toSphericalCoordinates(d);
+                    const int numSamples = m_roughSurfaceThetaBins * m_roughSurfacePhiBins;
+                    const int thetaIdx = (int) (co.x * 2 * INV_PI * m_roughSurfaceThetaBins);
+                    const int phiIdx = (int) ( co.x * 0.5 * INV_PI * m_roughSurfacePhiBins);
+                    const int idx = std::max(0, std::min(thetaIdx * m_roughSurfacePhiBins + phiIdx, numSamples));
+                    Ft = m_roughSurfaceDtTable[idx];
+                }
                 Lo = Mo * m_ssFactor * INV_PI * (Ft / m_Fdr);
             }
             return Lo;
@@ -348,7 +543,17 @@ public:
             if (m_eta == 1.0f) {
                 Lo = Mo * m_ssFactor * INV_PI;
             } else {
-                Float Ft = 1.0f - fresnel(absDot(n, d));
+                Float Ft;
+                if (!m_hasRoughSurface)
+                    Ft = 1.0f - fresnel(absDot(n, d));
+                else {
+                    Point2 co = toSphericalCoordinates(d);
+                    const int numSamples = m_roughSurfaceThetaBins * m_roughSurfacePhiBins;
+                    const int thetaIdx = (int) (co.x * 2 * INV_PI * m_roughSurfaceThetaBins);
+                    const int phiIdx = (int) ( co.x * 0.5 * INV_PI * m_roughSurfacePhiBins);
+                    const int idx = std::max(0, std::min(thetaIdx * m_roughSurfacePhiBins + phiIdx, numSamples));
+                    Ft = m_roughSurfaceDtTable[idx];
+                }
                 Lo = Mo * m_ssFactor * INV_PI * (Ft / m_Fdr);
             }
 
@@ -415,10 +620,7 @@ public:
         } else {
             /* Monte-Carlo Integration to calculate m_Fdr based
              * on the microfacet model. */
-            Log(EDebug, "Creating rough surface BRDF look-up-table");
-            timer.restart();
             configureRoughSurface();
-            Log(EDebug, "Created rough surface BRDF look-up-table (took %.2fs)", timer.elapsed());
         }
 
         /* Average transmittance at the boundary */
@@ -541,18 +743,24 @@ public:
         }
     }
 
+    /// Functor to evaluate the pdf values in parallel using OpenMP
+    static void integrand(
+        const boost::function<Float (const Vector &)> &pdfFn,
+            size_t nPts, const Float *in, Float *out) {
+        #pragma omp parallel for
+        for (int i=0; i<(int) nPts; ++i)
+            out[i] = pdfFn(sphericalDirection(in[2*i], in[2*i+1])) * std::sin(in[2*i]);
+    }
+
+
     /* Calculates m_Fdt, m_Fdr and m_A based on the microfacet
      * model. This is done like descrbed in [Donner ard Jensen 2005]
      **/
     void configureRoughSurface() {
         PluginManager *pluginManager = PluginManager::getInstance();
         Properties props;
-        props.setPluginName("microfacet");
-        props.setSpectrum("diffuseReflectance", Spectrum(0.0f));
-        props.setSpectrum("specularReflectance", Spectrum(1.0f));
-        props.setFloat("diffuseAmount", 1.0f);
-        props.setFloat("specularAmount", 1.0f);
-        props.setFloat("alphaB", .1f);
+        props.setPluginName("roughglass");
+        props.setFloat("alpha", 0.9f);
         props.setFloat("intIOR", m_eta);
         ref<BSDF> bsdf = static_cast<BSDF *> (pluginManager->createObject(
                 BSDF::m_theClass, props));
@@ -560,43 +768,80 @@ public:
         ref<Sampler> sampler = static_cast<Sampler *> (PluginManager::getInstance()->
             createObject(Sampler::m_theClass, Properties("independent")));
 
+        boost::timer timer;
+
+        // integration bounds: tau: 0..0.5*Pi, phi: 0..2*Pi
+        const int thetaBins = m_roughSurfaceThetaBins;
+        const int phiBins = m_roughSurfacePhiBins;
+        const int numSamples = thetaBins * phiBins;
+        const Float min[2] = {0,0}, max[2] = {0.5*M_PI, 2*M_PI};
+
+        Log(EDebug, "Integrating rough surface BSDF for diffuse reflectance (num samples = %i ..",
+            numSamples);
+
+        NDIntegrator integrator(1, 2, 100000, 0, 1e-6f);
+        size_t idx = 0;
+        Float maxError = 0.0f;
+        Float integral = 0.0f;
+        for (int i=0; i<numSamples; ++i) {
+            Vector wi = squareToHemispherePSA(sampler->next2D());
+            Float result, error;
+            size_t evals;
+
+            BSDFAdapter adapter(bsdf, sampler, wi, -1, false);
+            const boost::function<Float (const Vector &)> pdfFn =
+                boost::bind(&BSDFAdapter::pdf, &adapter, _1);
+
+            integrator.integrateVectorized(
+                boost::bind(&IsotropicDipole::integrand, pdfFn, _1, _2, _3),
+                min, max, &result, &error, evals
+            );
+
+            integral += result;
+            maxError = std::max(maxError, error);
+        }
         // get rho_dr
-        const Float rho_dr = bsdf->getDiffuseReflectance(Intersection()).average();
+        const Float rho_dr = integral / numSamples;
         m_Fdr = rho_dr;
+        
+        Log(EDebug, "Done, took %fs (max error = %f, integral (rho_dr) = %f).",
+            timer.elapsed(), maxError, rho_dr);
+
+
+        Log(EDebug, "Building rough surface BSDF look-up-tables ..");
+        timer.restart();
 
         /* build rho_dt look-up-table */
-        m_roughSurfaceDtLutStep = 0.1;
-        const int numLutEntriesTheta = M_PI / m_roughSurfaceDtLutStep;
-        const int numLutEntriesPhi = 2 * M_PI / m_roughSurfaceDtLutStep;
+        m_roughSurfaceDtTable = new Float[thetaBins * phiBins];
 
-        m_roughSurfaceDtLut.resize(numLutEntriesTheta);
+        Point2 factor(0.5 * M_PI / thetaBins,(2*M_PI) / phiBins);
 
-        // iterate over all angles the look-up-table is built for
-        for (int i=0; i<numLutEntriesTheta; ++i) {
-            const Float theta = i * m_roughSurfaceDtLutStep;
-            m_roughSurfaceDtLut[i].resize(numLutEntriesPhi);
-            for (int j=0; j<numLutEntriesTheta; ++j) {
-                const Float phi = j * m_roughSurfaceDtLutStep;
+        idx = 0;
+        maxError = 0;
+        for (int i=0; i<thetaBins; ++i) {
+            Float tau = i * factor.x;
+            for (int j=0; j<phiBins; ++j) {
+                Float phi = j * factor.y; 
 
-                const int numSamples = 100;
-                Intersection its;
-                Spectrum val = Spectrum(0.0f);
-                for (int k=0; k<numSamples; ++k) {
-                    its.wi = sphericalDirection(theta, phi);
-                    /* Allocate a record for querying the BSDF */
-                    BSDFQueryRecord bRec(its);
+                Vector wi = sphericalDirection(tau, phi);
+                Float result, error;
+                size_t evals;
 
-                    /* Evaluate BSDF * cos(theta) */
-                    const Spectrum bsdfVal = bsdf->sampleCos(bRec, sampler->next2D());
-                    val += bsdfVal;
-                }
-                val *= 2 * M_PI / numSamples;
+                BSDFAdapter adapter(bsdf, sampler, wi, -1, false);
+                const boost::function<Float (const Vector &)> pdfFn =
+                    boost::bind(&BSDFAdapter::pdf, &adapter, _1);
 
-                const Spectrum rho_dt = Spectrum(1.0f) - val;
-                std::cerr << "t: " << theta << " p: " << phi << " bsdf: " << val.toString() << std::cerr;
-                m_roughSurfaceDtLut[i][j] = rho_dt;
+                integrator.integrateVectorized(
+                    boost::bind(&IsotropicDipole::integrand, pdfFn, _1, _2, _3),
+                    min, max, &result, &error, evals
+                );
+
+                m_roughSurfaceDtTable[idx++] = 1.0f - result;
+                maxError = std::max(maxError, error);
             }
         }
+        Log(EDebug, "Done, took %fs (max error = %f).",
+            timer.elapsed(), maxError);
     }
 
     void configureTexture() {
@@ -985,7 +1230,9 @@ private:
     mutable ThreadLocal<Random> m_random;
     bool m_hasRoughSurface;
     Float m_roughSurfaceDtLutStep;
-    std::vector< std::vector<Spectrum> > m_roughSurfaceDtLut;
+    Float *m_roughSurfaceDtTable;
+    int m_roughSurfaceThetaBins;
+    int m_roughSurfacePhiBins;
     bool m_useTextures;
     ref<Texture> m_zvTex;
     ref<Texture> m_zrTex;

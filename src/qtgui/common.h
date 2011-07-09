@@ -100,6 +100,7 @@ struct SnowRenderSettings {
     int dipoleLutMCIterations;
     Float dipoleLutRmax;
     bool dipoleLutPredefineRmax;
+    bool dipoleHasRoughSurface;
 
     /* Jensen multipole settings */
     Float multipoleDensityFactor;
@@ -150,7 +151,7 @@ struct SnowRenderSettings {
         dipoleMartelliDC(false), dipoleTexture(false), dipoleTextureUScaling(1.0f), dipoleTextureVScaling(1.0f),
         dipoleDumpIrrtree(false), dipoleDumpIrrtreePath(""),
         dipoleUseLut(true), dipoleLutResolution(0.001), dipoleLutMCIterations(10000), dipoleLutRmax(10.0f),
-        dipoleLutPredefineRmax(true),
+        dipoleLutPredefineRmax(true), dipoleHasRoughSurface(false),
         multipoleDensityFactor(1.0f), multipoleSampleFactor(1.0f), multipoleExtraDipoles(2),
         multipoleSlabThickness(0.2f), multipoleUseSingleScattering(false), multipoleMartelliDC(false),
         multipoleUseLut(true), multipoleLutResolution(0.001), multipoleLutMCIterations(10000),
