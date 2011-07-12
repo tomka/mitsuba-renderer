@@ -111,6 +111,8 @@ void DirectShaderManager::init() {
         if (!triMesh)
             continue;
         m_renderer->registerGeometry(triMesh);
+        if (triMesh->getBSDF() == NULL)
+            continue;
         Shader *shader = m_renderer->registerShaderForResource(triMesh->getBSDF());
         if (shader != NULL && !shader->isComplete())
             m_renderer->unregisterShaderForResource(triMesh->getBSDF());
