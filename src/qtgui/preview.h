@@ -32,7 +32,7 @@ using namespace mitsuba;
 
 struct SceneContext;
 
-#define SSSDEBUG
+//#define SSSDEBUG
 
 /**
  * Asynchronous preview rendering thread

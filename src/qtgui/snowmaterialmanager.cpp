@@ -7,7 +7,7 @@
 #include <mitsuba/core/properties.h>
 #include <mitsuba/core/fstream.h>
 
-#define DEBUG_DIFF_PROF
+//#define DEBUG_DIFF_PROF
 
 MTS_NAMESPACE_BEGIN
 
