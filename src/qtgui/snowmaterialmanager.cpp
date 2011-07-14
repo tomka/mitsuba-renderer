@@ -51,10 +51,10 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
         BSDF *bsdf = NULL;
         Subsurface *subsurface = NULL;
         SnowRenderSettings &srs = context->snowRenderSettings;
+        bool hasBSDF = true;
 
         if (surfaceMode == ENoSurface) {
-            properties.setPluginName("lambertian");
-            properties.setSpectrum("reflectance", Spectrum(0.0f));
+            hasBSDF = false;
         } else if (surfaceMode == EWiscombeWarrenAlbedo) {
             properties.setPluginName("wiscombe");
             properties.setFloat("depth",srs.wiscombeDepth);
@@ -75,8 +75,9 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
             properties.setString("distribution", "ggx");
         }
 
-        bsdf = static_cast<BSDF *> (pluginManager->createObject(
-            BSDF::m_theClass, properties));
+        if (hasBSDF)
+            bsdf = static_cast<BSDF *> (pluginManager->createObject(
+                BSDF::m_theClass, properties));
 
         if (subsurfaceMode == ENoSubSurface) {
             subsurface = NULL; 
