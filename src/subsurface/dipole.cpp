@@ -518,7 +518,7 @@ public:
                     const int numSamples = m_roughSurfaceThetaBins * m_roughSurfacePhiBins;
                     const int thetaIdx = (int) (co.x * 2 * INV_PI * m_roughSurfaceThetaBins);
                     const int phiIdx = (int) ( co.x * 0.5 * INV_PI * m_roughSurfacePhiBins);
-                    const int idx = std::max(0, std::min(thetaIdx * m_roughSurfacePhiBins + phiIdx, numSamples));
+                    const int idx = std::max(0, std::min(thetaIdx * m_roughSurfacePhiBins + phiIdx, numSamples - 1));
                     Ft = m_roughSurfaceDtTable[idx];
                 }
                 Lo = Mo * m_ssFactor * INV_PI * (Ft / m_Fdr);
@@ -551,7 +551,7 @@ public:
                     const int numSamples = m_roughSurfaceThetaBins * m_roughSurfacePhiBins;
                     const int thetaIdx = (int) (co.x * 2 * INV_PI * m_roughSurfaceThetaBins);
                     const int phiIdx = (int) ( co.x * 0.5 * INV_PI * m_roughSurfacePhiBins);
-                    const int idx = std::max(0, std::min(thetaIdx * m_roughSurfacePhiBins + phiIdx, numSamples));
+                    const int idx = std::max(0, std::min(thetaIdx * m_roughSurfacePhiBins + phiIdx, numSamples - 1));
                     Ft = m_roughSurfaceDtTable[idx];
                 }
                 Lo = Mo * m_ssFactor * INV_PI * (Ft / m_Fdr);
