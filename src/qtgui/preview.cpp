@@ -909,7 +909,6 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
             wrap,wrap,filterL,filterL,FBO_DepthBufferType_NONE,0,0,0,0);
         fboTmp->init(fboCumulSplatWidth,fboCumulSplatHeight,intColFormRGBF,
             wrap,wrap,filterL,filterL,FBO_DepthBufferType_NONE,0,0,0,0);
-
     }
 
     TranslucentShape ts;

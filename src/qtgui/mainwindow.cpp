@@ -1051,9 +1051,9 @@ void MainWindow::onSnowRenderModelChange() {
     srs.generalRenderMode = generalRenderMode;
 
     ESurfaceRenderMode surfaceRenderMode;
-    if (surfaceIdx == 1) {
+    if (surfaceIdx == 1)
         surfaceRenderMode = EWiscombeWarrenAlbedo;
-    } else if (surfaceIdx == 2)
+    else if (surfaceIdx == 2)
         surfaceRenderMode = EWiscombeWarrenBRDF;
     else if (surfaceIdx == 3)
         surfaceRenderMode = EHanrahanKruegerBRDF;
