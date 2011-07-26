@@ -35,12 +35,13 @@ Schritt für Schritt
    entsprechende Repository [9] in den Ordner "dependencies" im Projektordner
    geklont wird.
 9. QT [10] installieren. Es wird von SCons nach der Umgebungsvariable QTDIR gesucht.
-10. Mittels einer Kommandozeile in den Projektordnor wechseln und SCons aufrufen.
-    Unter Windows ist dies mit dem installierten Script im Pythonordner
-    "Scripts" zu finden. (z.B. E:\bin\Python26\Scripts\scons.bat)
-11. Die Numeric-Bindings von Boost unter [11] herunterladen und in den Odner
+10. Die Numeric-Bindings von Boost unter [11] herunterladen und in den Odner
     "dependencies/boost" entpackes. Die Bibliotheken aus [12] müssen in den
     entsprechenden Ordner der Windows-Version (e.g. "dependencies\windows\lib32")
+11. Es wird die Windows-DLL vcomp90.dll [13] benötigt
+12. Mittels einer Kommandozeile in den Projektordnor wechseln und SCons aufrufen.
+    Unter Windows ist dies mit dem installierten Script im Pythonordner
+    "Scripts" zu finden. (z.B. E:\bin\Python26\Scripts\scons.bat)
 
 Referenzen
 ----------
@@ -57,4 +58,5 @@ Referenzen
 [10] http://qt.nokia.com/downloads/
 [11] http://mathema.tician.de/dl/software/boost-bindings
 [12] http://icl.cs.utk.edu/lapack-for-windows/lapack/#librairies
+[13] http://www.dll-files.com/pop.php?dll=vcomp90
 
