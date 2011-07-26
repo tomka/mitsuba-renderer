@@ -160,7 +160,7 @@ struct SnowRenderSettings {
         // default to sin^20 flake distribution
         adipoleD("0.47827, 7.5057e-09, -4.313e-10, 7.5057e-09, 0.47827, 2.5069e-10, -4.313e-10, 2.5069e-10, 0.043454"),
         shahExpandSilhouette(true), shahShowSplatOrigins(false), shahShowLight(false),
-        shahAlbedoMapType(EWiscombeWarrenAlbedo), shahDiffusionProfileType(EExampleProfile), shahDiffusionExample(4),
+        shahAlbedoMapType(EWiscombeWarrenAlbedo), shahDiffusionProfileType(ESnowProfile), shahDiffusionExample(0),
         shahRmax(0.5f), shahMCIterations(10000), shahPredefineRmax(true), shahSpecularColor(0.0f),
         shahErrorThreshold(0.01), shahMaxLightViewResolution(1024), shahBackbufferWidth(100),
         shahBackbufferHeight(75), shahWeight(1.0f), shahExposure(0.1)

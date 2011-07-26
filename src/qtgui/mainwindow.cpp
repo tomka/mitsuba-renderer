@@ -1102,8 +1102,9 @@ void MainWindow::onSnowRenderModelChange() {
         }
     }
         
-    int shahDiffusionExample = m_shahRTSettings->diffusionProfileComboBox->currentIndex();
-    bool shahDiffusionProfileChanged = (srs.shahDiffusionExample != shahDiffusionExample);
+    static bool shahInitialized = false;
+	int shahDiffusionExample = m_shahRTSettings->diffusionProfileComboBox->currentIndex();
+    bool shahDiffusionProfileChanged = (srs.shahDiffusionExample != shahDiffusionExample) || !shahInitialized;
     srs.shahMCIterations = m_shahRTSettings->mcIterationsSpinBox->value() * 1000.0;
     srs.shahPredefineRmax = m_shahRTSettings->rMaxRadioButton->isChecked();
     srs.shahMaxLightViewResolution = m_shahRTSettings->nSpinBox->value();
@@ -1118,6 +1119,7 @@ void MainWindow::onSnowRenderModelChange() {
     bool rMaxManuallyChanged = (rMax != srs.shahRmax);
 
     if (shahDiffusionProfileChanged) {
+		shahInitialized = true;
         srs.shahDiffusionExample = shahDiffusionExample;
         srs.shahDiffusionProfileType = shahDiffusionProfile;
 
