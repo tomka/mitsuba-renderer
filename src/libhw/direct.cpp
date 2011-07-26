@@ -4,6 +4,7 @@
 #include <mitsuba/hw/gputexture.h>
 #include <mitsuba/render/scene.h>
 #include <mitsuba/core/properties.h>
+#include "../shapes/instance.h"
 
 MTS_NAMESPACE_BEGIN
 
@@ -107,17 +108,39 @@ void DirectShaderManager::init() {
     /* Try to get shader implementations for the shapes BSDF to
      * register them with the renderer.  */
     for (size_t i=0; i<shapes.size(); ++i) {
+        m_shapes.push_back(std::make_pair(shapes[i], -1));
         ref<TriMesh> triMesh = shapes[i]->createTriMesh();
-        if (!triMesh)
+        if (!triMesh) {
+			std::string shapeClass = shapes[i]->getClass()->getName();
+			if (shapeClass == "Instance") {
+				const Instance *instance = static_cast<const Instance *>(shapes[i]);
+				const std::vector<const Shape *> &subShapes = 
+						instance->getShapeGroup()->getKDTree()->getShapes(); 
+				for (size_t j=0; j<subShapes.size(); ++j) {
+					triMesh = const_cast<Shape *>(subShapes[j])->createTriMesh();
+					if (!triMesh)
+						continue;
+					GPUGeometry *gpuGeo = m_renderer->registerGeometry(triMesh);
+					Shader *shader = triMesh->hasBSDF() ? 
+						m_renderer->registerShaderForResource(triMesh->getBSDF()) : NULL;
+					if (shader != NULL && !shader->isComplete())
+						m_renderer->unregisterShaderForResource(triMesh->getBSDF());
+					m_meshes.push_back(std::make_pair(triMesh.get(), instance->getWorldTransform()));
+					if (gpuGeo)
+						m_drawList.push_back(std::make_pair(gpuGeo, instance->getWorldTransform()));
+				}
+			}
             continue;
-        m_renderer->registerGeometry(triMesh);
-        if (triMesh->getBSDF() == NULL)
-            continue;
-        Shader *shader = m_renderer->registerShaderForResource(triMesh->getBSDF());
+        }
+		GPUGeometry *gpuGeo = m_renderer->registerGeometry(triMesh);
+		Shader *shader = triMesh->hasBSDF() ? 
+			m_renderer->registerShaderForResource(triMesh->getBSDF()) : NULL;
         if (shader != NULL && !shader->isComplete())
             m_renderer->unregisterShaderForResource(triMesh->getBSDF());
-        triMesh->incRef();
-        m_meshes.push_back(triMesh);
+		m_meshes.push_back(std::make_pair(triMesh.get(), Transform()));
+        m_shapes.back().second = m_meshes.size() - 1;
+		if (gpuGeo)
+			m_drawList.push_back(std::make_pair(gpuGeo, Transform()));
     }
 
     /* Register shader implementations for luminaires with renderer. */
@@ -908,11 +931,12 @@ void DirectShaderManager::cleanup() {
     const std::vector<Luminaire *> luminaires = m_scene->getLuminaires();
 
     for (size_t i=0; i<m_meshes.size(); ++i) {
-        m_renderer->unregisterGeometry(m_meshes[i]);
-        m_renderer->unregisterShaderForResource(m_meshes[i]->getBSDF());
-        m_meshes[i]->decRef();
+        m_renderer->unregisterGeometry(m_meshes[i].first);
+        m_renderer->unregisterShaderForResource(m_meshes[i].first->getBSDF());
     }
     m_meshes.clear();
+	m_drawList.clear();
+
     for (size_t i=0; i<luminaires.size(); ++i)
         m_renderer->unregisterShaderForResource(luminaires[i]);
     m_initialized = false;

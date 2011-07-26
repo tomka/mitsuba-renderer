@@ -63,9 +63,9 @@ public:
 	void unbind();
 
 	/// Return all bound triangle meshes
-	inline const std::vector<const TriMesh *> &getMeshes() const { return m_meshes; }
+	inline const std::vector<std::pair<const TriMesh *, Transform> > &getMeshes() const { return m_meshes; }
     /// Return all shapes belonging to the bound meshes
-	inline const std::vector<const Shape *> &getShapes() const { return m_shapes; }
+	inline const std::vector<std::pair<const Shape *, int> > &getShapes() const { return m_shapes; }
 
 
 	/// Return the shadow cube map for debugging purposes
@@ -270,8 +270,9 @@ private:
     DirectProgramConfiguration m_targetConfig;
 	ref<GPUProgram> m_backgroundProgram;
     DirectDependencyNode m_backgroundDependencies; 
-	std::vector<const TriMesh *> m_meshes;
-	std::vector<const Shape *> m_shapes;
+	std::vector<std::pair<const TriMesh *, Transform> > m_meshes;
+	std::vector<std::pair<const GPUGeometry *, Transform> > m_drawList;
+	std::vector<std::pair<const Shape *, int> > m_shapes;
 
 public:
     ref<GPUProgram> m_lightViewProgram;

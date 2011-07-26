@@ -825,7 +825,8 @@ void PreviewThread::oglErrorCheck() {
 }
 
 void PreviewThread::oglRender(PreviewQueueEntry &target) {
-	const std::vector<const TriMesh *> meshes = m_directShaderManager->getMeshes();
+	const std::vector<std::pair<const Shape *, int> > shapes
+        = m_directShaderManager->getShapes();
 
 	Point2 jitter(.5f, .5f);
 	//if (!m_motion && !m_context->showKDTree)
@@ -923,9 +924,12 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
 
     // back up color buffer attriabutes
     glPushAttrib(GL_COLOR_BUFFER_BIT);
-	for (size_t i=0; i<meshes.size(); i++) {
-        const TriMesh *mesh = meshes[i];
-        if (smm.isMadeOfSnow( m_directShaderManager->getMeshes()[i] )) {
+	for (size_t i=0; i<shapes.size(); i++) {
+        int meshIdx = shapes[i].second;
+        if (meshIdx == -1)
+            continue;
+        const TriMesh *mesh = m_directShaderManager->getMeshes()[meshIdx].first;
+        if (smm.isMadeOfSnow( shapes[i].first )) {
             ts.mesh = mesh;
 
             calcSplatPositions(ts, camPos); // in light view
@@ -1057,7 +1061,8 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
 }
 
 void PreviewThread::calcSplatPositions(const TranslucentShape &ts, Point &camPos) {
-	const std::vector<const TriMesh *> meshes = m_directShaderManager->getMeshes();
+	const std::vector<std::pair<const TriMesh *, Transform> > meshes
+        = m_directShaderManager->getMeshes();
 
     // Setup spot light view space.
     glMatrixMode(GL_PROJECTION);
@@ -1152,8 +1157,9 @@ void PreviewThread::calcSplatPositions(const TranslucentShape &ts, Point &camPos
     glColor3f(999.0f, 999.0f, 999.0f);
 
     for (size_t i=0; i<meshes.size(); i++) {
+		const TriMesh *mesh = meshes[i].first;
         // don't render the current object as an ocluder
-        if (meshes[i] == ts.mesh)
+        if (mesh == ts.mesh)
             continue;
 
         //glMatrixMode(GL_MODELVIEW);
@@ -1163,7 +1169,12 @@ void PreviewThread::calcSplatPositions(const TranslucentShape &ts, Point &camPos
 
         // no need for text coords and normal
         m_renderer->beginDrawingMeshes();
-        m_renderer->drawTriMesh(meshes[i]);
+		bool hasTransform = !meshes[i].second.isIdentity();
+		if (hasTransform)
+			m_renderer->pushTransform(meshes[i].second);
+		m_renderer->drawTriMesh(mesh);
+		if (hasTransform)
+			m_renderer->popTransform();
         m_renderer->endDrawingMeshes();
 
         //glPopMatrix();
@@ -1201,7 +1212,8 @@ void PreviewThread::calcSplatPositions(const TranslucentShape &ts, Point &camPos
 }
 
 void PreviewThread::calcVisiblePositions(const TranslucentShape &ts) {
-	const std::vector<const TriMesh *> meshes = m_directShaderManager->getMeshes();
+	const std::vector<std::pair<const TriMesh *, Transform> > meshes
+        = m_directShaderManager->getMeshes();
 
     // Vector3 top;
 
@@ -1229,7 +1241,12 @@ void PreviewThread::calcVisiblePositions(const TranslucentShape &ts) {
 
     // we need tex coords, but no normals
     m_renderer->beginDrawingMeshes();
+    //bool hasTransform = !meshes[j].second.isIdentity();
+    //if (hasTransform)
+    //    m_renderer->pushTransform(meshes[j].second);
     m_renderer->drawTriMesh(ts.mesh);
+    //if (hasTransform)
+    //    m_renderer->popTransform();
     m_renderer->endDrawingMeshes();
 
     //glPopMatrix();
@@ -1241,10 +1258,10 @@ void PreviewThread::calcVisiblePositions(const TranslucentShape &ts) {
 
     glDisable(GL_TEXTURE_2D);
     glColor4f(999.0f,999.0f,999.0f,0.0f);
-    for(std::vector<const TriMesh*>::const_iterator it=meshes.begin(); it!=meshes.end(); ++it)
-    {
+    for(std::vector<std::pair<const TriMesh*, Transform> >::const_iterator it=meshes.begin();
+            it!=meshes.end(); ++it) {
         //we do not render the current translucent object as an ocluder
-        if((*it) == ts.mesh)
+        if((*it).first == ts.mesh)
             continue;
     
         //glPushMatrix();
@@ -1253,7 +1270,7 @@ void PreviewThread::calcVisiblePositions(const TranslucentShape &ts) {
 
         // we need tex coords, but no normals
         m_renderer->beginDrawingMeshes();
-        m_renderer->drawTriMesh(*it);
+        m_renderer->drawTriMesh((*it).first);
         m_renderer->endDrawingMeshes();
 
         //glPopMatrix();
