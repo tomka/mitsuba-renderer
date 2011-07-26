@@ -18,8 +18,7 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
 
         // try to find shape in store 
         ShapeMap::iterator it = snowShapes.find(shape);
-        /* If not found, add new.
-         */
+        // If not found, add new.
         if (it == snowShapes.end()) {
             ShapeEntry newEntry;
 
