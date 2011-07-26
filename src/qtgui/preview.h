@@ -26,7 +26,7 @@
 #include <mitsuba/render/preview.h>
 #include "common.h"
 #include "preview_proc.h"
-#include "gpu/framebufferobject.h"
+#include "mitsuba/hw/framebufferobject.h"
 
 using namespace mitsuba;
 
