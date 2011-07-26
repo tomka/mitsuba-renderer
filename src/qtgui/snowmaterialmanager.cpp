@@ -166,9 +166,9 @@ void SnowMaterialManager::replaceMaterial(Shape *shape, SceneContext *context) {
         setMadeOfSnow(shape, true);
         std::string bsdfName = (bsdf == NULL) ? "None" : bsdf->getClass()->getName();
         std::string subsurfaceName = (subsurface == NULL) ? "None" : subsurface->getClass()->getName();
-        std::cerr << "[Snow Material Manager] Replaced material of shape \"" << shape->getName() << "\"" << std::endl
-                  << "\tnew BSDF: " << bsdfName << std::endl
-                  << "\tnew Subsurface: " << subsurfaceName << std::endl;
+        SLog(EDebug, "[Snow Material Manager] Replaced material of shape \"%s\"", shape->getName().c_str());
+		SLog(EDebug, "\tnew BSDF: %s", bsdfName.c_str());
+		SLog(EDebug, "\tnew Subsurface: %s", subsurfaceName.c_str());
 }
 
 std::string SnowMaterialManager::getFlakeDistribution() {

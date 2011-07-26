@@ -446,7 +446,8 @@ void PreviewThread::run() {
 
 #ifdef SSSDEBUG
                     std::string name = (albedoMap == NULL) ? "None" : albedoMap->toString();
-                    std::cerr << "Set new realtime sss albedo map:" << std::endl << name << std::endl;
+                    Log(EDebug, "Set new realtime sss albedo map:");
+					Log(EDebug, "\t%s", name.c_str());
 #endif
                 }
                 if ((diffusionMap.get() == NULL) || (srs.shahDiffusionProfile.get() != diffusionMap->getBitmap()) ) {
@@ -503,7 +504,8 @@ void PreviewThread::run() {
                      */ 
 #ifdef SSSDEBUG
                     std::string name = (diffusionMap == NULL) ? "None" : diffusionMap->toString();
-                    std::cerr << "Set new realtime sss diffusion map (n0 = " << n0 << "):" << std::endl << name << std::endl;
+                    Log(EDebug, "Set new realtime sss diffusion map (n0 = %i)", n0);
+					Log(EDebug, "\t%s", name.c_str());
 #endif
                 }
 
@@ -876,7 +878,7 @@ void PreviewThread::oglRender(PreviewQueueEntry &target) {
         n = (Float) srs.shahMaxLightViewResolution;
     if (n != fboSplatSize) {
         fboSplatSize = n;
-        std::cerr << "Realtime SSS: New light view resolution is " << n << "x" << n << std::endl;
+        SLog(EDebug, "Realtime SSS: New light view resolution is %ix%i", n, n);
         fboLightView = new FrameBufferObject(2);
         fboLightView->init(fboSplatSize,fboSplatSize,intColFormRGBAF,
               wrapE,wrapE,filterL,filterL,FBO_DepthBufferType_TEXTURE,GL_NEAREST,GL_NEAREST,GL_CLAMP,GL_CLAMP);
