@@ -2070,7 +2070,7 @@ bool MainWindow::on_tabBar_tabCloseRequested(int index) {
                      /* look for shape in this context */
                      shapeListType::const_iterator findIt = std::find(testShapes.begin(), testShapes.end(), *it);
                      /* if found, don't delete it from material manager */
-                     if (findIt != shapes.end())
+                     if (findIt != testShapes.end())
                          removalCandidates[*it] = false;
                 }
             }
