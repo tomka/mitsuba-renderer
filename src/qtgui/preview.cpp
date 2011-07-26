@@ -27,11 +27,11 @@
 #include <mitsuba/core/fstream.h>
 #include <mitsuba/core/fresolver.h>
 
-GLEWContext glewContext;
+//GLEWContext glewContext;
 
-GLEWContext *glewGetContext() {
-    return &glewContext;
-}
+//GLEWContext *glewGetContext() {
+//    return &glewContext;
+//}
 
 unsigned int PreviewThread::intColFormRGBF[2] = {GL_RGB16F_ARB, GL_RGB16F_ARB};
 unsigned int PreviewThread::intColFormRGBAF[2] = {GL_RGBA16F_ARB, GL_RGBA16F_ARB};
