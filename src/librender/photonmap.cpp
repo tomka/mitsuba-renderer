@@ -220,6 +220,11 @@ size_t PhotonMap::leftSubtreeSize(size_t treeSize) const {
 }
 
 void PhotonMap::balance() {
+	if (m_photonCount == 0) {
+		Log(EInfo, "Photon map: no need for balancing, no photons available.");
+		m_balanced = true;
+		return;
+	}
 	Assert(!m_balanced);
 
 	/* Shuffle pointers instead of copying photons back and forth */
