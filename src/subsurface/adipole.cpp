@@ -385,8 +385,10 @@ public:
 	MTS_DECLARE_CLASS()
 private:
 	Float m_sampleMultiplier;
-	Float m_Fdr, m_Fdt, m_A, m_minDelta;
+	Float m_Fdr, m_Fdt, m_A, m_minDelta, m_eta;
 	Spectrum m_ssFactor;
+    Spectrum m_sigmaT, m_invSigmaT, m_negSigmaT;
+	Spectrum m_sigmaS, m_sigmaA;
 
 	ref<ParallelProcess> m_proc;
 	ref<IrradianceOctree> m_octree;

@@ -422,12 +422,17 @@ int log2i(uint64_t value) {
 }
 
 int modulo(int a, int b) {
-	int result = a - int(a/b) * b;
+	int result = a - (a/b) * b;
+	return (result < 0) ? result+b : result;
+}
+
+Float modulo(Float a, Float b) {
+	Float result = a - int(a/b) * b;
 	return (result < 0) ? result+b : result;
 }
 
 /* Fast rounding & power-of-two test algorithms from PBRT */
-uint32_t roundToPow2(uint32_t i) {
+uint32_t roundToPowerOfTwo(uint32_t i) {
 	i--;
 	i |= i >> 1; i |= i >> 2;
 	i |= i >> 4; i |= i >> 8;
@@ -435,7 +440,7 @@ uint32_t roundToPow2(uint32_t i) {
 	return i+1;
 }
 
-uint64_t roundToPow2(uint64_t i) {
+uint64_t roundToPowerOfTwo(uint64_t i) {
 	i--;
 	i |= i >> 1;  i |= i >> 2;
 	i |= i >> 4;  i |= i >> 8;
@@ -464,6 +469,46 @@ bool solveQuadratic(Float a, Float b, Float c, Float &x0, Float &x1) {
 		return false;
 
 	Float temp, sqrtDiscrim = std::sqrt(discrim);
+
+	/* Numerically stable version of (-b (+/-) sqrtDiscrim) / (2 * a)
+	 *
+	 * Based on the observation that one solution is always
+	 * accurate while the other is not. Finds the solution of
+	 * greater magnitude which does not suffer from loss of
+	 * precision and then uses the identity x1 * x2 = c / a
+	 */
+	if (b < 0)
+		temp = -0.5f * (b - sqrtDiscrim);
+	else
+		temp = -0.5f * (b + sqrtDiscrim);
+
+	x0 = temp / a;
+	x1 = c / temp;
+
+	/* Return the results so that x0 < x1 */
+	if (x0 > x1)
+		std::swap(x0, x1);
+
+	return true;
+}
+
+bool solveQuadraticDouble(double a, double b, double c, double &x0, double &x1) {
+	/* Linear case */
+	if (a == 0) {
+		if (b != 0) {
+			x0 = x1 = -c / b;
+			return true;
+		}
+		return false;
+	}
+
+	double discrim = b*b - 4.0f*a*c;
+
+	/* Leave if there is no solution */
+	if (discrim < 0)
+		return false;
+
+	double temp, sqrtDiscrim = std::sqrt(discrim);
 
 	/* Numerically stable version of (-b (+/-) sqrtDiscrim) / (2 * a)
 	 *
@@ -598,16 +643,15 @@ Point2 squareToDisk(const Point2 &sample) {
 	);
 }
 
-
 void coordinateSystem(const Vector &a, Vector &b, Vector &c) {
 	if (std::abs(a.x) > std::abs(a.y)) {
 		Float invLen = 1.0f / std::sqrt(a.x * a.x + a.z * a.z);
-		b = Vector(-a.z * invLen, 0.0f, a.x * invLen);
+		c = Vector(a.z * invLen, 0.0f, -a.x * invLen);
 	} else {
 		Float invLen = 1.0f / std::sqrt(a.y * a.y + a.z * a.z);
-		b = Vector(0.0f, -a.z * invLen, a.y * invLen);
+		c = Vector(0.0f, a.z * invLen, -a.y * invLen);
 	}
-	c = cross(a, b);
+	b = cross(c, a);
 }
 
 Point2 squareToTriangle(const Point2 &sample) {
@@ -661,6 +705,15 @@ Vector squareToCone(Float cosCutoff, const Point2 &sample) {
 		std::sin(phi) * sinTheta, cosTheta);
 }
 
+Point2 squareToStdNormal(const Point2 &sample) {
+	Float tmp1 = std::sqrt(-2 * std::log(1-sample.x)),
+		  tmp2 = 2 * M_PI * sample.y;
+	return Point2(
+		tmp1 * std::cos(tmp2),
+		tmp1 * std::sin(tmp2)
+	);
+}
+
 Float lanczosSinc(Float t, Float tau) {
 	t = std::abs(t);
 	if (t < Epsilon)
@@ -677,32 +730,32 @@ Float lanczosSinc(Float t, Float tau) {
 	directions in addition to the fresnel coefficients. Based on 
 	PBRT and the paper "Derivation of Refraction Formulas" 
 	by Paul S. Heckbert. */
-Float fresnelDielectric(Float cosTheta1, Float cosTheta2, 
+Float fresnelDielectric(Float cosThetaI, Float cosThetaT, 
 						Float etaI, Float etaT) {
-	Float Rs = (etaI * cosTheta1 - etaT * cosTheta2)
-			/ (etaI * cosTheta1 + etaT * cosTheta2);
-	Float Rp = (etaT * cosTheta1 - etaI * cosTheta2)
-			/ (etaT * cosTheta1 + etaI * cosTheta2);
+	Float Rs = (etaI * cosThetaI - etaT * cosThetaT)
+			/ (etaI * cosThetaI + etaT * cosThetaT);
+	Float Rp = (etaT * cosThetaI - etaI * cosThetaT)
+			/ (etaT * cosThetaI + etaI * cosThetaT);
 
 	return (Rs * Rs + Rp * Rp) / 2.0f;
 }
 
-Spectrum fresnelConductor(Float cosTheta, const Spectrum &eta, const Spectrum &k) {
-	Spectrum tmp = (eta*eta + k*k) * (cosTheta * cosTheta);
+Spectrum fresnelConductor(Float cosThetaI, const Spectrum &eta, const Spectrum &k) {
+	Spectrum tmp = (eta*eta + k*k) * (cosThetaI * cosThetaI);
 
-	Spectrum rParl2 = (tmp - (eta * (2.0f * cosTheta)) + Spectrum(1.0f))
-					/ (tmp + (eta * (2.0f * cosTheta)) + Spectrum(1.0f));
+	Spectrum rParl2 = (tmp - (eta * (2.0f * cosThetaI)) + Spectrum(1.0f))
+					/ (tmp + (eta * (2.0f * cosThetaI)) + Spectrum(1.0f));
 
 	Spectrum tmpF = eta*eta + k*k;
 
-	Spectrum rPerp2 = (tmpF - (eta * (2.0f * cosTheta)) + Spectrum(cosTheta*cosTheta)) /
-					  (tmpF + (eta * (2.0f * cosTheta)) + Spectrum(cosTheta*cosTheta));
+	Spectrum rPerp2 = (tmpF - (eta * (2.0f * cosThetaI)) + Spectrum(cosThetaI*cosThetaI)) /
+					  (tmpF + (eta * (2.0f * cosThetaI)) + Spectrum(cosThetaI*cosThetaI));
 
 	return (rParl2 + rPerp2) / 2.0f;
 }
 
-Float fresnel(Float cosThetaI, Float etaExt, Float etaInt) {
-	Float etaI = etaExt, etaT = etaInt;
+Float fresnel(Float cosThetaI, Float extIOR, Float intIOR) {
+	Float etaI = extIOR, etaT = intIOR;
 
 	/* Swap the indices of refraction if the interaction starts
 	   at the inside of the object */
@@ -877,11 +930,11 @@ double normalQuantile(double p) {
 Float hypot2(Float a, Float b) {
 	Float r;
 	if (std::abs(a) > std::abs(b)) {
-		r = b/a;
-		r = std::abs(a)*std::sqrt(1+r*r);
+		r = b / a;
+		r = std::abs(a) * std::sqrt(1 + r*r);
 	} else if (b != 0) {
-		r = a/b;
-		r = std::abs(b)*std::sqrt(1+r*r);
+		r = a / b;
+		r = std::abs(b) * std::sqrt(1 + r*r);
 	} else {
 		r = 0;
 	}

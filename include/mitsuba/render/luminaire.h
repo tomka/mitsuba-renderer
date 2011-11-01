@@ -27,6 +27,7 @@ MTS_NAMESPACE_BEGIN
 /**
  * \brief Data structure used by the direct illumination / shadow ray
  * sampling methods in the class \ref Luminaire.
+ * \ingroup librender
  */
 struct MTS_EXPORT_RENDER LuminaireSamplingRecord {
 public:
@@ -66,6 +67,7 @@ public:
 /**
  * \brief Data structure used to record information associated with
  * emission sampling in the class \ref Luminaire.
+ * \ingroup librender
  */
 struct MTS_EXPORT_RENDER EmissionRecord {
 public:
@@ -119,6 +121,7 @@ public:
 /**
  * \brief Abstract implementation of a luminaire. Supports emission and
  * direct illumination sampling strategies, and computes related probabilities.
+ * \ingroup librender
  */
 class MTS_EXPORT_RENDER Luminaire : public ConfigurableObject, public HWResource {
 public:
@@ -157,7 +160,7 @@ public:
 	 * \brief Return an estimate of the total amount of power emitted 
 	 * by this luminaire.
 	 */
-	virtual Spectrum getPower() const = 0;
+	virtual Spectrum getPower() const;
 
 	/// Is this luminaire intersectable (e.g. can it be encountered by a tracing a ray)?
 	inline bool isIntersectable() const { return m_intersectable; }
@@ -194,7 +197,7 @@ public:
 	 * Sampling is ideally done with respect to solid angle at \c p.
 	 */
 	virtual void sample(const Point &p, 
-		LuminaireSamplingRecord &lRec, const Point2 &sample) const = 0;
+		LuminaireSamplingRecord &lRec, const Point2 &sample) const;
 
 	/**
 	 * \brief Calculate the solid angle density for generating this sample
@@ -204,7 +207,7 @@ public:
 	 * are considered in the query. Otherwise, they are left out.
 	 */
 	virtual Float pdf(const Point &p, 
-		const LuminaireSamplingRecord &lRec, bool delta) const = 0;
+		const LuminaireSamplingRecord &lRec, bool delta) const;
 	
 	//! @}
 	// =============================================================
@@ -225,7 +228,7 @@ public:
 	 * of the spatial and directional sampling densities.
 	 */
 	virtual void sampleEmission(EmissionRecord &eRec,
-		const Point2& areaSample, const Point2 &dirSample) const = 0;
+		const Point2& areaSample, const Point2 &dirSample) const;
 
 	/**
 	 * \brief Sample only the spatial part of the emission sampling strategy
@@ -239,7 +242,7 @@ public:
 	 * spatially dependent emittance component will be stored in \c eRec.
 	 */
 	virtual void sampleEmissionArea(EmissionRecord &lRec,
-			const Point2 &sample) const = 0;
+			const Point2 &sample) const;
 
 	/**
 	 * \brief Sample only the directional part of the emission sampling strategy
@@ -252,7 +255,7 @@ public:
 	 * component of the radiant emittance obtained in \ref sampleEmissionArea.
 	 */
 	virtual Spectrum sampleEmissionDirection(EmissionRecord &lRec, 
-			const Point2 &sample) const = 0;
+			const Point2 &sample) const;
 
 	/**
 	 * \brief Given an emitted particle, populate the emission record with the 
@@ -261,13 +264,13 @@ public:
 	 * When \c delta is set to true, only components with a Dirac delta density
 	 * are considered in the query. Otherwise, they are left out.
 	 */
-	virtual void pdfEmission(EmissionRecord &eRec, bool delta) const = 0;
+	virtual void pdfEmission(EmissionRecord &eRec, bool delta) const;
 
 	/**
 	 * \brief Evaluate the spatial component of the radiant emittance at a
 	 * point on the luminaire (ignoring any directional variations).
 	 */
-	virtual Spectrum fArea(const EmissionRecord &eRec) const = 0;
+	virtual Spectrum evalArea(const EmissionRecord &eRec) const;
 
 	/**
 	 * \brief Evaluate the directional emission distribution of this light source
@@ -275,7 +278,7 @@ public:
 	 *
 	 * This function is normalized so that it integrates to one.
 	 */
-	virtual Spectrum fDirection(const EmissionRecord &eRec) const = 0;
+	virtual Spectrum evalDirection(const EmissionRecord &eRec) const;
 
 	//! @}
 	// =============================================================
@@ -342,6 +345,18 @@ public:
 	//! @{ \name Miscellaneous
 	// =============================================================
 
+	/// Is this a compound luminaire consisting of several sub-objects?
+	virtual bool isCompound() const;
+
+	/**
+	 * \brief Return a sub-element of a compound luminaire. 
+	 *
+	 * When expanding luminaires, the scene will repeatedly call this
+	 * function with increasing indices. Returning \a NULL indicates
+	 * that no more are available.
+	 */
+	virtual Luminaire *getElement(int i);
+
 	/// Serialize this luminaire to a binary data stream
 	virtual void serialize(Stream *stream, InstanceManager *manager) const;
 
@@ -350,6 +365,8 @@ public:
 
 	/// Add a child (e.g. a medium reference) to this luminaire
 	void addChild(const std::string &name, ConfigurableObject *child);
+	/// Add an unnamed child
+	inline void addChild(ConfigurableObject *child) { addChild("", child); }
 
 	//! @}
 	// =============================================================

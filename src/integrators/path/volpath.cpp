@@ -81,7 +81,7 @@ public:
 					scene->sampleAttenuatedLuminaire(mRec.p, ray.time, rRec.medium, 
 						lRec, rRec.nextSample2D(), rRec.sampler)) {
 					/* Evaluate the phase function */
-					Float phaseVal = phase->f(PhaseFunctionQueryRecord(mRec, -ray.d, -lRec.d));
+					Float phaseVal = phase->eval(PhaseFunctionQueryRecord(mRec, -ray.d, -lRec.d));
 
 					if (phaseVal != 0) {
 						/* Calculate prob. of having sampled that direction using 
@@ -105,7 +105,6 @@ public:
 				Float phaseVal = phase->sample(pRec, phasePdf, rRec.sampler);
 				if (phaseVal == 0)
 					break;
-				phaseVal /= phasePdf;
 
 				/* Trace a ray in this direction */
 				ray = Ray(mRec.p, pRec.wo, ray.time);
@@ -224,10 +223,10 @@ public:
 					const Vector wo = -lRec.d;
 
 					/* Allocate a record for querying the BSDF */
-					const BSDFQueryRecord bRec(its, its.toLocal(wo));
+					BSDFQueryRecord bRec(its, its.toLocal(wo));
 	
 					/* Evaluate BSDF * cos(theta) */
-					const Spectrum bsdfVal = bsdf->fCos(bRec);
+					const Spectrum bsdfVal = bsdf->eval(bRec);
 
 					Float woDotGeoN = dot(its.geoFrame.n, wo);
 
@@ -251,13 +250,11 @@ public:
 				/* ==================================================================== */
 
 				/* Sample BSDF * cos(theta) */
-				BSDFQueryRecord bRec(its);
+				BSDFQueryRecord bRec(its, rRec.sampler, ERadiance);
 				Float bsdfPdf;
-				Spectrum bsdfVal = bsdf->sampleCos(bRec, bsdfPdf, rRec.nextSample2D());
+				Spectrum bsdfVal = bsdf->sample(bRec, bsdfPdf, rRec.nextSample2D());
 				if (bsdfVal.isZero())
 					break;
-	
-				bsdfVal /= bsdfPdf;
 
 				/* Prevent light leaks due to the use of shading normals */
 				const Vector wo = its.toWorld(bRec.wo);
@@ -292,7 +289,7 @@ public:
 						hitLuminaire = true;
 					}
 				}
-
+		
 				/* If a luminaire was hit, estimate the local illumination and
 				   weight using the power heuristic */
 				if (hitLuminaire && rRec.type & RadianceQueryRecord::EDirectSurfaceRadiance) {

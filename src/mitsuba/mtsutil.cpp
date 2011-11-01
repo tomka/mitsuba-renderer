@@ -119,7 +119,8 @@ void help() {
 		}
 	}
 
-	cout << testcases.str() << utilities.str();
+	cout << testcases.str() << utilities.str() << endl;
+	cout <<  " For documentation, please refer to http://www.mitsuba-renderer.org/docs.html" << endl << endl;
 }
 
 
@@ -362,7 +363,7 @@ int mtsutil(int argc, char **argv) {
 	return 0;
 }
 
-int ubi_main(int argc, char **argv) {
+int mts_main(int argc, char **argv) {
 	/* Initialize the core framework */
 	Class::staticInitialization();
 	PluginManager::staticInitialization();
@@ -372,6 +373,7 @@ int ubi_main(int argc, char **argv) {
 	Spectrum::staticInitialization();
 	Scheduler::staticInitialization();
 	SHVector::staticInitialization();
+	SceneHandler::staticInitialization();
 
 #ifdef WIN32
 	/* Initialize WINSOCK2 */
@@ -387,20 +389,10 @@ int ubi_main(int argc, char **argv) {
 	setlocale(LC_NUMERIC, "C");
 #endif
 
-	/* Initialize Xerces-C */
-	try {
-		XMLPlatformUtils::Initialize();
-	} catch(const XMLException &toCatch) {
-		SLog(EError, "Error during Xerces initialization: %s",
-			XMLString::transcode(toCatch.getMessage()));
-		return -1;
-	}
-	
 	int retval = mtsutil(argc, argv);
 
-	XMLPlatformUtils::Terminate();
-
 	/* Shutdown the core framework */
+	SceneHandler::staticShutdown();
 	SHVector::staticShutdown();
 	Scheduler::staticShutdown();
 	Spectrum::staticShutdown();
@@ -420,7 +412,7 @@ int ubi_main(int argc, char **argv) {
 
 #if !defined(__OSX__)
 int main(int argc, char **argv) {
-	return ubi_main(argc, argv);
+	return mts_main(argc, argv);
 }
 #endif
 

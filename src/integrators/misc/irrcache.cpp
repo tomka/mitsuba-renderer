@@ -60,7 +60,7 @@ public:
 		/* Multiplicative factor for the quality parameter following an
 		   overture pass. This can be used to interpolate amongst more
 		   samples, creating a visually smoother result. Must be
-		   1 or less.  */
+		   1 or less. */
 		m_qualityAdjustment = props.getFloat("qualityAdjustment", .5f);
 		/* If set to true, sample locations will be visually highlighted */
 		m_debug = props.getBoolean("debug", false);
@@ -82,7 +82,7 @@ public:
 		/* If set to false, direct illumination will be suppressed - 
 		   useful for checking the interpolation quality */
 		m_direct = props.getBoolean("direct", true);
-			
+
 		Assert(m_influenceMax > m_influenceMin);
 		Assert(m_influenceMax > 0 && m_influenceMax < 1);
 		Assert(m_influenceMin > 0 && m_influenceMin < 1);
@@ -142,6 +142,7 @@ public:
 			if (!cClass->derivesFrom(MTS_CLASS(SampleIntegrator)))
 				Log(EError, "The sub-integrator must be derived from the class SampleIntegrator");
 			m_subIntegrator = static_cast<SampleIntegrator *>(child);
+			m_subIntegrator->setParent(this);
 		} else {
 			Integrator::addChild(name, child);
 		}
@@ -223,13 +224,14 @@ public:
 
 	Spectrum Li(const RayDifferential &ray, RadianceQueryRecord &rRec) const {
 		Intersection &its = rRec.its;
+
 		if (!m_direct && (rRec.type & RadianceQueryRecord::EDirectSurfaceRadiance))
 			rRec.type ^= RadianceQueryRecord::EDirectSurfaceRadiance;
 
 		if (rRec.rayIntersect(ray)) {
 			const BSDF *bsdf = its.getBSDF(ray);
 
-			if (bsdf && bsdf->getType() == BSDF::EDiffuseReflection && 
+			if (bsdf && (bsdf->getType() & BSDF::EAll) == BSDF::EDiffuseReflection && 
 					(rRec.type & RadianceQueryRecord::EIndirectSurfaceRadiance)) {
 				Spectrum E;
 				if (!m_irrCache->get(its, E)) {

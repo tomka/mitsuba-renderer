@@ -23,6 +23,48 @@
 
 MTS_NAMESPACE_BEGIN
 
+
+#if defined(_MSC_VER)
+namespace
+{
+// Helper function to set a native thread name. MSDN:
+//   http://msdn.microsoft.com/en-us/library/xcb2z8hs.aspx
+
+const DWORD MS_VC_EXCEPTION=0x406D1388;
+
+#pragma pack(push,8)
+struct THREADNAME_INFO
+{
+	DWORD dwType;     // Must be 0x1000.
+	LPCSTR szName;    // Pointer to name (in user addr space).
+	DWORD dwThreadID; // Thread ID (-1=caller thread).
+	DWORD dwFlags;    // Reserved for future use, must be zero.
+};
+#pragma pack(pop)
+
+void SetThreadName(const char* threadName, DWORD dwThreadID = -1)
+{
+	THREADNAME_INFO info;
+	info.dwType     = 0x1000;
+	info.szName     = threadName;
+	info.dwThreadID = dwThreadID;
+	info.dwFlags    = 0;
+
+	__try
+	{
+		RaiseException( MS_VC_EXCEPTION, 0, sizeof(info)/sizeof(ULONG_PTR),
+			(ULONG_PTR*)&info );
+	}
+	__except(EXCEPTION_EXECUTE_HANDLER)
+	{
+	}
+}
+
+
+} // namespace
+#endif // _MSC_VER
+
+
 /**
  * Dummy class to associate a thread identity with the main thread
  */
@@ -62,8 +104,9 @@ int Thread::m_idCounter;
 ref<Mutex> Thread::m_idMutex;
 #endif
 
-#if defined(__LINUX__)
-int __thread Thread::m_id;
+#if MTS_USE_ELF_TLS == 1
+__thread int Thread::m_id 
+	__attribute__((tls_model("global-dynamic")));
 #endif
 
 Thread::Thread(const std::string &name, unsigned int stackSize) 
@@ -72,7 +115,7 @@ Thread::Thread(const std::string &name, unsigned int stackSize)
 	m_joinMutex = new Mutex();
 	memset(&m_thread, 0, sizeof(pthread_t));
 }
-	
+
 void Thread::start() {
 	if (m_running)
 		Log(EError, "Thread is already running!");
@@ -155,14 +198,19 @@ void *Thread::dispatch(void *par) {
 	if (thread->getPriority() != ENormalPriority)
 		thread->setPriority(thread->getPriority());
 
-#if defined(__OSX__)
-	m_idMutex->lock();
-	thread->m_id = ++m_idCounter;
-	m_idMutex->unlock();
-#elif defined(__LINUX__)
+#if MTS_USE_ELF_TLS == 1
 	m_idMutex->lock();
 	m_id = ++m_idCounter;
 	m_idMutex->unlock();
+#elif defined(__LINUX__) or defined(__OSX__)
+	m_idMutex->lock();
+	thread->m_id = ++m_idCounter;
+	m_idMutex->unlock();
+#elif defined(_MSC_VER)
+	if (!thread->getName().empty()) {
+		const std::string threadName = "Mitsuba: " + thread->getName();
+		SetThreadName(threadName.c_str());
+	}
 #endif
 
 	try {
@@ -247,38 +295,40 @@ void Thread::exit() {
 std::string Thread::toString() const {
 	std::ostringstream oss;
 	oss << "Thread[" << endl
-		<< "  name=\"" << m_name << "\"," << endl
-		<< "  running=" << m_running << "," << endl
-		<< "  joined=" << m_joined << "," << endl
-		<< "  priority=" << m_priority << "," << endl
-		<< "  critical=" << m_critical << "," << endl
-		<< "  stackSize=" << m_stackSize << endl
+		<< "  name = \"" << m_name << "\"," << endl
+		<< "  running = " << m_running << "," << endl
+		<< "  joined = " << m_joined << "," << endl
+		<< "  priority = " << m_priority << "," << endl
+		<< "  critical = " << m_critical << "," << endl
+		<< "  stackSize = " << m_stackSize << endl
 		<< "]";
 	return oss.str();
 }
 
 void Thread::staticInitialization() {
 #if defined(__OSX__)
-	__ubi_autorelease_init();
+	__mts_autorelease_init();
 #endif
 
 	m_self = new ThreadLocal<Thread>();
+	Thread *mainThread = new MainThread();
 #if defined(__LINUX__) || defined(__OSX__)
 	m_idMutex = new Mutex();
 	m_idCounter = 0;
+
+	#if MTS_USE_ELF_TLS == 1
+		m_id = 0;
+	#else
+		mainThread->m_id = 0;
+	#endif
 #endif
-	Thread *mainThread = new MainThread();
 	mainThread->m_running = true;
 	mainThread->m_thread = pthread_self();
 	mainThread->m_joinMutex = new Mutex();
 	mainThread->m_joined = false;
 	mainThread->m_fresolver = new FileResolver();
 	m_self->set(mainThread);
-#if defined(__OSX__)
-	mainThread->m_id = 0;
-#elif defined(__LINUX__)
-	m_id = 0;
-#endif
+
 }
 
 static std::vector<OpenMPThread *> __ompThreads;
@@ -295,22 +345,53 @@ void Thread::staticShutdown() {
 	m_idMutex = NULL;
 #endif
 #if defined(__OSX__)
-	__ubi_autorelease_shutdown();
+	__mts_autorelease_shutdown();
 #endif
 }
+
+#if defined(__OSX__)
+PrimitiveThreadLocal<int> __threadID;
+int __threadCount = 0;
+
+int mts_get_thread_num() {
+	return __threadID.get();
+}
+int mts_get_max_threads() {
+	return __threadCount;
+}
+#else
+int mts_get_thread_num() {
+	return omp_get_thread_num();
+}
+int mts_get_max_threads() {
+	return omp_get_max_threads();
+}
+#endif
 
 void Thread::initializeOpenMP(size_t threadCount) {
 	ref<Logger> logger = Thread::getThread()->getLogger();
 	ref<FileResolver> fResolver = Thread::getThread()->getFileResolver();
 
+#if defined(__OSX__)
+	__threadCount = (int) threadCount;
+#endif
+
 	omp_set_num_threads((int) threadCount);
+	int counter = 0;
 
 	#pragma omp parallel
 	{
 		Thread *thread = Thread::getThread();
 		if (!thread) {
-			thread = new OpenMPThread(omp_get_thread_num());
-			thread->m_running = true;
+			#pragma omp critical
+			{
+				thread = new OpenMPThread(counter);
+				#if MTS_BROKEN_OPENMP == 1
+				__threadID.set(counter);
+				#endif
+				counter++;
+			}
+			thread->m_running = false;
 			thread->m_thread = pthread_self();
 			thread->m_joinMutex = new Mutex();
 			thread->m_joined = false;

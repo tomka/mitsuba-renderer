@@ -49,7 +49,7 @@ extern MTS_EXPORT_CORE std::string indent(const std::string &string, int amount=
 extern MTS_EXPORT_CORE std::string formatString(const char *pFmt, ...);
 
 /**
- * Convert a time difference (in ms) to a string representation
+ * \brief Convert a time difference (in ms) to a string representation
  * \param time Time value in milliseconds
  * \param precise When set to true, a higher-precision string representation
  * is generated.
@@ -104,9 +104,10 @@ extern MTS_EXPORT_CORE std::string getHostName();
 extern MTS_EXPORT_CORE std::string getFQDN();
 
 /**
- * Enable floating point exceptions (to catch NaNs, overflows, 
- * arithmetic with infinity). On Intel processors, this applies
- * to both x87 and SSE2 math
+ * \brief Enable floating point exceptions (to catch NaNs, overflows, 
+ * arithmetic with infinity). 
+ *
+ * On Intel processors, this applies to both x87 and SSE2 math
  *
  * \return \c true if floating point exceptions were active
  * before calling the function
@@ -114,7 +115,7 @@ extern MTS_EXPORT_CORE std::string getFQDN();
 extern MTS_EXPORT_CORE bool enableFPExceptions();
 
 /**
- * Disable floating point exceptions
+ * \brief Disable floating point exceptions
  *
  * \return \c true if floating point exceptions were active
  * before calling the function
@@ -149,6 +150,8 @@ template<typename T> inline T endianness_swap(T value) {
 }
 
 /**
+ * \brief Apply an arbitrary permutation to an array in linear time
+ * 
  * This algorithm is based on Donald Knuth's book
  * "The Art of Computer Programming, Volume 3: Sorting and Searching"
  * (1st edition, section 5.2, page 595)
@@ -157,20 +160,28 @@ template<typename T> inline T endianness_swap(T value) {
  * in linear time without requiring additional memory. This is based on
  * the fact that each permutation can be decomposed into a disjoint set
  * of permutations, which can then be applied individually.
+ *
+ * \param data
+ *     Pointer to the data that should be permuted
+ * \param perm
+ *     Input permutation vector having the same size as \c data. After
+ *     the function terminates, this vector will be set to the 
+ *     identity permutation.
  */
-template <typename T> void permute_inplace(T *values, std::vector<size_t> &perm) {
+template <typename DataType, typename IndexType> void permute_inplace(
+		DataType *data, std::vector<IndexType> &perm) {
 	for (size_t i=0; i<perm.size(); i++) {
 		if (perm[i] != i) {
 			/* The start of a new cycle has been found. Save
 			   the value at this position, since it will be
 			   overwritten */
-			size_t j = i;
-			T curval = values[i];
+			IndexType j = i;
+			DataType curval = data[i];
 
 			do {
 				/* Shuffle backwards */
-				size_t k = perm[j];
-				values[j] = values[k];
+				IndexType k = perm[j];
+				data[j] = data[k];
 
 				/* Also fix the permutations on the way */
 				perm[j] = j;
@@ -180,7 +191,7 @@ template <typename T> void permute_inplace(T *values, std::vector<size_t> &perm)
 			} while (perm[j] != i);
 
 			/* Fix the final position with the saved value */
-			values[j] = curval;
+			data[j] = curval; 
 			perm[j] = j;
 		}
 	}
@@ -206,6 +217,9 @@ extern MTS_EXPORT_CORE Float log2(Float value);
 /// Friendly modulo function (always positive)
 extern MTS_EXPORT_CORE int modulo(int a, int b);
 
+/// Friendly modulo function (always positive)
+extern MTS_EXPORT_CORE Float modulo(Float a, Float b);
+
 /// Integer floor function
 inline int floorToInt(Float value) {
 	return (int) std::floor(value);
@@ -226,42 +240,43 @@ inline int log2i(size_t value) {
 #endif
 
 /// Check if an integer is a power of two (unsigned 32 bit version)
-inline bool isPow2(uint32_t i) { return (i & (i-1)) == 0; }
+inline bool isPowerOfTwo(uint32_t i) { return (i & (i-1)) == 0; }
 
 /// Check if an integer is a power of two (signed 32 bit version)
-inline bool isPow2(int32_t i) { return i > 0 && (i & (i-1)) == 0; }
+inline bool isPowerOfTwo(int32_t i) { return i > 0 && (i & (i-1)) == 0; }
 
 /// Check if an integer is a power of two (64 bit version)
-inline bool isPow2(uint64_t i) { return (i & (i-1)) == 0; }
+inline bool isPowerOfTwo(uint64_t i) { return (i & (i-1)) == 0; }
 
 /// Check if an integer is a power of two (signed 64 bit version)
-inline bool isPow2(int64_t i) { return i > 0 && (i & (i-1)) == 0; }
+inline bool isPowerOfTwo(int64_t i) { return i > 0 && (i & (i-1)) == 0; }
 
 #if defined(MTS_AMBIGUOUS_SIZE_T)
-inline bool isPow2(size_t value) {
-	if (sizeof(size_t) == 8)
-		return isPow2((uint64_t) value);
+inline bool isPowerOfTwo(size_t value) {
+	if (sizeof(size_t) == 8) /// will be optimized away
+		return isPowerOfTwo((uint64_t) value);
 	else
-		return isPow2((uint32_t) value);
+		return isPowerOfTwo((uint32_t) value);
 }
 #endif
 
 /// Round an integer to the next power of two
-extern MTS_EXPORT_CORE uint32_t roundToPow2(uint32_t i);
+extern MTS_EXPORT_CORE uint32_t roundToPowerOfTwo(uint32_t i);
 
 /// Round an integer to the next power of two (64 bit version)
-extern MTS_EXPORT_CORE uint64_t roundToPow2(uint64_t i);
+extern MTS_EXPORT_CORE uint64_t roundToPowerOfTwo(uint64_t i);
 
 #if defined(MTS_AMBIGUOUS_SIZE_T)
-inline size_t roundToPow2(size_t value) {
-	if (sizeof(size_t) == 8)
-		return (size_t) roundToPow2((uint64_t) value);
+/// Round an integer to the next power of two
+inline size_t roundToPowerOfTwo(size_t value) {
+	if (sizeof(size_t) == 8) /// will be optimized away
+		return (size_t) roundToPowerOfTwo((uint64_t) value);
 	else
-		return (size_t) roundToPow2((uint32_t) value);
+		return (size_t) roundToPowerOfTwo((uint32_t) value);
 }
 #endif
 
-//// Windowed sinc filter (Lanczos envelope, tau=number of cycles)
+/// Windowed sinc filter (Lanczos envelope, tau=number of cycles)
 extern MTS_EXPORT_CORE Float lanczosSinc(Float t, Float tau = 2);
 
 /**
@@ -272,7 +287,16 @@ extern MTS_EXPORT_CORE bool solveQuadratic(Float a, Float b,
 	Float c, Float &x0, Float &x1);
 
 /**
- * Calculate the radical inverse function
+ * \brief Solve a double-precision quadratic equation of the 
+ * form a*x^2 + b*x + c = 0.
+ * \return \c true if a solution could be found
+ */
+extern MTS_EXPORT_CORE bool solveQuadraticDouble(double a, double b, 
+	double c, double &x0, double &x1);
+
+/**
+ * \brief Calculate the radical inverse function
+ *
  * (Implementation based on "Instant Radiosity" by Alexander Keller 
  * in Computer Graphics Proceedings, Annual Conference Series, 
  * SIGGRAPH 97, pp. 49-56. 
@@ -280,7 +304,8 @@ extern MTS_EXPORT_CORE bool solveQuadratic(Float a, Float b,
 extern MTS_EXPORT_CORE Float radicalInverse(int b, size_t i);
 
 /**
- * Incrementally calculate the radical inverse function
+ * \brief Incrementally calculate the radical inverse function
+ *
  * (Implementation based on "Instant Radiosity" by Alexander Keller 
  * in Computer Graphics Proceedings, Annual Conference Series, 
  * SIGGRAPH 97, pp. 49-56. 
@@ -416,11 +441,14 @@ extern MTS_EXPORT_CORE Point2 squareToDiskConcentric(const Point2 &sample);
 /// Convert an uniformly distributed square sample into barycentric coordinates
 extern MTS_EXPORT_CORE Point2 squareToTriangle(const Point2 &sample);
 
+/// Sample a point on a 2D standard normal distribution (uses the Box-Muller transformation)
+extern MTS_EXPORT_CORE Point2 squareToStdNormal(const Point2 &sample);
+
 //! @}
 // -----------------------------------------------------------------------
 
 /**
- * Calculates the unpolarized fresnel reflection coefficient for a 
+ * \brief Calculates the unpolarized fresnel reflection coefficient for a 
  * dielectric material
  *
  * \param cosThetaI
@@ -436,31 +464,31 @@ extern MTS_EXPORT_CORE Float fresnelDielectric(Float cosThetaI,
 		Float cosThetaT, Float etaI, Float etaT);
 
 /**
- * Calculates the unpolarized fresnel reflection coefficient for a 
+ * \brief Calculates the unpolarized fresnel reflection coefficient for a 
  * dielectric material. Handles incidence from either sides.
  *
  * \param cosThetaI
  * 		Cosine of the angle between the normal and the incident ray
- * \param etaExt
+ * \param extIOR
  * 		Refraction coefficient outside of the material
- * \param etaInt
+ * \param intIOR
  * 		Refraction coefficient inside the material
  */
-extern MTS_EXPORT_CORE Float fresnel(Float cosThetaI, Float etaExt,
-		Float etaInt);
+extern MTS_EXPORT_CORE Float fresnel(Float cosThetaI, Float extIOR,
+		Float intIOR);
 
 /**
- * Calculates the unpolarized fresnel reflection coefficient on
+ * \brief Calculates the unpolarized fresnel reflection coefficient on
  * an interface to a conductor.
  *
- * \param cosTheta
+ * \param cosThetaI
  * 		Cosine of the angle between the normal and the incident ray
  * \param eta
- * 		Relative refractive index (per wavelength)
+ * 		Real refractive index (wavelength-dependent)
  * \param k
- * 		Absorption coefficient (per wavelength)
+ * 		Imaginary refractive index (wavelength-dependent)
  */
-extern MTS_EXPORT_CORE Spectrum fresnelConductor(Float cosTheta, 
+extern MTS_EXPORT_CORE Spectrum fresnelConductor(Float cosThetaI, 
 		const Spectrum &eta, const Spectrum &k);
 
 /**

@@ -18,7 +18,7 @@
 
 #include <mitsuba/core/plugin.h>
 #include <mitsuba/render/bsdf.h>
-#include <mitsuba/render/consttexture.h>
+#include <mitsuba/render/texture.h>
 #include <mitsuba/core/properties.h>
 #include <mitsuba/hw/renderer.h>
 #include <mitsuba/hw/gpuprogram.h>
@@ -51,7 +51,6 @@ public:
         m_depth = props.getFloat("depth", 1.0);
         m_w0 = props.getSpectrum("singleScatteringAlbodo", Spectrum(0.99));
         m_sigmaT = props.getSpectrum("sigmaT", defaultSigmaT);
-        configure();
 	}
 
 	Wiscombe(Stream *stream, InstanceManager *manager)
@@ -60,17 +59,12 @@ public:
         m_depth = stream->readFloat();
         m_w0 = Spectrum(stream);
         m_sigmaT = Spectrum(stream);
-        configure();
 	}
 
 	virtual ~Wiscombe() {
-		delete[] m_type;
 	}
 
     void configure() {
-		m_componentCount = 1;
-		m_type = new unsigned int[m_componentCount];
-		m_combinedType = m_type[0] = EDiffuseReflection;
 		m_usesRayDifferentials = false;
 
         m_sampler = static_cast<Sampler *> (PluginManager::getInstance()->
@@ -98,6 +92,10 @@ public:
         }
         
         m_P = (2 * m_xi) / ( (one - m_wStar * m_gStar) * 3);
+
+		m_components.clear();
+		m_components.push_back(EDiffuseReflection | EFrontSide);
+		BSDF::configure();
     }
 
 	Spectrum getDiffuseReflectance(const Intersection &its) const {
@@ -105,9 +103,9 @@ public:
         return Spectrum(0.0f);
 	}
 
-	Spectrum f(const BSDFQueryRecord &bRec) const {
-		if (!(bRec.typeMask & m_combinedType)
-			|| bRec.wi.z <= 0 || bRec.wo.z <= 0)
+	Spectrum eval(const BSDFQueryRecord &bRec, EMeasure measure) const {
+		if (!(bRec.typeMask & EDiffuseReflection) || measure != ESolidAngle
+			|| Frame::cosTheta(bRec.wi) * Frame::cosTheta(bRec.wo) >= 0)
 			return Spectrum(0.0f);
 
         Float mu0 = Frame::cosTheta(bRec.wo);
@@ -134,9 +132,11 @@ public:
         return ( (m_wStar) / (one + m_P) ) * ( (one - m_xi * mu0 * m_bStar) / (one + m_xi * mu0) );
     }
 
-	Float pdf(const BSDFQueryRecord &bRec) const {
-		if (bRec.wi.z <= 0 || bRec.wo.z <= 0)
+	Float pdf(const BSDFQueryRecord &bRec, EMeasure measure) const {
+		if (!(bRec.typeMask & EDiffuseReflection) || measure != ESolidAngle
+			|| Frame::cosTheta(bRec.wi) * Frame::cosTheta(bRec.wo) >= 0)
 			return 0.0f;
+
 		return Frame::cosTheta(bRec.wo) * INV_PI;
 	}
 

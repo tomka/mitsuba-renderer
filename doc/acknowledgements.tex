@@ -3,8 +3,24 @@ The architecture of Mitsuba as well as some individual components are based on i
 The architecture of the coherent path tracer traversal code was influenced by Radius from Thierry Berger-Perrin.
 Many thanks go to my advisor Steve Marschner, who let me spend time on this project.
 Some of the GUI icons were taken from the Humanity icon set by Canonical Ltd.
-The material test scene was kindly contributed by Jonas Pilo, and the environment map
+The material test scene was created by Jonas Pilo, and the environment map
 it uses is courtesy of Bernhard Vogl.
+
+The included index of refraction data files for conductors are copied from
+PBRT. They are originally from the Luxpop database (\url{www.luxpop.com}) 
+and are based on data by Palik et al. \cite{Palik1998Handbook}
+and measurements of atomic scattering factors made by the Center For
+X-Ray Optics (CXRO) at Berkeley and the Lawrence Livermore National 
+Laboratory (LLNL).
+
+The following people have kindly contributed code or bugfixes:
+\begin{itemize}
+\item Milo\^{s} Ha\^{s}an
+\item Tom Kazimiers
+\item Marios Papas
+\item Edgar Vel\'{a}zquez-Armend\'{a}riz
+\item Jirka Vorba
+\end{itemize}
 
 Mitsuba makes heavy use of the following amazing libraries and tools: 
 \begin{itemize}
@@ -15,6 +31,7 @@ Mitsuba makes heavy use of the following amazing libraries and tools:
 \item The Boost C+\!+ class library
 \item GLEW by Milan Ikits, Marcelo E. Magallon and Lev Povalahev
 \item Mersenne Twister by Makoto Matsumoto and Takuji Nishimura
+\item Cubature by Steven G. Johnson
 \item COLLADA DOM by Sony Computer Entertainment
 \item libjpeg by the Independent JPEG Group
 \item libpng by Guy Eric Schalnat, Andreas Dilger, Glenn Randers-Pehrson and \mbox{others}

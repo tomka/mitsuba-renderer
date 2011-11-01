@@ -31,9 +31,9 @@ MIPMap::MIPMap(int width, int height, Spectrum *pixels,
 		  m_wrapMode(wrapMode), m_maxAnisotropy(maxAnisotropy) {
 	Spectrum *texture = pixels;
 
-	if (filterType != ENone && (!isPow2(width) || !isPow2(height))) {
-		m_width = (int) roundToPow2((uint32_t) width);
-		m_height = (int) roundToPow2((uint32_t) height);
+	if (filterType != ENone && (!isPowerOfTwo(width) || !isPowerOfTwo(height))) {
+		m_width = (int) roundToPowerOfTwo((uint32_t) width);
+		m_height = (int) roundToPowerOfTwo((uint32_t) height);
 
 		/* The texture needs to be up-sampled */
 		Spectrum *texture1 = new Spectrum[m_width*height];
@@ -154,7 +154,8 @@ Spectrum MIPMap::getMaximum() const {
 }
 	
 ref<MIPMap> MIPMap::fromBitmap(Bitmap *bitmap, EFilterType filterType,
-		EWrapMode wrapMode, Float maxAnisotropy) {
+		EWrapMode wrapMode, Float maxAnisotropy,
+		Spectrum::EConversionIntent intent) {
 	int width = bitmap->getWidth();
 	int height = bitmap->getHeight();
 	float *data = bitmap->getFloatData();
@@ -165,9 +166,9 @@ ref<MIPMap> MIPMap::fromBitmap(Bitmap *bitmap, EFilterType filterType,
 			float r = data[(y*width+x)*4+0];
 			float g = data[(y*width+x)*4+1];
 			float b = data[(y*width+x)*4+2];
-			s.fromLinearRGB(r, g, b);
-			s.clampNegative();
 			/* Convert to a spectral representation */
+			s.fromLinearRGB(r, g, b, intent);
+			s.clampNegative();
 			pixels[y*width+x] = s;
 		}
 	}

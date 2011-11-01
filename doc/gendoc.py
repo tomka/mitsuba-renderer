@@ -6,6 +6,14 @@
 
 import os, re
 
+def findOrderID(filename):
+	f = open(filename)
+	for line in f.readlines():
+		match = re.match(r'.*\\order{([^}]*)}.*', line)
+		if match != None:
+			return int(match.group(1))
+	return 1000
+
 def process(target, filename):
 	f = open(filename)
 	inheader = False
@@ -36,17 +44,39 @@ def traverse(target, dirname, files):
 		or suffix == 'converter' or suffix == 'qtgui':
 		return
 
+	ordering = []
 	for filename in files:
 		if '.cpp' == os.path.splitext(filename)[1]:
-			process(target,os.path.join(dirname, filename))
+			fname = os.path.join(dirname, filename)
+			ordering = ordering + [(findOrderID(fname), fname)]
+	ordering = sorted(ordering, key = lambda entry: entry[0])
+
+	for entry in ordering:
+		process(target, entry[1])
 
 os.chdir(os.path.dirname(__file__))
 f = open('plugins_generated.tex', 'w')
 f.write('\section{Plugin reference}\n')
+f.write('\input{section_shapes}\n')
+os.path.walk('../src/shapes', traverse, f)
 f.write('\input{section_bsdf}\n')
 os.path.walk('../src/bsdfs', traverse, f)
+f.write('\input{section_textures}\n')
+os.path.walk('../src/textures', traverse, f)
+f.write('\input{section_subsurface}\n')
+os.path.walk('../src/subsurface', traverse, f)
+f.write('\input{section_media}\n')
+os.path.walk('../src/medium', traverse, f)
+f.write('\input{section_phase}\n')
+os.path.walk('../src/phase', traverse, f)
+f.write('\input{section_volumes}\n')
+os.path.walk('../src/volume', traverse, f)
+f.write('\input{section_luminaires}\n')
+os.path.walk('../src/luminaires', traverse, f)
 f.write('\input{section_integrators}\n')
 os.path.walk('../src/integrators', traverse, f)
+f.write('\input{section_films}\n')
+os.path.walk('../src/films', traverse, f)
 f.close()
 os.system('bibtex main.aux')
 os.system('pdflatex main.tex')

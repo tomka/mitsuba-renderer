@@ -96,7 +96,7 @@ public:
 		eRec.value = m_intensity * M_PI;
 	}
 
-	Spectrum fArea(const EmissionRecord &eRec) const {
+	Spectrum evalArea(const EmissionRecord &eRec) const {
 		return m_intensity * M_PI;
 	}
 
@@ -107,7 +107,7 @@ public:
 		return Spectrum(INV_PI);
 	}
 
-	Spectrum fDirection(const EmissionRecord &eRec) const {
+	Spectrum evalDirection(const EmissionRecord &eRec) const {
 		Float dp = dot(eRec.sRec.n, eRec.d);
 		if (dp > 0)
 			return Spectrum(INV_PI);

@@ -36,9 +36,7 @@ static StatsCounter avgPathLength("Path tracer", "Average path length", EAverage
 class MIPathTracer : public MonteCarloIntegrator {
 public:
 	MIPathTracer(const Properties &props)
-		: MonteCarloIntegrator(props) {
-		//m_shadingSamples = props.getInteger("shadingSamples");
-	}
+		: MonteCarloIntegrator(props) { }
 
 	/// Unserialize from a binary data stream
 	MIPathTracer(Stream *stream, InstanceManager *manager)
@@ -103,10 +101,11 @@ public:
 				scene->sampleLuminaire(its.p, ray.time, lRec, rRec.nextSample2D())) {
 				/* Allocate a record for querying the BSDF */
 				const Vector wo = -lRec.d;
-				const BSDFQueryRecord bRec(its, its.toLocal(wo));
+				BSDFQueryRecord bRec(its, its.toLocal(wo));
+				bRec.sampler = rRec.sampler;
 	
 				/* Evaluate BSDF * cos(theta) */
-				const Spectrum bsdfVal = bsdf->fCos(bRec);
+				const Spectrum bsdfVal = bsdf->eval(bRec);
 
 				Float woDotGeoN = dot(its.geoFrame.n, wo);
 
@@ -130,12 +129,11 @@ public:
 			/* ==================================================================== */
 
 			/* Sample BSDF * cos(theta) */
-			BSDFQueryRecord bRec(its);
+			BSDFQueryRecord bRec(its, rRec.sampler, ERadiance);
 			Float bsdfPdf;
-			Spectrum bsdfVal = bsdf->sampleCos(bRec, bsdfPdf, rRec.nextSample2D());
+			Spectrum bsdfVal = bsdf->sample(bRec, bsdfPdf, rRec.nextSample2D());
 			if (bsdfVal.isZero()) 
 				break;
-			bsdfVal /= bsdfPdf;
 	
 			/* Prevent light leaks due to the use of shading normals */
 			const Vector wo = its.toWorld(bRec.wo);
@@ -156,7 +154,7 @@ public:
 				}
 			} else {
 				/* No intersection found. Possibly, there is a background
-				   luminaire such as an environment map? */
+					luminaire such as an environment map? */
 				if (scene->hasBackgroundLuminaire()) {
 					lRec.luminaire = scene->getBackgroundLuminaire();
 					lRec.value = lRec.luminaire->Le(ray);

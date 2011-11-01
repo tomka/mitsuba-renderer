@@ -15,7 +15,7 @@ std::string PhaseFunctionQueryRecord::toString() const {
 }
 
 Float PhaseFunction::pdf(const PhaseFunctionQueryRecord &pRec) const {
-	return f(pRec);
+	return eval(pRec);
 }
 	
 bool PhaseFunction::needsDirectionallyVaryingCoefficients() const {
@@ -27,7 +27,7 @@ Float PhaseFunction::sigmaDir(Float cosTheta) const {
 		" an anisotropic medium)");
 	return 0.0f;
 }
-	
+
 Float PhaseFunction::sigmaDirMax() const {
 	Log(EError, "sigmaDirMax(): Not implemented! (this is not"
 		" an anisotropic medium)");

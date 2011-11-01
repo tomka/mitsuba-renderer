@@ -26,6 +26,7 @@
 #include <mitsuba/core/fresolver.h>
 #include <boost/bind.hpp>
 #include <boost/timer.hpp>
+#include "../medium/materials.h"
 #include "irrtree.h"
 
 //#define NO_SSE_QUERY
@@ -247,7 +248,7 @@ protected:
         std::pair<Vector, Float> generateSample() {
             Point2 sample(m_sampler->next2D());
             Intersection its;
-            BSDFQueryRecord bRec(its);
+            BSDFQueryRecord bRec(its, m_sampler, ERadiance);
             bRec.component = m_component;
             bRec.wi = m_wi;
             
@@ -323,7 +324,7 @@ protected:
 
         Float pdf(const Vector &wo) {
             Intersection its;
-            BSDFQueryRecord bRec(its);
+            BSDFQueryRecord bRec(its, m_sampler, ERadiance);
             bRec.component = m_component;
             bRec.wi = m_wi;
             bRec.wo = wo;
@@ -334,7 +335,7 @@ protected:
                 enableFPExceptions();
             #endif
 
-            if (m_bsdf->f(bRec).isZero())
+            if (m_bsdf->eval(bRec).isZero())
                 return 0.0f;
             Float result = m_bsdf->pdf(bRec);
 
@@ -362,14 +363,12 @@ public:
 		m_octreeIndex = irrOctreeIndex++;
 		irrOctreeMutex->unlock();
 		
-		/* How many samples should be taken when estimating the irradiance at a given point in the scene? 
-		This attribute is currently only used in conjunction with subsurface integrators and
-		can safely be ignored if the scene contains none of them. */
+		/* How many samples should be taken when estimating 
+		   the irradiance at a given point in the scene? */
 		m_irrSamples = props.getInteger("irrSamples", 32);
 				
 		/* When estimating the irradiance at a given point, should indirect illumination be included
-		in the final estimate? This attribute is currently only used in conjunction with 
-		subsurface integrators and can safely be ignored if the scene contains none of them. */
+		   in the final estimate? */
 		m_irrIndirect = props.getBoolean("irrIndirect", true);
 
 		/* Multiplicative factor, which can be used to adjust the number of
@@ -384,9 +383,7 @@ public:
         /* Should the irrtree be dumped? */
         m_dumpIrrtree = props.getBoolean("dumpIrrtree", false);
         m_dumpIrrtreePath = props.getString("dumpIrrtreePath", "");
-		/* Multiplicative factor for the subsurface term - can be used to remove
-		   this contribution completely, making it possible to use this integrator
-		   for other interesting things.. */
+		/* Multiplicative factor for the subsurface term */
 		m_ssFactor = props.getSpectrum("ssFactor", Spectrum(1.0f));
 		/* Asymmetry parameter of the phase function */
 		m_g = props.getFloat("g", 0);
@@ -431,12 +428,17 @@ public:
 
 		m_ready = false;
 		m_octreeResID = -1;
+
+		lookupMaterial(props, m_sigmaS, m_sigmaA, &m_eta);
 	}
-	
+
 	IsotropicDipole(Stream *stream, InstanceManager *manager) 
 	 : Subsurface(stream, manager) {
+		m_sigmaS = Spectrum(stream);
+		m_sigmaA = Spectrum(stream);
 		m_ssFactor = Spectrum(stream);
 		m_g = stream->readFloat();
+		m_eta = stream->readFloat();
 		m_sampleMultiplier = stream->readFloat();
 		m_minDelta = stream->readFloat();
 		m_maxDepth = stream->readInt();
@@ -471,8 +473,11 @@ public:
 
 	void serialize(Stream *stream, InstanceManager *manager) const {
 		Subsurface::serialize(stream, manager);
+		m_sigmaS.serialize(stream);
+		m_sigmaA.serialize(stream);
 		m_ssFactor.serialize(stream);
 		stream->writeFloat(m_g);
+		stream->writeFloat(m_eta);
 		stream->writeFloat(m_sampleMultiplier);
 		stream->writeFloat(m_minDelta);
 		stream->writeInt(m_maxDepth);
@@ -794,7 +799,7 @@ public:
 
             integrator.integrateVectorized(
                 boost::bind(&IsotropicDipole::integrand, pdfFn, _1, _2, _3),
-                min, max, &result, &error, evals
+                min, max, &result, &error, &evals
             );
 
             integral += result;
@@ -833,7 +838,7 @@ public:
 
                 integrator.integrateVectorized(
                     boost::bind(&IsotropicDipole::integrand, pdfFn, _1, _2, _3),
-                    min, max, &result, &error, evals
+                    min, max, &result, &error, &evals
                 );
 
                 m_roughSurfaceDtTable[idx++] = 1.0f - result;
@@ -1213,7 +1218,8 @@ public:
 	MTS_DECLARE_CLASS()
 private:
 	Float m_minMFP, m_sampleMultiplier;
-	Float m_Fdr, m_Fdt, m_A, m_minDelta, m_g;
+	Float m_Fdr, m_Fdt, m_A, m_minDelta, m_g, m_eta;
+	Spectrum m_sigmaS, m_sigmaA;
 	Spectrum m_mfp, m_sigmaTr, m_zr, m_zv, m_alphaPrime;
 	Spectrum m_sigmaSPrime, m_sigmaTPrime, m_D, m_ssFactor;
     Spectrum m_sigmaT, m_invSigmaT, m_negSigmaT;

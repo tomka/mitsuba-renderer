@@ -21,8 +21,106 @@
 
 MTS_NAMESPACE_BEGIN
 
-/**
- * Homogeneous participating medium with support for general phase functions
+/*!\plugin{homogeneous}{Homogeneous participating medium}
+ * \parameters{
+ *     \parameter{material}{\String}{
+ *         Name of a material preset, see 
+ *         \tblref{medium-coefficients}. \default{\texttt{skin1}}
+ *     }
+ *     \parameter{sigmaA, sigmaS}{\Spectrum}{
+ *         Absorption and scattering
+ *         coefficients of the medium in inverse scene units.
+ *         These parameters are mutually exclusive with \code{sigmaT} and \code{albedo}
+ *         \default{configured based on \code{material}}
+ *     }
+ *     \parameter{sigmaT, albedo}{\Spectrum}{
+ *         Extinction coefficient in inverse scene units 
+ *         and a (unitless) single-scattering albedo.
+ *         These parameters are mutually exclusive with \code{sigmaA} and \code{sigmaS}
+ *         \default{configured based on \code{material}}
+ *     }
+ *     \parameter{\footnotesize{densityMultiplier}}{\Float}{
+ *         Optional multiplier that will be applied to the \code{sigma*} parameters.
+ *         Provided for convenience when accomodating data based on different units,
+ *         or to simply tweak the density of the medium. \default{1}
+ *     }
+ *     \parameter{\Unnamed}{\Phase}{
+ *          A nested phase function that describes the directional
+ *          scattering properties of the medium. When none is specified,
+ *          the renderer will automatically use an instance of
+ *          \pluginref{isotropic}.
+ *     }
+ * }
+ *
+ * This class implements a flexible homogeneous participating 
+ * medium with support for arbitrary phase functions and various
+ * medium sampling methods. It provides several ways of configuring
+ * the medium properties. Either, a material preset can be loaded
+ * using the \code{material} parameter---see \tblref{medium-coefficients}
+ * for details. Alternatively, when specifying parameters by hand, they can either
+ * be provided using the scattering and absorption coefficients, or
+ * by declaring the extinction coefficient and single scattering
+ * albedo (whichever is more convenient). Mixing these parameter
+ * initialization methods is not allowed.
+ *
+ * All scattering parameters (named \code{sigma*}) should
+ * be provided in inverse scene units. For instance, when a world-space 
+ * distance of 1 unit corresponds to a meter, the scattering coefficents should
+ * have units of inverse meters. For convenience, the \code{densityMultiplier}
+ * parameter can be used to correct the units. For instance, when the scene is
+ * in meters and the coefficients are in inverse millimeters, set 
+ * \code{densityMultiplier} to \code{1000}.
+ *
+ * \begin{xml}[caption=Declaration of a forward scattering medium with high albedo]
+ * <medium id="myMedium" type="homogeneous">
+ *     <spectrum name="sigmaS" value="1"/>
+ *     <spectrum name="sigmaA" value="0.05"/>
+ *
+ *     <phase type="hg">
+ *         <float name="g" value="0.7"/>
+ *     </phase>
+ * </medium>
+ * \end{xml}
+ *
+ * \textbf{Note}: Rendering media that have a spectrally
+ * varying extinction coefficient can be tricky, since all
+ * commonly used medium sampling methods suffer from high 
+ * variance in that case. Here, it may often make more sense to render
+ * several monochromatic images separately (using only the coefficients for
+ * a single channel) and then merge them back into a RGB image. There 
+ * is a \code{mtsutil} (\secref{mtsutil}) plugin named \code{joinrgb} 
+ * that will perform this RGB merging process.
+ *
+ * \begin{table}[h!]
+ *     \centering
+ *     \begin{tabular}{>{\ttfamily}p{2cm}p{.8cm}>{\ttfamily}p{2cm}}
+ *         \toprule
+ *         \rmfamily \textbf{Name} &&
+ *         \rmfamily \textbf{Name} \\
+ *         \cmidrule{1-1} \cmidrule{3-3}
+ *         apple&&potato\\
+ *         chicken1&&skimmilk\\
+ *         chicken2&&skin1\\
+ *         cream&&skin2\\
+ *         ketchup&&spectralon\\
+ *         marble&&wholemilk\\
+ *         \bottomrule
+ *     \end{tabular}
+ *     \caption{
+ *         \label{tbl:medium-coefficients}
+ *          This table lists all supported medium material presets. The
+ *          values are from Jensen et al. \cite{Jensen2001Practical} using
+ *          units of $\frac{1}{mm}$, so remember to set
+ *          \code{densityMultiplier} appropriately when your scene is not
+ *          in units of millimeters.
+ *          These material names can be used with the plugins
+ *          \pluginref{homogeneous},\
+ *          \pluginref{dipole},\
+ *          \pluginref{hk}, and
+ *          \pluginref{sssbrdf}.
+ *     }
+ * \end{table}
+
  */
 class HomogeneousMedium : public Medium {
 public:
@@ -54,7 +152,7 @@ public:
 			for (int i=0; i<SPECTRUM_SAMPLES; ++i) {
 				/// Record the highest albedo values across channels
 				Float albedo = m_sigmaS[i] / m_sigmaT[i];
-				if (albedo > m_mediumSamplingWeight)
+				if (albedo > m_mediumSamplingWeight && m_sigmaT[i] != 0)
 					m_mediumSamplingWeight = albedo;
 			}
 			if (m_mediumSamplingWeight > 0) {
@@ -131,6 +229,15 @@ public:
 			delete m_maxExpDist;
 	}
 
+	void configure() {
+		Medium::configure();
+		m_albedo = 0;
+		for (size_t i=0; i<SPECTRUM_SAMPLES; ++i) {
+			if (m_sigmaT[i] != 0)
+				m_albedo = std::max(m_albedo, m_sigmaS[i]/m_sigmaT[i]);
+		}
+	}
+
 	void serialize(Stream *stream, InstanceManager *manager) const {
 		Medium::serialize(stream, manager);
 		stream->writeInt(m_strategy);
@@ -139,7 +246,12 @@ public:
 	}
 
 	Spectrum getTransmittance(const Ray &ray, Sampler *) const {
-		return (m_sigmaT * (ray.mint - ray.maxt)).exp();
+		Float negLength = ray.mint - ray.maxt;
+		Spectrum transmittance;
+		for (size_t i=0; i<SPECTRUM_SAMPLES; ++i)
+			transmittance[i] = m_sigmaT[i] != 0 
+				? std::exp(m_sigmaT[i] * negLength) : (Float) 1.0f;
+		return transmittance;
 	}
 
 	bool sampleDistance(const Ray &ray, MediumSamplingRecord &mRec,
@@ -279,6 +391,7 @@ private:
 	Float m_samplingDensity, m_mediumSamplingWeight;
 	ESamplingStrategy m_strategy;
 	MaxExpDist *m_maxExpDist;
+	Float m_albedo;
 };
 
 MTS_IMPLEMENT_CLASS_S(HomogeneousMedium, false, Medium)

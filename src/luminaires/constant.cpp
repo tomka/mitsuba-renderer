@@ -184,11 +184,11 @@ public:
 		return true;
 	}
 
-	Spectrum fDirection(const EmissionRecord &eRec) const {
+	Spectrum evalDirection(const EmissionRecord &eRec) const {
 		return Spectrum(INV_PI);
 	}
 
-	Spectrum fArea(const EmissionRecord &eRec) const {
+	Spectrum evalArea(const EmissionRecord &eRec) const {
 		return m_intensity * M_PI;
 	}
 

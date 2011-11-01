@@ -20,10 +20,20 @@
 #include <mitsuba/render/renderjob.h>
 #include <mitsuba/core/plugin.h>
 
+#define DEFAULT_BLOCKSIZE 32
+
 MTS_NAMESPACE_BEGIN
 
+Scene::Scene() 
+ : NetworkedObject(Properties()), m_blockSize(DEFAULT_BLOCKSIZE) {
+	m_kdtree = new ShapeKDTree();
+	m_testType = ENone;
+	m_testThresh = 0.0f;
+	m_importanceSampleLuminaires = true;
+}
+
 Scene::Scene(const Properties &props)
- : NetworkedObject(props), m_blockSize(32) {
+ : NetworkedObject(props), m_blockSize(DEFAULT_BLOCKSIZE) {
 	m_kdtree = new ShapeKDTree();
 	/* When test case mode is active (Mitsuba is started with the -t parameter), 
 	  this specifies the type of test performed. Mitsuba will expect a reference 
@@ -44,7 +54,7 @@ Scene::Scene(const Properties &props)
 		Log(EError, "Unknown test mode \"%s\" specified (must be \"t-test\" or \"relerr\")",
 			testType.c_str());
 	/* Error threshold for use with <tt>testType</tt> */
-	m_testThresh = props.getFloat("testThresh", 0.01);
+	m_testThresh = props.getFloat("testThresh", 0.01f);
 	/* By default, luminaire sampling chooses a luminaire with a probability 
 	  dependent on the emitted power. Setting this parameter to false switches 
 	  to uniform sampling. */
@@ -147,44 +157,44 @@ Scene::Scene(Stream *stream, InstanceManager *manager)
 	m_aabb = AABB(stream);
 	m_bsphere = BSphere(stream);
 	m_backgroundLuminaire = static_cast<Luminaire *>(manager->getInstance(stream));
-	int count = stream->readInt();
-	for (int i=0; i<count; ++i) {
+	size_t count = stream->readSize();
+	for (size_t i=0; i<count; ++i) {
 		Shape *shape = static_cast<Shape *>(manager->getInstance(stream));
 		shape->incRef();
 		m_shapes.push_back(shape);
 	}
-	count = stream->readInt();
-	for (int i=0; i<count; ++i) {
+	count = stream->readSize();
+	for (size_t i=0; i<count; ++i) {
 		TriMesh *trimesh = static_cast<TriMesh *>(manager->getInstance(stream));
 		trimesh->incRef();
 		m_meshes.push_back(trimesh);
 	}
-	count = stream->readInt();
-	for (int i=0; i<count; ++i) {
+	count = stream->readSize();
+	for (size_t i=0; i<count; ++i) {
 		Luminaire *luminaire = static_cast<Luminaire *>(manager->getInstance(stream));
 		luminaire->incRef();
 		m_luminaires.push_back(luminaire);
 	}
-	count = stream->readInt();
-	for (int i=0; i<count; ++i) {
+	count = stream->readSize();
+	for (size_t i=0; i<count; ++i) {
 		Medium *medium = static_cast<Medium *>(manager->getInstance(stream));
 		medium->incRef();
 		m_media.insert(medium);
 	}
-	count = stream->readInt();
-	for (int i=0; i<count; ++i) {
+	count = stream->readSize();
+	for (size_t i=0; i<count; ++i) {
 		Subsurface *ssIntegrator = static_cast<Subsurface *>(manager->getInstance(stream));
 		ssIntegrator->incRef();
 		m_ssIntegrators.push_back(ssIntegrator);
 	}
-	count = stream->readInt();
-	for (int i=0; i<count; ++i) {
+	count = stream->readSize();
+	for (size_t i=0; i<count; ++i) {
 		ConfigurableObject *obj = static_cast<ConfigurableObject *>(manager->getInstance(stream));
 		obj->incRef();
 		m_objects.push_back(obj);
 	}
-	count = stream->readInt();
-	for (int i=0; i<count; ++i) {
+	count = stream->readSize();
+	for (size_t i=0; i<count; ++i) {
 		NetworkedObject *obj = static_cast<NetworkedObject *>(manager->getInstance(stream));
 		m_netObjects.push_back(obj); // Do not increase the ref. count
 	}
@@ -237,14 +247,19 @@ void Scene::configure() {
 			Float maxExtents = std::max(extents.x, extents.y);
 			Float distance = maxExtents/(2.0f * std::tan(45 * .5f * M_PI/180));
 
-			props.setTransform("toWorld", Transform::translate(Vector(center.x, center.y, aabb.min.z - distance)));
+			props.setTransform("toWorld", Transform::translate(Vector(center.x, 
+					center.y, aabb.min.z - distance)));
 			props.setFloat("fov", 45.0f);
 
-			m_camera = static_cast<Camera *> (PluginManager::getInstance()->createObject(MTS_CLASS(Camera), props));
+			m_camera = static_cast<Camera *> (PluginManager::getInstance()->
+					createObject(MTS_CLASS(Camera), props));
 			m_camera->configure();
 			m_sampler = m_camera->getSampler();
 		} else {
-			Log(EWarn, "Unable to set up a default camera -- does the scene contain anything at all?");
+			m_camera = static_cast<Camera *> (PluginManager::getInstance()->
+					createObject(MTS_CLASS(Camera), props));
+			m_camera->configure();
+			m_sampler = m_camera->getSampler();
 		}
 	}
 
@@ -308,12 +323,14 @@ void Scene::initialize() {
 
 	if (!m_luminairePDF.isReady()) {
 		if (m_luminaires.size() == 0) {
-			Log(EWarn, "No luminaires found -- adding a constant environment source");
-			Properties constantProps("constant");
-			constantProps.setSpectrum("intensity", Spectrum(0.9f));
+			Log(EWarn, "No luminaires found -- adding a sky luminaire");
+			Properties skyProps("sky");
+			skyProps.setFloat("skyScale", 0.1f);
+			//skyProps.setFloat("sunScale", 0.1f);
+			skyProps.setBoolean("extend", true);
 			ref<Luminaire> luminaire = static_cast<Luminaire *>(
-				PluginManager::getInstance()->createObject(MTS_CLASS(Luminaire), constantProps));
-			addChild("", luminaire);
+				PluginManager::getInstance()->createObject(MTS_CLASS(Luminaire), skyProps));
+			addChild(luminaire);
 			luminaire->configure();
 		}
 
@@ -403,8 +420,13 @@ bool Scene::sampleLuminaire(const Point &p, Float time,
 	luminaire->sample(p, lRec, sample);
 
 	if (lRec.pdf != 0) {
-		if (testVisibility && isOccluded(p, lRec.sRec.p, time)) 
-			return false;
+		if (testVisibility) {
+			Vector dir = lRec.sRec.p - p;
+			Float length = dir.length();
+			Ray ray(p, dir/length, Epsilon, length*(1-ShadowEpsilon), time);
+			if (m_kdtree->rayIntersect(ray))
+				return false;
+		}
 		lRec.pdf *= lumPdf;
 		lRec.value /= lRec.pdf;
 		lRec.luminaire = luminaire;
@@ -417,8 +439,10 @@ bool Scene::sampleLuminaire(const Point &p, Float time,
 Spectrum Scene::getTransmittance(const Point &p1, const Point &p2,
 		Float time, const Medium *medium, Sampler *sampler) const {
 	if (m_media.size() == 0) {
-		return Spectrum(isOccluded(p1, p2, time)
-			? 0.0f : 1.0f);
+		Vector dir = p2-p1;
+		Float length = dir.length();
+		Ray ray(p1, dir/length, Epsilon, length*(1-ShadowEpsilon), time);
+		return Spectrum(m_kdtree->rayIntersect(ray) ? 0.0f : 1.0f);
 	} else {
 		Vector d = p2 - p1;
 		Float remaining = d.length();
@@ -436,8 +460,9 @@ Spectrum Scene::getTransmittance(const Point &p1, const Point &p2,
 
 			bool surface = rayIntersect(ray, t, shape, n);
 
-			if (medium) 
-				transmittance *= medium->getTransmittance(Ray(ray, 0, std::min(t, remaining)), sampler);
+			if (medium)
+				transmittance *= medium->getTransmittance(
+					Ray(ray, 0, std::min(t, remaining)), sampler);
 
 			if (!surface) 
 				break;
@@ -448,7 +473,7 @@ Spectrum Scene::getTransmittance(const Point &p1, const Point &p2,
 			if (remaining > 0) {
 				if (shape->isOccluder())
 					return Spectrum(0.0f);
-				else if (shape->isMediumTransition()) 
+				else if (shape->isMediumTransition())
 					medium = dot(n, d) > 0 ? shape->getExteriorMedium()
 						: shape->getInteriorMedium();
 				if (++iterations > 100) { /// Just a precaution..
@@ -603,6 +628,18 @@ void Scene::addChild(const std::string &name, ConfigurableObject *child) {
 		}
 	} else if (cClass->derivesFrom(MTS_CLASS(Luminaire))) {
 		Luminaire *luminaire = static_cast<Luminaire *>(child);
+
+		if (luminaire->isCompound()) {
+			int index = 0;
+			do {
+				ref<Luminaire> element = luminaire->getElement(index++);
+				if (element == NULL)
+					break;
+				addChild(name, element);
+			} while (true);
+			return;
+		}
+
 		luminaire->incRef();
 		m_luminaires.push_back(luminaire);
 		if (luminaire->isBackgroundLuminaire()) {
@@ -726,26 +763,26 @@ void Scene::serialize(Stream *stream, InstanceManager *manager) const {
 	m_aabb.serialize(stream);
 	m_bsphere.serialize(stream);
 	manager->serialize(stream, m_backgroundLuminaire.get());
-	stream->writeUInt((uint32_t) m_shapes.size());
+	stream->writeSize(m_shapes.size());
 	for (size_t i=0; i<m_shapes.size(); ++i) 
 		manager->serialize(stream, m_shapes[i]);
-	stream->writeUInt((uint32_t) m_meshes.size());
+	stream->writeSize(m_meshes.size());
 	for (size_t i=0; i<m_meshes.size(); ++i) 
 		manager->serialize(stream, m_meshes[i]);
-	stream->writeUInt((uint32_t) m_luminaires.size());
+	stream->writeSize(m_luminaires.size());
 	for (size_t i=0; i<m_luminaires.size(); ++i) 
 		manager->serialize(stream, m_luminaires[i]);
-	stream->writeUInt((uint32_t) m_media.size());
+	stream->writeSize(m_media.size());
 	for (std::set<Medium *>::const_iterator it = m_media.begin();
 			it != m_media.end(); ++it)
 		manager->serialize(stream, *it);
-	stream->writeUInt((uint32_t) m_ssIntegrators.size());
+	stream->writeSize(m_ssIntegrators.size());
 	for (size_t i=0; i<m_ssIntegrators.size(); ++i) 
 		manager->serialize(stream, m_ssIntegrators[i]);
-	stream->writeUInt((uint32_t) m_objects.size());
+	stream->writeSize(m_objects.size());
 	for (size_t i=0; i<m_objects.size(); ++i) 
 		manager->serialize(stream, m_objects[i]);
-	stream->writeUInt((uint32_t) m_netObjects.size());
+	stream->writeSize(m_netObjects.size());
 	for (size_t i=0; i<m_netObjects.size(); ++i) 
 		manager->serialize(stream, m_netObjects[i]);
 }

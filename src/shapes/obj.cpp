@@ -29,8 +29,30 @@
 
 MTS_NAMESPACE_BEGIN
 
-/**
- * Wavefront OBJ triangle mesh loader
+/*!\plugin{obj}{Wavefront OBJ mesh loader}
+ * \order{3}
+ * \parameters{
+ *     \parameter{filename}{\String}{
+ *	     Filename of the OBJ file that should be loaded
+ *	   }
+ *     \parameter{faceNormals}{\Boolean}{
+ *       When set to \code{true}, Mitsuba will use face normals when rendering
+ *       the object, which will give it a faceted apperance. \default{\code{false}}
+ *	   }
+ *     \parameter{flipNormals}{\Boolean}{
+ *       Optional flag to flip all normals. \default{\code{false}, i.e.
+ *       the normals are left unchanged}.
+ *	   }
+ *     \parameter{toWorld}{\Transform}{
+ *	      Specifies an optional linear object-to-world transformation.
+ *        Note that non-uniform scales are not permitted!
+ *        \default{none (i.e. object space $=$ world space)}
+ *     }
+ *     \parameter{recenter}{\Boolean}{
+ *       When set to \code{true}, the geometry will be uniformly scaled 
+ *       and shifted to so that its object-space footprint fits into $[-1, 1]^3$.
+ *	   }
+ * }
  */
 class WavefrontOBJ : public Shape {
 public:
@@ -38,6 +60,10 @@ public:
 		unsigned int p[3];
 		unsigned int n[3];
 		unsigned int uv[3];
+
+		inline OBJTriangle() {
+			memset(this, 0, sizeof(OBJTriangle));
+		}
 	};
 
 	bool fetch_line(std::istream &is, std::string &line) {
@@ -101,7 +127,6 @@ public:
 		std::vector<Point2> texcoords;
 		std::vector<OBJTriangle> triangles;
 		bool hasNormals = false, hasTexcoords = false;
-		bool firstVertex = true;
 		BSDF *currentMaterial = NULL;
 		std::string name = m_name, line;
 		std::set<std::string> geomNames;
@@ -148,7 +173,6 @@ public:
 					geomIdx++;
 					hasNormals = false;
 					hasTexcoords = false;
-					firstVertex = false;
 				} else {
 					nameBeforeGeometry = true;
 				}
@@ -177,7 +201,6 @@ public:
 				hasTexcoords = true;
 			} else if (buf == "f") {
 				std::string  tmp;
-				firstVertex = true;
 				OBJTriangle t;
 				iss >> tmp; parse(t, 0, tmp);
 				iss >> tmp; parse(t, 1, tmp);
@@ -283,7 +306,7 @@ public:
 	}
 
 	void addMaterial(const std::string &name, const Spectrum &diffuse) {
-		Properties props("lambertian");
+		Properties props("diffuse");
 		props.setSpectrum("reflectance", diffuse);
 		props.setID(name);
 		BSDF *bsdf = static_cast<BSDF *> (PluginManager::getInstance()->
@@ -370,12 +393,12 @@ public:
 				else
 					vertex.p = objectToWorld(vertices.at(vertexId));
 
-				if (hasNormals && normals.at(normalId) != Normal(0.0f))
+				if (hasNormals && normalId >= 0 && normals.at(normalId) != Normal(0.0f))
 					vertex.n = normalize(objectToWorld(normals.at(normalId)));
 				else
 					vertex.n = Normal(0.0f);
 
-				if (hasTexcoords)
+				if (hasTexcoords && uvId >= 0)
 					vertex.uv = texcoords.at(uvId);
 				else
 					vertex.uv = Point2(0.0f);
@@ -415,7 +438,7 @@ public:
 
 		mesh->incRef();
 		if (currentMaterial)
-			mesh->addChild("", currentMaterial);
+			mesh->addChild(currentMaterial);
 		m_meshes.push_back(mesh);
 		Log(EInfo, "%s: Loaded " SIZE_T_FMT " triangles, " SIZE_T_FMT 
 			" vertices (merged " SIZE_T_FMT " vertices).", name.c_str(),

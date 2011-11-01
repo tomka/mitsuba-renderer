@@ -20,36 +20,22 @@
 #include <mitsuba/core/properties.h>
 #include <mitsuba/render/medium.h>
 #include <mitsuba/render/phase.h>
+#include "../medium/materials.h"
 
 MTS_NAMESPACE_BEGIN
 
 Medium::Medium(const Properties &props)
  : NetworkedObject(props) {
-	Spectrum defaultSigmaS, defaultSigmaA;
-	defaultSigmaA.fromLinearRGB(0.0014f, 0.0025f, 0.0142f);
-	defaultSigmaS.fromLinearRGB(0.7f, 1.22f, 1.9f);
-
-	if (props.hasProperty("sizeMultiplier"))
-		Log(EError, "Deprecation error: the parameter sizeMultiplier"
-			" has been renamed to densityMultiplier");
-
-	m_densityMultiplier = props.getFloat("densityMultiplier", 1);
-	m_sigmaA = props.getSpectrum("sigmaA", defaultSigmaA);
-	m_sigmaS = props.getSpectrum("sigmaS", defaultSigmaS);
-	m_sigmaA *= m_densityMultiplier;
-	m_sigmaS *= m_densityMultiplier;
+	lookupMaterial(props, m_sigmaS, m_sigmaA);	
 	m_sigmaT = m_sigmaA + m_sigmaS;
-	m_albedo = (m_sigmaS/m_sigmaT).max();
 }
 
 Medium::Medium(Stream *stream, InstanceManager *manager)
  : NetworkedObject(stream, manager) {
-	m_densityMultiplier = stream->readFloat();
+	m_phaseFunction = static_cast<PhaseFunction *>(manager->getInstance(stream));
 	m_sigmaA = Spectrum(stream);
 	m_sigmaS = Spectrum(stream);
 	m_sigmaT = m_sigmaA + m_sigmaS;
-	m_albedo = (m_sigmaS/m_sigmaT).max();
-	m_phaseFunction = static_cast<PhaseFunction *>(manager->getInstance(stream));
 }
 	
 void Medium::addChild(const std::string &name, ConfigurableObject *child) {
@@ -68,28 +54,28 @@ void Medium::configure() {
 	if (m_phaseFunction == NULL) {
 		m_phaseFunction = static_cast<PhaseFunction *> (PluginManager::getInstance()->
 				createObject(MTS_CLASS(PhaseFunction), Properties("isotropic")));
+		m_phaseFunction->configure();
 	}
 }
 
 void Medium::serialize(Stream *stream, InstanceManager *manager) const {
 	NetworkedObject::serialize(stream, manager);
-	stream->writeFloat(m_densityMultiplier);
+	manager->serialize(stream, m_phaseFunction.get());
 	m_sigmaA.serialize(stream);
 	m_sigmaS.serialize(stream);
-	manager->serialize(stream, m_phaseFunction.get());
 }
 
 std::string MediumSamplingRecord::toString() const {
 	std::ostringstream oss;
-	oss << "MediumSamplingRecord[" << std::endl
-		<< "  t = " << t << "," << std::endl
-		<< "  p = " << p.toString() << "," << std::endl
-		<< "  sigmaA = " << sigmaA.toString() << "," << std::endl
-		<< "  sigmaS = " << sigmaS.toString() << "," << std::endl
-		<< "  pdfFailure = " << pdfFailure << "," << std::endl
-		<< "  pdfSuccess = " << pdfSuccess << "," << std::endl
-		<< "  pdfSuccessRev = " << pdfSuccessRev << "," << std::endl
-		<< "  transmittance = " << transmittance.toString()
+	oss << "MediumSamplingRecord[" << endl
+		<< "  t = " << t << "," << endl
+		<< "  p = " << p.toString() << "," << endl
+		<< "  sigmaA = " << sigmaA.toString() << "," << endl
+		<< "  sigmaS = " << sigmaS.toString() << "," << endl
+		<< "  pdfFailure = " << pdfFailure << "," << endl
+		<< "  pdfSuccess = " << pdfSuccess << "," << endl
+		<< "  pdfSuccessRev = " << pdfSuccessRev << "," << endl
+		<< "  transmittance = " << transmittance.toString() << endl
 		<< "]";
 	return oss.str();
 }

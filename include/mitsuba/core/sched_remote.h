@@ -21,14 +21,17 @@
 
 #include <mitsuba/core/sched.h>
 
+/// Default port of <tt>mtssrv</tt>
+#define MTS_DEFAULT_PORT 7554
+
 /** How many work units should be sent to a remote worker
    at a time? This is a multiple of the worker's core count */
-#define BACKLOG_FACTOR 3
+#define MTS_BACKLOG_FACTOR 3
 
 /** Once the back log factor drops below this value (also a
    multiple of the core size), the stream processor will
    continue sending batches of work units */
-#define CONTINUE_FACTOR 2
+#define MTS_CONTINUE_FACTOR 2
 
 MTS_NAMESPACE_BEGIN
 
@@ -40,6 +43,7 @@ class StreamBackend;
  * it to a processing node reachable through a \ref Stream.
  *
  * \ingroup libcore
+ * \ingroup libpython
  */
 class MTS_EXPORT_CORE RemoteWorker : public Worker {
 	friend class RemoteWorkerReader;

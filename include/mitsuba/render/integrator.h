@@ -33,6 +33,8 @@ MTS_NAMESPACE_BEGIN
  * rasterization that directly operates on the camera's film and has 
  * no global knowledge about radiance within the scene. Other possibilities
  * are sampling- or particle tracing-based integrators.
+ *
+ * \ingroup librender
  */
 class MTS_EXPORT_RENDER Integrator : public NetworkedObject {
 public:
@@ -109,59 +111,61 @@ protected:
 
 /**
  * \brief Radiance query record data structure used by \ref SampleIntegrator
+ * \ingroup librender
  */
 struct MTS_EXPORT_RENDER RadianceQueryRecord {
 public:
 	/// List of suported query types. These can be combined by a binary OR.
 	enum ERadianceQuery {
 		/// Emitted radiance from a luminaire intersected by the ray
-		EEmittedRadiance     = 0x0001,
+		EEmittedRadiance          = 0x0001,
 
 		/// Emitted radiance from a subsurface integrator */
-		ESubsurfaceRadiance  = 0x0002,
+		ESubsurfaceRadiance       = 0x0002,
 
 		/// Direct (surface) radiance */
-		EDirectSurfaceRadiance      = 0x0004,
+		EDirectSurfaceRadiance    = 0x0004,
 
 		/*! \brief Indirect (surface) radiance, where the last bounce did not go
 		    through a Dirac delta BSDF */
-		EIndirectSurfaceRadiance    = 0x0008,
+		EIndirectSurfaceRadiance  = 0x0008,
 
 		/*! \brief Indirect (surface) radiance, where the last bounce went
 		   through a Dirac delta BSDF */
-		ECausticRadiance     = 0x0010,
+		ECausticRadiance          = 0x0010,
 
 		/// In-scattered radiance due to volumetric scattering (direct)
-		EDirectMediumRadiance = 0x0020,
+		EDirectMediumRadiance     = 0x0020,
 
 		/// In-scattered radiance due to volumetric scattering (indirect)
-		EIndirectMediumRadiance = 0x0040,
+		EIndirectMediumRadiance   = 0x0040,
 
 		/// Distance to the next surface intersection
-		EDistance            = 0x0080,
+		EDistance                 = 0x0080,
 
 		/*! \brief Store an opacity value, which is equal to 1 when a shape
 		   was intersected and 0 when the ray passes through empty space. 
 		   When there is a participating medium, it can also take on fractional
 		   values. */
-		EOpacity             = 0x0100,
+		EOpacity                  = 0x0100,
 
 		/*! \brief A ray intersection may need to be performed. This can be set to 
 		   zero if the caller has already provided the intersection */
-		EIntersection        = 0x0200,
+		EIntersection             = 0x0200,
 
 		/* Radiance from volumes */
-		EVolumeRadiance      = EDirectMediumRadiance | EIndirectMediumRadiance,
+		EVolumeRadiance           = EDirectMediumRadiance | EIndirectMediumRadiance,
 
 		/// Radiance query without emitted radiance, ray intersection required
-		ERadianceNoEmission  = ESubsurfaceRadiance | EDirectSurfaceRadiance | EIndirectSurfaceRadiance
-			| ECausticRadiance | EDirectMediumRadiance | EIndirectMediumRadiance | EIntersection,
+		ERadianceNoEmission       = ESubsurfaceRadiance | EDirectSurfaceRadiance 
+			| EIndirectSurfaceRadiance | ECausticRadiance | EDirectMediumRadiance
+			| EIndirectMediumRadiance | EIntersection,
 
 		/// Default radiance query, ray intersection required
-		ERadiance = ERadianceNoEmission | EEmittedRadiance,
+		ERadiance                 = ERadianceNoEmission | EEmittedRadiance,
 
 		/// Radiance + opacity
-		ECameraRay = ERadiance | EOpacity
+		ECameraRay                = ERadiance | EOpacity
 	};
 
 	/// Construct an invalid radiance query record
@@ -197,7 +201,7 @@ public:
 		sampler = parent.sampler;
 		depth = parent.depth+1;
 		medium = parent.medium;
-		extra = 0;
+		extra = parent.extra;
 	}
 
 	/// Initialize the query record for a recursive query
@@ -207,7 +211,7 @@ public:
 		sampler = parent.sampler;
 		depth = parent.depth+1;
 		medium = parent.medium;
-		extra = 0;
+		extra = parent.extra;
 	}
 
 	/**
@@ -277,6 +281,7 @@ public:
 
 /** \brief Abstract base class, which describes integrators
  * capable of computing samples of the scene's radiance function.
+ * \ingroup librender
  */
 class MTS_EXPORT_RENDER SampleIntegrator : public Integrator {
 public:
@@ -401,6 +406,7 @@ protected:
  * \brief Base class of all recursive Monte Carlo integrators, which compute
  * unbiased solutions to the rendering equation (and optionally
  * the radiative transfer equation).
+ * \ingroup librender
  */
 class MTS_EXPORT_RENDER MonteCarloIntegrator : public SampleIntegrator {
 public:

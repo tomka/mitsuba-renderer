@@ -33,7 +33,8 @@ class Bitmap;
 class Font;
 
 /**
- * Helper class, which documents the capabilities of a renderer implementation
+ * \brief Helper class, which documents the capabilities of a renderer implementation
+ * \ingroup libhw
  */
 class MTS_EXPORT_HW RendererCapabilities : public Object {
 public:
@@ -71,6 +72,7 @@ protected:
 };
 
 /** \brief Abstract renderer implementation
+ * \ingroup libhw
  */
 class MTS_EXPORT_HW Renderer : public Object {
 public:
@@ -207,7 +209,7 @@ public:
 	virtual void setColorMask(bool value) = 0;
 
 	/// Set the current fixed-function pipeline color
-	virtual void setColor(const Spectrum &spec) = 0;
+	virtual void setColor(const Spectrum &spec, Float alpha = 1.0f) = 0;
 
 	/// Push a view transformation onto the matrix stack
 	virtual void pushTransform(const Transform &trafo) = 0;

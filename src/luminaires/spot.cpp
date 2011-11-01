@@ -17,8 +17,7 @@
 */
 
 #include <mitsuba/render/scene.h>
-#include <mitsuba/render/consttexture.h>
-#include <mitsuba/hw/gpuprogram.h>
+#include <mitsuba/hw/basicshader.h>
 
 MTS_NAMESPACE_BEGIN
 
@@ -152,11 +151,11 @@ public:
 		eRec.pdfArea = delta ? 1.0f : 0.0f;
 	}
 
-	Spectrum fDirection(const EmissionRecord &eRec) const {
+	Spectrum evalDirection(const EmissionRecord &eRec) const {
 		return falloffCurve(eRec.d, true);
 	}
 
-	Spectrum fArea(const EmissionRecord &eRec) const {
+	Spectrum evalArea(const EmissionRecord &eRec) const {
 		return Spectrum(0.0f);
 	}
 

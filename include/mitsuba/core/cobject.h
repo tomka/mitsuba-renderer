@@ -33,6 +33,7 @@ MTS_NAMESPACE_BEGIN
  * requests in the XML file.
  *
  * \ingroup libcore
+ * \ingroup libpython
  */
 class MTS_EXPORT_CORE ConfigurableObject : public SerializableObject {
 public:
@@ -48,7 +49,10 @@ public:
 	/// Add a child (default implementation throws an error)
 	virtual void addChild(const std::string &name, ConfigurableObject *child);
 
-	/** \brief Configure the object (called <em>once</em> after construction
+	/// Add an unnamed child
+	inline void addChild(ConfigurableObject *child) { addChild("", child); }
+
+	/** \brief Configure the object (called \a once after construction
 	   and addition of all child ConfigurableObjects) */
 	virtual void configure();
 
@@ -62,13 +66,12 @@ protected:
 	
 	/// Construct a configurable object
 	inline ConfigurableObject(const Properties &props) 
-		: SerializableObject(), m_parent(NULL), m_configured(false) { }
+		: SerializableObject(), m_parent(NULL) { }
 	
 	/// Unserialize a configurable object
 	ConfigurableObject(Stream *stream, InstanceManager *manager);
 protected:
 	ConfigurableObject *m_parent;
-	bool m_configured;
 };
 
 /** \brief This macro creates the binary interface, which Mitsuba 

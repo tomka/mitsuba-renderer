@@ -27,6 +27,12 @@ class PointLuminaire : public Luminaire {
 public:
 	PointLuminaire(const Properties &props) : Luminaire(props) {
 		m_intensity = props.getSpectrum("intensity", Spectrum(1));
+		if (props.hasProperty("position")) {
+			if (props.hasProperty("toWorld"))
+				Log(EError, "Please specify either 'toWorld' or 'position'");
+			m_luminaireToWorld = Transform::translate(Vector(props.getPoint("position")));
+			m_worldToLuminaire = m_luminaireToWorld.inverse();
+		}
 		m_position = m_luminaireToWorld(Point(0,0,0));
 		m_type = EDeltaPosition | EDiffuseDirection;
 	}
@@ -89,11 +95,11 @@ public:
 		eRec.pdfArea = delta ? 1.0f : 0.0f;
 	}
 
-	Spectrum fArea(const EmissionRecord &eRec) const {
+	Spectrum evalArea(const EmissionRecord &eRec) const {
 		return Spectrum(0.0f);
 	}
 
-	Spectrum fDirection(const EmissionRecord &eRec) const {
+	Spectrum evalDirection(const EmissionRecord &eRec) const {
 		return Spectrum(1/(4*M_PI));
 	}
 

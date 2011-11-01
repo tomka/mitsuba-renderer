@@ -26,6 +26,8 @@ MTS_NAMESPACE_BEGIN
 /** \brief Abstract camera base class. A camera turns a sample on
  * the image plane into a 3D ray. It uses two supporting child 
  * objects: a \re Sampler and a \ref Film instance.
+ *
+ * \ingroup librender
  */
 class MTS_EXPORT_RENDER Camera : public ConfigurableObject {
 public:
@@ -55,17 +57,17 @@ public:
 	 * Returns false if the computed position is not visible through 
 	 * the film's crop window
 	 */
-	virtual bool positionToSample(const Point &p, Point2 &sample) const = 0;
+	virtual bool positionToSample(const Point &p, Point2 &sample) const;
 
 	/// Does generateRay() expect a proper lens sample?
-	virtual bool needsLensSample() const = 0;
+	virtual bool needsLensSample() const;
 	
 	/// Does generateRay() expect a proper time sample?
 	inline bool needsTimeSample() const { return m_shutterOpenTime > 0; }
 
 	/// Return the time value of the shutter opening event
 	inline Float getShutterOpen() const { return m_shutterOpen; }
-	
+
 	/// Return the length, for which the shutter remains open
 	inline Float getShutterOpenTime() const { return m_shutterOpenTime; }
 
@@ -114,7 +116,7 @@ public:
 	 * Calculate the pixel area density at a position on the image plane.
 	 * Returns zero for cameras with an infinitesimal sensor (e.g. pinhole cameras).
 	 */
-	virtual Float areaDensity(const Point2 &p) const = 0;
+	virtual Float areaDensity(const Point2 &p) const;
 
 	//! @}
 	// =============================================================
@@ -165,6 +167,8 @@ public:
 
 	/// Add a child ConfigurableObject
 	virtual void addChild(const std::string &name, ConfigurableObject *child);
+	/// Add an unnamed child
+	inline void addChild(ConfigurableObject *child) { addChild("", child); }
 
 	/// Serialize this camera to a binary data stream	
 	virtual void serialize(Stream *stream, InstanceManager *manager) const;
@@ -174,6 +178,10 @@ public:
 
 	/// Return the properties of this camera 
 	inline const Properties &getProperties() const { return m_properties; }
+
+	/** \brief Configure the object (called _once_ after construction
+	   and addition of all child ConfigurableObjects. */
+	virtual void configure();
 
 	//! @}
 	// =============================================================
@@ -197,7 +205,13 @@ protected:
 	Float m_shutterOpen, m_shutterClose, m_shutterOpenTime;
 	ref<Medium> m_medium;
 };
-	
+ 
+
+/**
+ * Projective camera base class
+ *
+ * \ingroup librender
+ */
 class MTS_EXPORT_RENDER ProjectiveCamera : public Camera {
 public:
 	/// Return the projection transformation
@@ -233,8 +247,12 @@ protected:
 };
 
 /**
- * Base class of all pinhole cameras. Provides solid angle computation
- * routines useful for importance-based integrators.
+ * \brief Base class of all perspective cameras 
+ *
+ * Provides solid angle computation routines useful 
+ * for importance-based integrators.
+ *
+ * \ingroup librender
  */
 class MTS_EXPORT_RENDER PerspectiveCamera : public ProjectiveCamera {
 public:

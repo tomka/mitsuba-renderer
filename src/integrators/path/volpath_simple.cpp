@@ -78,7 +78,7 @@ public:
 				if (rRec.type & RadianceQueryRecord::EDirectMediumRadiance && 
 					scene->sampleAttenuatedLuminaire(mRec.p, ray.time,
 						rRec.medium, lRec, rRec.nextSample2D(), rRec.sampler)) {
-					Li += pathThroughput * lRec.value * phase->f(
+					Li += pathThroughput * lRec.value * phase->eval(
 							PhaseFunctionQueryRecord(mRec, -ray.d, -lRec.d));
 				}
 
@@ -168,13 +168,14 @@ public:
 						rRec.nextSample2D(), rRec.sampler)) {
 					/* Allocate a record for querying the BSDF */
 					const Vector wo = -lRec.d;
-					const BSDFQueryRecord bRec(its, its.toLocal(wo));
+					BSDFQueryRecord bRec(its, its.toLocal(wo));
+					bRec.sampler = rRec.sampler;
 					
 					Float woDotGeoN = dot(its.geoFrame.n, wo);
 					/* Prevent light leaks due to the use of shading normals */
 					if (!m_strictNormals ||
 						woDotGeoN * Frame::cosTheta(bRec.wo) > 0)
-						Li += pathThroughput * lRec.value * bsdf->fCos(bRec);
+						Li += pathThroughput * lRec.value * bsdf->eval(bRec);
 				}
 
 				/* ==================================================================== */
@@ -182,8 +183,8 @@ public:
 				/* ==================================================================== */
 
 				/* Sample BSDF * cos(theta) */
-				BSDFQueryRecord bRec(its);
-				Spectrum bsdfVal = bsdf->sampleCos(bRec, rRec.nextSample2D());
+				BSDFQueryRecord bRec(its, rRec.sampler, ERadiance);
+				Spectrum bsdfVal = bsdf->sample(bRec, rRec.nextSample2D());
 				if (bsdfVal.isZero()) 
 					break;
 	
@@ -274,8 +275,6 @@ public:
 	}
 
 	MTS_DECLARE_CLASS()
-private:
-	bool m_strictNormals;
 };
 
 MTS_IMPLEMENT_CLASS_S(SimpleVolumetricPathTracer, false, MonteCarloIntegrator)

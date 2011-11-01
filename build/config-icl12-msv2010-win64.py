@@ -1,8 +1,11 @@
+import sys, os
+
 BUILDDIR       = '#build/release'
+DISTDIR        = '#dist'
 CXX            = 'icl'
 CC             = 'icl'
 LINK           = 'xilink'
-CXXFLAGS       = ['/nologo', '/O3', '/Qipo', '/QxSSE2', '/QaxSSE3,SSE4.2', '/fp:fast=2', '/D', 'WIN32', '/D', 'WIN64', '/W3', '/Qdiag-disable:2586', '/EHsc', '/GS-', '/MD', '/D', 'MTS_DEBUG', '/D', 'SINGLE_PRECISION', '/D', 'MTS_SSE', '/D', 'MTS_HAS_COHERENT_RT', '/D', '_CONSOLE', '/D', 'NDEBUG', '/Qopenmp']
+CXXFLAGS       = ['/nologo', '/O3', '/Qipo', '/QxSSE2', '/QaxSSE3,SSE4.2', '/fp:fast=2', '/D', 'WIN32', '/D', 'WIN64', '/W3', '/Qdiag-disable:2586', '/EHsc', '/GS-', '/MD', '/D', 'MTS_DEBUG', '/D', 'SINGLE_PRECISION', '/D', 'SPECTRUM_SAMPLES=3', '/D', 'MTS_SSE', '/D', 'MTS_HAS_COHERENT_RT', '/D', '_CONSOLE', '/D', 'NDEBUG', '/Qopenmp']
 SHCXXFLAGS     = CXXFLAGS
 TARGET_ARCH    = 'x86_64'
 MSVC_VERSION   = '10.0'
@@ -23,6 +26,10 @@ JPEGLIB        = ['jpeg62']
 GLLIB          = ['opengl32', 'glu32', 'glew32mx', 'gdi32', 'user32']
 GLFLAGS        = ['/D', 'GLEW_MX']
 BASELIBDIR     = ['#dependencies/windows/lib64', '#dependencies/windows/lib64/vc100']
+PYTHONINCLUDE  = [os.path.join(os.path.split(sys.executable)[0], 'include')]
+PYTHONLIBDIR   = [os.path.join(os.path.split(sys.executable)[0], 'libs')]
+PYTHONLIB      = ['boost_python-vc100-mt-1_44', 'python26']
 SHLIBPREFIX    = 'lib'
 SHLIBSUFFIX    = '.dll'
+LIBSUFFIX      = '.lib'
 PROGSUFFIX     = '.exe'

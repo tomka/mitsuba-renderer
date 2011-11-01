@@ -112,11 +112,11 @@ public:
 		return Spectrum(1.0f);
 	}
 
-	Spectrum fArea(const EmissionRecord &eRec) const {
+	Spectrum evalArea(const EmissionRecord &eRec) const {
 		return m_intensity;
 	}
 
-	Spectrum fDirection(const EmissionRecord &eRec) const {
+	Spectrum evalDirection(const EmissionRecord &eRec) const {
 		/* Directional luminaire beam is not part of the scene */
 		return Spectrum(0.0f);
 	}

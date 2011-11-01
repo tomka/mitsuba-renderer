@@ -19,9 +19,6 @@
 #include <mitsuba/core/plugin.h>
 #include <mitsuba/render/gatherproc.h>
 #include <mitsuba/render/renderqueue.h>
-#if !defined(__OSX__) && defined(_OPENMP)
-#include <omp.h>
-#endif
 
 MTS_NAMESPACE_BEGIN
 
@@ -66,7 +63,7 @@ public:
 		/* Indicates if the gathering steps should be canceled if not enough photons are generated. */
 		m_autoCancelGathering = props.getBoolean("autoCancelGathering", true);
 		m_mutex = new Mutex();
-#if defined(__OSX__)
+#if MTS_BROKEN_OPENMP == 1
 		Log(EError, "Progressive photon mapping currently doesn't work "
 			"on OSX due to a bug in OpenMP that affects Leopard & Snow Leopard");
 #endif
@@ -229,35 +226,42 @@ public:
 		GatherPoint p;
 		if (scene->rayIntersect(ray, p.its)) {
 			const BSDF *bsdf = p.its.shape->getBSDF();
-			if (bsdf->getType() & BSDF::ENonDelta) {
-				p.weight = weight;
+			if (!bsdf) {
+				p.radius = 0;
 				p.sample = sample;
-				p.radius = m_initialRadius;
-				p.depth = depth;
-				if (p.its.isLuminaire())
-					p.emission = p.its.Le(-ray.d);
 				gatherPoints.push_back(p);
 				++count;
-			}
+			} else {
+				if (bsdf->getType() & BSDF::ESmooth) {
+					p.weight = weight;
+					p.sample = sample;
+					p.radius = m_initialRadius;
+					p.depth = depth;
+					if (p.its.isLuminaire())
+						p.emission = p.its.Le(-ray.d);
+					gatherPoints.push_back(p);
+					++count;
+				}
 
-			if (bsdf->getType() & BSDF::EDelta) {
-				int compCount = bsdf->getComponentCount();
-				for (int i=0; i<compCount; i++) {
-					if ((bsdf->getType(i) & BSDF::EDelta) == 0)
-						continue;
-					/* Sample the BSDF and recurse */
-					BSDFQueryRecord bRec(p.its);
-					bRec.component = i;
-					Spectrum bsdfVal = bsdf->sampleCos(bRec, Point2(0.0f));
-					if (bsdfVal.isZero())
-						continue;
-					bsdfVal = bsdf->fDelta(bRec);
+				if (bsdf->getType() & BSDF::EDelta) {
+					int compCount = bsdf->getComponentCount();
+					for (int i=0; i<compCount; i++) {
+						if ((bsdf->getType(i) & BSDF::EDelta) == 0)
+							continue;
+						/* Sample the BSDF and recurse */
+						BSDFQueryRecord bRec(p.its, sampler);
+						bRec.component = i;
+						Spectrum bsdfVal = bsdf->sample(bRec, Point2(0.0f));
+						if (bsdfVal.isZero())
+							continue;
+						bsdfVal = bsdf->eval(bRec, EDiscrete);
 
-					const Float rrProb = depth < 4 ? 1 : 0.8f;
-					if (sampler->independent1D() < rrProb) {
-						RayDifferential recursiveRay(p.its.p, p.its.toWorld(bRec.wo), ray.time);
-						count += createGatherPoints(scene, recursiveRay, sample, sampler, 
-							weight * bsdfVal / rrProb, gatherPoints, depth+1);
+						const Float rrProb = depth < 4 ? 1 : 0.8f;
+						if (sampler->independent1D() < rrProb) {
+							RayDifferential recursiveRay(p.its.p, p.its.toWorld(bRec.wo), ray.time);
+							count += createGatherPoints(scene, recursiveRay, sample, sampler, 
+								weight * bsdfVal / rrProb, gatherPoints, depth+1);
+						}
 					}
 				}
 			}
@@ -290,7 +294,7 @@ public:
 		sched->wait(proc);
 
 		ref<PhotonMap> photonMap = proc->getPhotonMap();
-		photonMap->balance();
+		photonMap->build();
 		Log(EDebug, "Photon map full. Shot " SIZE_T_FMT " particles, excess photons due to parallelism: " 
 			SIZE_T_FMT, proc->getShotParticles(), proc->getExcessPhotons());
 

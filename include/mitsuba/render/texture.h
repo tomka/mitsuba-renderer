@@ -20,6 +20,7 @@
 #define __TEXTURE_H
 
 #include <mitsuba/core/cobject.h>
+#include <mitsuba/core/properties.h>
 #include <mitsuba/render/shader.h>
 
 MTS_NAMESPACE_BEGIN
@@ -27,6 +28,7 @@ MTS_NAMESPACE_BEGIN
 /**
  * \brief Base class of all textures. Computes values for an arbitrary surface
  * point. \ref Texture2D is a specialization to UV-based textures.
+ * \ingroup librender
  */
 class MTS_EXPORT_RENDER Texture : public ConfigurableObject, public HWResource {
 public:
@@ -41,6 +43,9 @@ public:
 
 	/// Return the resolution in pixels, if applicable
 	virtual Vector3i getResolution() const;
+
+	/// Return whether the texture takes on a single constant value
+	virtual bool isConstant() const = 0;
 
 	/**
 	 * \brief Does this texture do pre-filtering when ray 
@@ -59,6 +64,10 @@ protected:
 	virtual ~Texture();
 };
 
+/**
+ * \brief Base class of all 2D textures
+ * \ingroup librender
+ */
 class MTS_EXPORT_RENDER Texture2D : public Texture {
 public:
 	/// Return the texture value at \a its

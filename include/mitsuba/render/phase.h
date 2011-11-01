@@ -27,6 +27,8 @@ MTS_NAMESPACE_BEGIN
 /**
  * \brief Data structure, which contains information 
  * required to sample or query a phase function. 
+ *
+ * \ingroup librender
  */
 struct MTS_EXPORT_RENDER PhaseFunctionQueryRecord {
 	/**
@@ -52,19 +54,52 @@ struct MTS_EXPORT_RENDER PhaseFunctionQueryRecord {
 	   rendering with non-reciprocal phase functions */
 	ETransportQuantity quantity;
 
-	inline PhaseFunctionQueryRecord(const MediumSamplingRecord &mRec,
-		const Vector &wi) : mRec(mRec), wi(wi), quantity(ERadiance) {
-	}
+	/**
+	 * \brief Given a medium interaction and an incident direction, 
+	 * construct a query record which can be used to sample an outgoing 
+	 * direction.
+	 *
+	 * \param mRec
+	 *      An reference to the underlying medium sampling record
+	 * \param wi
+	 *      An incident direction in world coordinates. This should 
+	 *      be a normalized direction vector that points \a away from
+	 *      the scattering event.
+	 * \param quantity
+	 *      The transported quantity (\ref ERadiance or \ref EImportance)
+	 */
 
 	inline PhaseFunctionQueryRecord(const MediumSamplingRecord &mRec,
-		const Vector &wi, const Vector &wo) : mRec(mRec), wi(wi), 
-		wo(wo), quantity(ERadiance) {
-	}
+		const Vector &wi, ETransportQuantity quantity = ERadiance)
+		: mRec(mRec), wi(wi), quantity(quantity) { }
+
+	/*
+	 * \brief Given a medium interaction an an incident/exitant direction 
+	 * pair (wi, wo), create a query record to evaluate the phase function
+	 * or its sampling density.
+	 *
+	 * \param mRec
+	 *      An reference to the underlying medium sampling record
+	 * \param wi
+	 *      An incident direction in world coordinates. This should 
+	 *      be a normalized direction vector that points \a away from
+	 *      the scattering event.
+	 * \param wo
+	 *      An outgoing direction in world coordinates. This should 
+	 *      be a normalized direction vector that points \a away from
+	 *      the scattering event.
+	 * \param quantity
+	 *      The transported quantity (\ref ERadiance or \ref EImportance)
+	 */
+	inline PhaseFunctionQueryRecord(const MediumSamplingRecord &mRec,
+		const Vector &wi, const Vector &wo, ETransportQuantity quantity = ERadiance)
+		: mRec(mRec), wi(wi),  wo(wo), quantity(quantity) { }
 
 	std::string toString() const;
 };
 
 /** \brief Abstract phase function.
+ * \ingroup librender
  */
 class MTS_EXPORT_RENDER PhaseFunction : public ConfigurableObject {
 public:
@@ -72,28 +107,36 @@ public:
 	 * \brief Evaluate the phase function for an outward-pointing 
 	 * pair of directions (wi, wo)
 	 */
-	virtual Float f(const PhaseFunctionQueryRecord &pRec) const = 0;
+	virtual Float eval(const PhaseFunctionQueryRecord &pRec) const = 0;
 
 	/**
-	 * \brief Importance sample the phase function. 
+	 * \brief Sample the phase function and return the importance weight (i.e. the
+	 * value of the phase function divided by the probability density of the sample). 
 	 *
-	 * \param sampler
-	 *     Sample generator
-	 * \return
-	 *     Weight value equal to the throughput divided by 
-	 *     the probability of the sampled direction.
+	 * When the probability density is not explicitly required, this function
+	 * should be preferred, since it is potentially faster by making use of
+	 * cancellations during the division.
+	 * 
+	 * \param pRec    A phase function query record
+	 * \param sampler A sample generator
+	 *
+	 * \return The phase function value divided by the probability 
+	 *         density of the sample
 	 */
 	virtual Float sample(PhaseFunctionQueryRecord &pRec, 
 		Sampler *sampler) const = 0;
 
 	/**
-	 * \brief Importance sample the phase function, but don't
-	 *    divide by the computed probability.
-	 * \param pdf
-	 *     The probability of sampling \a pRec.wo will be returned using
-	 *     this argument.
-	 * \return
-	 *     Phase function value for the direction pair (wi, wo)
+	 * \brief Sample the phase function and return the probability density \a and the
+	 * importance weight of the sample (i.e. the value of the phase function divided 
+	 * by the probability density)
+	 *
+	 * \param pRec    A phase function query record
+	 * \param sampler A sample generator
+	 * \param pdf     Will record the probability with respect to solid angles
+	 *
+	 * \return The phase function value divided by the probability 
+	 *         density of the sample
 	 */
 	virtual Float sample(PhaseFunctionQueryRecord &pRec,
 		Float &pdf, Sampler *sampler) const = 0;
@@ -102,7 +145,7 @@ public:
 	 * \brief Calculate the probability of sampling wo (given wi).
 	 *
 	 * Assuming that the phase function can be sampled exactly, 
-	 * the default implementation just evaluates \ref f()
+	 * the default implementation just evaluates \ref eval()
 	 */
 	virtual Float pdf(const PhaseFunctionQueryRecord &pRec) const;
 

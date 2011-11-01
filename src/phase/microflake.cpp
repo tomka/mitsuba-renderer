@@ -24,6 +24,8 @@
 /// Generate a few statistics related to the implementation?
 // #define MICROFLAKE_STATISTICS 1
 
+/// The following file implements the micro-flake distribution
+/// for rough fibers
 #include "microflake_fiber.h"
 
 MTS_NAMESPACE_BEGIN
@@ -33,24 +35,38 @@ static StatsCounter avgSampleIterations("Micro-flake model",
 		"Average rejection sampling iterations", EAverage);
 #endif
 
-/**
- * Implements the anisotropic micro-flake phase function described in
+/*!\plugin{microflake}{Micro-flake phase function}
+ * \parameters{
+ *     \parameter{stddev}{\Float}{
+ *       Standard deviation of the micro-flake normals. This
+ *       specifies the roughness of the fibers in the medium. 
+ *     }
+ * }
  *
- * "A radiative transfer framework for rendering materials with
- * anisotropic structure" by Wenzel Jakob, Adam Arbree, 
- * Jonathan T. Moon, Kavita Bala, and Steve Marschner,
- * ACM SIGGRAPH 2010
+ * \renderings{
+ *     \rendering{\code{stddev}=0.2}{phase_microflakes_02}
+ *     \rendering{\code{stddev}=0.05}{phase_microflakes_005}
+ * }
  *
- * The optimized implementation here works without the use of 
- * spherical harmonics and is specific to rough fibers and a 
- * Gaussian-type distribution. This distribution, as well as the
- * implemented sampling method are described in the paper
- * 
- * "Building Volumetric Appearance Models of Fabric using 
- * Micro CT Imaging" by Shuang Zhao, Wenzel Jakob, Steve Marschner,
- * and Kavita Bala, ACM SIGGRAPH 2011
+ * This plugin implements the anisotropic micro-flake phase function 
+ * described in
+ * ``A radiative transfer framework for rendering materials with
+ * anisotropic structure'' by Wenzel Jakob, Adam Arbree, 
+ * Jonathan T. Moon, Kavita Bala, and Steve Marschner 
+ * \cite{Jakob2010Radiative}.
  *
- * \author Wenzel Jakob
+ * The implementation in this plugin is specific to rough fibers
+ * and uses a Gaussian-type flake distribution. It is much faster
+ * than the spherical harmonics approach proposed in the original 
+ * paper. This distribution, as well as the implemented sampling 
+ * method, are described in the paper
+ * ``Building Volumetric Appearance Models of Fabric using 
+ * Micro CT Imaging'' by Shuang Zhao, Wenzel Jakob, Steve Marschner,
+ * and Kavita Bala \cite{Zhao2011Building}.
+ *
+ * Note: this phase function must be used with a medium that specifies
+ * the local fiber orientation at different points in space. Please
+ * refer to \pluginref{heterogeneous} for details.
  */
 class MicroflakePhaseFunction : public PhaseFunction {
 public:
@@ -71,7 +87,7 @@ public:
 		stream->writeFloat(m_fiberDistr.getStdDev());
 	}
 
-	Float f(const PhaseFunctionQueryRecord &pRec) const {
+	Float eval(const PhaseFunctionQueryRecord &pRec) const {
 		if (pRec.mRec.orientation.isZero()) {
 			/* What to do when the local orientation is undefined */
 			#if 0
@@ -144,8 +160,8 @@ public:
 		if (sample(pRec, sampler) == 0) {
 			pdf = 0; return 0.0f;
 		}
-		pdf = f(pRec);
-		return pdf;
+		pdf = eval(pRec);
+		return 1.0f;
 	}
 
 	bool needsDirectionallyVaryingCoefficients() const { return true; }

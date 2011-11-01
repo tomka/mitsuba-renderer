@@ -46,6 +46,7 @@ MTS_NAMESPACE_BEGIN
 
 /**
  * \brief OpenGL implementation of the \ref Renderer interface
+ * \ingroup libhw
  */
 class MTS_EXPORT_HW GLRenderer : public Renderer {
 public:
@@ -159,7 +160,7 @@ public:
 	void setColorMask(bool value);
 
 	/// Set the current fixed-function pipeline color
-	void setColor(const Spectrum &spec);
+	void setColor(const Spectrum &spec, Float alpha = 1.0f);
 
 	/// Push a view transformation onto the matrix stack
 	void pushTransform(const Transform &trafo);

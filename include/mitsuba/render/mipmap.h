@@ -26,6 +26,7 @@ MTS_NAMESPACE_BEGIN
 #define MIPMAP_LUTSIZE 128
 
 /** \brief Isotropic/anisotropic EWA mip-map texture map class based on PBRT 
+ * \ingroup librender
  */
 class MTS_EXPORT_RENDER MIPMap : public Object {
 public:
@@ -56,7 +57,8 @@ public:
 	/// Construct a mip map from a HDR bitmap
 	static ref<MIPMap> fromBitmap(Bitmap *bitmap, 
 		EFilterType filterType = EEWA, EWrapMode wrapMode = ERepeat,
-		Float maxAnisotropy = 8.0f);
+		Float maxAnisotropy = 8.0f, 
+		Spectrum::EConversionIntent intent = Spectrum::EReflectance);
 
 	/// Do a mip-map lookup at the appropriate level
 	Spectrum getValue(Float u, Float v,

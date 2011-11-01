@@ -468,7 +468,11 @@ void writeGeometry(ColladaContext &ctx, const std::string &prefixName, std::stri
 	} else {
 		ctx.cvt->m_geometryDict.push_back((uint32_t) ctx.cvt->m_geometryFile->getPos());
 		mesh->serialize(ctx.cvt->m_geometryFile);
+#if BOOST_FILESYSTEM_VERSION == 3
+		filename = ctx.cvt->m_geometryFileName.filename().string();
+#else
 		filename = ctx.cvt->m_geometryFileName.filename();
+#endif
 	}
 
 	std::ostringstream matrix;
@@ -588,7 +592,7 @@ void loadGeometry(ColladaContext &ctx, const std::string &instanceName,
 			tess_data.push_back(indices[j]);
 		std::string matID;
 		if (triangles->getMaterial() == NULL || matLookupTable.find(triangles->getMaterial()) == matLookupTable.end())
-			SLog(EWarn, "Referenced material could not be found, substituting a lambertian BRDF.");
+			SLog(EWarn, "Referenced material could not be found, substituting a diffuse BRDF.");
 		else
 			matID = matLookupTable[triangles->getMaterial()];
 		writeGeometry(ctx, prefixName, identifier, geomIndex, matID, transform, data, triMap, exportShapeGroup);
@@ -647,7 +651,7 @@ void loadGeometry(ColladaContext &ctx, const std::string &instanceName,
 
 		std::string matID;
 		if (polygons->getMaterial() == NULL || matLookupTable.find(polygons->getMaterial()) == matLookupTable.end())
-			SLog(EWarn, "Referenced material could not be found, substituting a lambertian BRDF.");
+			SLog(EWarn, "Referenced material could not be found, substituting a diffuse BRDF.");
 		else
 			matID = matLookupTable[polygons->getMaterial()];
 
@@ -709,7 +713,7 @@ void loadGeometry(ColladaContext &ctx, const std::string &instanceName,
 
 		std::string matID;
 		if (polylist->getMaterial() == NULL || matLookupTable.find(polylist->getMaterial()) == matLookupTable.end())
-			SLog(EWarn, "Referenced material \"%s\" could not be found, substituting a lambertian BRDF.", polylist->getMaterial());
+			SLog(EWarn, "Referenced material \"%s\" could not be found, substituting a diffuse BRDF.", polylist->getMaterial());
 		else
 			matID = matLookupTable[polylist->getMaterial()];
 
@@ -857,7 +861,7 @@ void loadMaterial(ColladaContext &ctx, domMaterial &mat) {
 				isDiffuse = true;
 		}
 		if (isDiffuse) {
-			ctx.os << "\t<bsdf id=\"" << identifier << "\" type=\"lambertian\">" << endl;
+			ctx.os << "\t<bsdf id=\"" << identifier << "\" type=\"diffuse\">" << endl;
 			loadMaterialParam(ctx, "reflectance", diffuse, false);
 			loadMaterialParam(ctx, "reflectance", diffuse, true);
 			ctx.os << "\t</bsdf>" << endl << endl;
@@ -873,7 +877,7 @@ void loadMaterial(ColladaContext &ctx, domMaterial &mat) {
 		}
 	} else if (lambert) {
 		domCommon_color_or_texture_type* diffuse = lambert->getDiffuse();
-		ctx.os << "\t<bsdf id=\"" << identifier << "\" type=\"lambertian\">" << endl;
+		ctx.os << "\t<bsdf id=\"" << identifier << "\" type=\"diffuse\">" << endl;
 		loadMaterialParam(ctx, "reflectance", diffuse, false);
 		loadMaterialParam(ctx, "reflectance", diffuse, true);
 		ctx.os << "\t</bsdf>" << endl << endl;
@@ -893,7 +897,7 @@ void loadMaterial(ColladaContext &ctx, domMaterial &mat) {
 				isDiffuse = true;
 		}
 		if (isDiffuse) {
-			ctx.os << "\t<bsdf id=\"" << identifier << "\" type=\"lambertian\">" << endl;
+			ctx.os << "\t<bsdf id=\"" << identifier << "\" type=\"diffuse\">" << endl;
 			loadMaterialParam(ctx, "reflectance", diffuse, false);
 			loadMaterialParam(ctx, "reflectance", diffuse, true);
 			ctx.os << "\t</bsdf>" << endl << endl;
@@ -918,7 +922,7 @@ void loadMaterial(ColladaContext &ctx, domMaterial &mat) {
 		} else {
 			SLog(EWarn, "\"%s\": Encountered a \"constant\" COLLADA material, which is currently "
 				"unsupported in Mitsuba -- replacing it using a Lambertian material.", identifier.c_str());
-			ctx.os << "\t<bsdf id=\"" << identifier << "\" type=\"lambertian\"/>" << endl << endl;
+			ctx.os << "\t<bsdf id=\"" << identifier << "\" type=\"diffuse\"/>" << endl << endl;
 		}
 	} else {
 		SLog(EError, "Material type not supported! (must be Lambertian/Phong/Blinn/Constant)");
@@ -987,7 +991,7 @@ void loadLight(ColladaContext &ctx, Transform transform, domLight &light) {
 		ctx.os << "\t<luminaire id=\"" << identifier << "\" type=\"directional\">" << endl;
 		ctx.os << "\t\t<rgb name=\"intensity\" value=\"" << color[0]*intensity << " " << color[1]*intensity << " " << color[2]*intensity << "\"/>" << endl << endl;
 		ctx.os << "\t\t<transform name=\"toWorld\">" << endl;
-		ctx.os << "\t\t\t<lookAt ox=\"" << pos.x << "\" oy=\"" << pos.y << "\" oz=\"" << pos.z << "\" tx=\"" << target.x << "\" ty=\"" << target.y << "\" tz=\"" << target.z << "\"/>" << endl;
+		ctx.os << "\t\t\t<lookAt origin=\"" << pos.x << ", " << pos.y << ", " << pos.z << "\" target=\"" << target.x << ", " << target.y << ", " << target.z << "\"/>" << endl;
 		ctx.os << "\t\t</transform>" << endl << endl;
 		ctx.os << "\t</luminaire>" << endl << endl;
 	}
@@ -1011,7 +1015,7 @@ void loadLight(ColladaContext &ctx, Transform transform, domLight &light) {
 		ctx.os << "\t\t<rgb name=\"intensity\" value=\"" << color[0]*intensity << " " << color[1]*intensity << " " << color[2]*intensity << "\"/>" << endl;
 		ctx.os << "\t\t<float name=\"cutoffAngle\" value=\"" << falloffAngle/2 << "\"/>" << endl << endl;
 		ctx.os << "\t\t<transform name=\"toWorld\">" << endl;
-		ctx.os << "\t\t\t<lookAt ox=\"" << pos.x << "\" oy=\"" << pos.y << "\" oz=\"" << pos.z << "\" tx=\"" << target.x << "\" ty=\"" << target.y << "\" tz=\"" << target.z << "\"/>" << endl;
+		ctx.os << "\t\t\t<lookAt origin=\"" << pos.x << ", " << pos.y << ", " << pos.z << "\" target=\"" << target.x << ", " << target.y << ", " << target.z << "\"/>" << endl;
 		ctx.os << "\t\t</transform>" << endl;
 		ctx.os << "\t</luminaire>" << endl << endl;
 	}
@@ -1080,7 +1084,7 @@ void loadImage(ColladaContext &ctx, domImage &image) {
 		}
 	}
 
-	ctx.os << "\t<texture id=\"" << identifier << "\" type=\"ldrtexture\">" << endl;
+	ctx.os << "\t<texture id=\"" << identifier << "\" type=\"bitmap\">" << endl;
 	ctx.os << "\t\t<string name=\"filename\" value=\"textures/" << targetPath.leaf() << "\"/>" << endl;
 	ctx.os << "\t</texture>" << endl << endl;
 }
@@ -1103,7 +1107,7 @@ void loadCamera(ColladaContext &ctx, Transform transform, domCamera &camera) {
 	int xres=768;
 
 	// Cameras in Mitsuba point along the positive Z axis (COLLADA: neg. Z)
-	transform = transform * Transform::scale(Vector(1,1,-1));
+	transform = transform * Transform::scale(Vector(1, 1, -1));
 
 	std::ostringstream matrix;
 	for (int i=0; i<4; ++i)
@@ -1130,14 +1134,8 @@ void loadCamera(ColladaContext &ctx, Transform transform, domCamera &camera) {
 			xres = ctx.cvt->m_xres;
 			aspect = (Float) ctx.cvt->m_xres / (Float) ctx.cvt->m_yres;
 		} else {
-			if (persp->getAspect_ratio().cast() != 0) {
+			if (persp->getAspect_ratio().cast() != 0)
 				aspect = (Float) persp->getAspect_ratio()->getValue();
-				if (std::abs(aspect-0.1) < Epsilon) {
-					SLog(EWarn, "Found the suspicious aspect ratio \"0.1\", which is likely due to a bug in Blender 2.5"
-						" - setting to 1.0. Please use the \"-r\" parameter to override the resolution.");
-					aspect = 1.0f;
-				}
-			}
 		}
 		ctx.os << "\t<camera id=\"" << identifier << "\" type=\"perspective\">" << endl;
 		if (persp->getXfov().cast()) {
@@ -1597,7 +1595,7 @@ void GeometryConverter::convertCollada(const fs::path &inputFile,
 	os << "<!--" << endl << endl;
 	os << "\tAutomatically converted from COLLADA" << endl << endl;
 	os << "-->" << endl << endl;
-	os << "<scene>" << endl;
+	os << "<scene version=\"" << MTS_VERSION << "\">" << endl;
 	os << "\t<integrator id=\"integrator\" type=\"direct\"/>" << endl << endl;
 
 	ColladaContext ctx(os);

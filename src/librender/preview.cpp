@@ -100,18 +100,18 @@ void PreviewWorker::processIncoherent(const WorkUnit *workUnit, WorkResult *work
 
 			BSDFQueryRecord rr(its, its.toLocal(toVPL));
 			rr.wi = normalize(rr.wi);
-			bsdfVal = its.shape->getBSDF()->fCos(rr);
+			bsdfVal = its.shape->getBSDF()->eval(rr);
 			length = std::max(length, m_minDist);
 
 			if (m_vpl.type == ESurfaceVPL) {
 				BSDFQueryRecord bRec(m_vpl.its, -m_vpl.its.toLocal(toVPL));
 				bRec.quantity = EImportance;
-				value += m_vpl.P * bsdfVal * m_vpl.its.shape->getBSDF()->fCos(bRec) / (length*length);
+				value += m_vpl.P * bsdfVal * m_vpl.its.shape->getBSDF()->eval(bRec) / (length*length);
 			} else {
 				EmissionRecord eRec(m_vpl.luminaire, 
 					ShapeSamplingRecord(m_vpl.its.p, m_vpl.its.shFrame.n), -toVPL);
 				eRec.type = EmissionRecord::EPreview;
-				value += m_vpl.P * bsdfVal * m_vpl.luminaire->fDirection(eRec) 
+				value += m_vpl.P * bsdfVal * m_vpl.luminaire->evalDirection(eRec) 
 					* ((m_vpl.luminaire->getType() & Luminaire::EOnSurface ?
 					dot(m_vpl.its.shFrame.n, -toVPL) : (Float) 1)
 					/ (length*length));
@@ -191,7 +191,7 @@ void PreviewWorker::processCoherent(const WorkUnit *workUnit, WorkResult *workRe
 		diffuseVPL = m_vpl.luminaire->getType() & Luminaire::EDiffuseDirection;
 		EmissionRecord eRec(m_vpl.luminaire, 
 			ShapeSamplingRecord(m_vpl.its.p, m_vpl.its.shFrame.n), m_vpl.its.shFrame.n);
-		vplWeight = m_vpl.P * m_vpl.luminaire->fDirection(eRec);
+		vplWeight = m_vpl.P * m_vpl.luminaire->evalDirection(eRec);
 	}
 
 	primRay4.o[0].ps = _mm_set1_ps(m_cameraO.x);
@@ -400,17 +400,17 @@ void PreviewWorker::processCoherent(const WorkUnit *workUnit, WorkResult *workRe
 						if (m_vpl.type == ESurfaceVPL) {
 							BSDFQueryRecord bRec(m_vpl.its, m_vpl.its.toLocal(wi));
 							bRec.quantity = EImportance;
-							vplWeight = m_vpl.its.shape->getBSDF()->fCos(bRec) * m_vpl.P;
+							vplWeight = m_vpl.its.shape->getBSDF()->eval(bRec) * m_vpl.P;
 						} else {
 							EmissionRecord eRec(m_vpl.luminaire, 
 								ShapeSamplingRecord(m_vpl.its.p, m_vpl.its.shFrame.n), wi);
 							eRec.type = EmissionRecord::EPreview;
-							vplWeight = m_vpl.luminaire->fDirection(eRec) * m_vpl.P;
+							vplWeight = m_vpl.luminaire->evalDirection(eRec) * m_vpl.P;
 						}
 					}
 
 					if (EXPECT_TAKEN(ctLight >= 0)) {
-						direct[idx] = (bsdf->fCos(BSDFQueryRecord(its, wo)) * vplWeight
+						direct[idx] = (bsdf->eval(BSDFQueryRecord(its, wo)) * vplWeight
 							* ((vplOnSurface ? std::max(ctLight, (Float) 0.0f) : 1.0f) * invLengthSquared.f[idx]));
 					} else {
 						memset(&direct[idx], 0, sizeof(Spectrum));

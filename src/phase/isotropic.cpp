@@ -21,8 +21,20 @@
 
 MTS_NAMESPACE_BEGIN
 
-/**
- * Isotropic phase function (i.e. f=1/(4*pi))
+/*!\plugin{isotropic}{Isotropic phase function}
+ * \order{1}
+ 
+ * \renderings{
+ *     \rendering{Isotropic}{phase_isotropic}
+ *     \rendering{Anisotropic micro-flakes}{phase_microflakes_005}
+ *     \caption{Heterogeneous volume renderings of a scarf model
+ *     with isotropic and anisotropic phase functions.}
+ * }
+ *
+ *
+ * This phase function simulates completely uniform scattering,
+ * where all directionality is lost after a single scattering 
+ * interaction. It does not have any parameters.
  */
 class IsotropicPhaseFunction : public PhaseFunction {
 public:
@@ -52,10 +64,10 @@ public:
 			Float &pdf, Sampler *sampler) const {
 		pRec.wo = squareToSphere(sampler->next2D());
 		pdf = 1/(4 * (Float) M_PI);
-		return pdf;
+		return 1.0f;
 	}
 
-	Float f(const PhaseFunctionQueryRecord &pRec) const {
+	Float eval(const PhaseFunctionQueryRecord &pRec) const {
 		return 1/(4 * (Float) M_PI);
 	}
 

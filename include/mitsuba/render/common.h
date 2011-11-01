@@ -24,14 +24,30 @@
 MTS_NAMESPACE_BEGIN
 
 /**
- * Specifies the transported quantity when sampling / evaluating a BSDF
+ * \brief Specifies the transported quantity when 
+ * sampling or evaluating a scattering function
+ * \ingroup librender
  */
 enum ETransportQuantity {
 	ERadiance = 1,
 	EImportance = 2
 };
+/**
+ * \brief Specifies the measure associated with 
+ * a scattering function 
+ * \ingroup librender
+ */
+enum EMeasure {
+	ESolidAngle = 1,
+	EInterval,
+	EDiscrete
+};
 
+
+/// \cond
 extern MTS_EXPORT_RENDER std::ostream &operator<<(std::ostream &os, const ETransportQuantity &quantity);
+extern MTS_EXPORT_RENDER std::ostream &operator<<(std::ostream &os, const EMeasure &measure);
+/// \endcond
 
 MTS_NAMESPACE_END
 

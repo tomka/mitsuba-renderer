@@ -20,9 +20,7 @@
 #include <mitsuba/core/bitmap.h>
 #include <mitsuba/render/gatherproc.h>
 #include <mitsuba/render/renderqueue.h>
-#if !defined(__OSX__) && defined(_OPENMP)
 #include <omp.h>
-#endif
 
 MTS_NAMESPACE_BEGIN
 
@@ -67,7 +65,7 @@ public:
 		/* Indicates if the gathering steps should be canceled if not enough photons are generated. */
 		m_autoCancelGathering = props.getBoolean("autoCancelGathering", true);
 		m_mutex = new Mutex();
-#if defined(__OSX__)
+#if MTS_BROKEN_OPENMP == 1
 		Log(EError, "Stochastic progressive photon mapping currently doesn't work "
 			"on OSX due to a bug in OpenMP that affects Leopard & Snow Leopard");
 #endif
@@ -149,6 +147,8 @@ public:
 			samplers[i] = clonedSampler.get();
 		}
 
+		Thread::initializeOpenMP(Scheduler::getInstance()->getLocalWorkerCount());
+
 		int samplerResID = sched->registerManifoldResource(
 			static_cast<std::vector<SerializableObject*> &>(samplers)); 
 
@@ -184,13 +184,9 @@ public:
 		/* Process the image in parallel using blocks for better memory locality */
 		Log(EInfo, "Creating %i gather points", cropSize.x*cropSize.y);
 		#pragma omp parallel for schedule(dynamic)
-		for (int i=-1; i<(int) m_gatherBlocks.size(); ++i) {
+		for (int i=0; i<(int) m_gatherBlocks.size(); ++i) {
 			std::vector<GatherPoint> &gatherPoints = m_gatherBlocks[i];
-#if !defined(__OSX__) && defined(_OPENMP)
-			Sampler *sampler = static_cast<Sampler *>(samplers[omp_get_thread_num()]);
-#else
-			Sampler *sampler = static_cast<Sampler *>(samplers[0]);
-#endif
+			Sampler *sampler = static_cast<Sampler *>(samplers[mts_get_thread_num()]);
 			int xofs = m_offset[i].x, yofs = m_offset[i].y;
 			int index = 0;
 			for (int yofsInt = 0; yofsInt < m_blockSize; ++yofsInt) {
@@ -214,31 +210,37 @@ public:
 					camera->generateRayDifferential(sample, lensSample, timeSample, ray);
 					Spectrum weight(1.0f);
 					int depth = 1;
+					gatherPoint.emission = Spectrum(0.0f);
 
 					while (true) {
-						if (depth > m_maxDepth) {
-							gatherPoint.depth = -1;
-							break;
-						}
 						if (scene->rayIntersect(ray, gatherPoint.its)) {
+							if (gatherPoint.its.isLuminaire())
+								gatherPoint.emission += weight * gatherPoint.its.Le(-ray.d);
+
+							if (depth >= m_maxDepth) {
+								gatherPoint.depth = -1;
+								break;
+							}
+		
 							const BSDF *bsdf = gatherPoint.its.shape->getBSDF();
+							if (!bsdf) {
+								gatherPoint.depth = -1;
+								break;
+							}
 							/* Create hit point if this is a diffuse material or a glossy
 							   one, and there has been a previous interaction with
 							   a glossy material */
-							if (bsdf->getType() == BSDF::EDiffuseReflection || 
-								bsdf->getType() == BSDF::EDiffuseTransmission) {
+							if ((bsdf->getType() & BSDF::EAll) == BSDF::EDiffuseReflection || 
+								(bsdf->getType() & BSDF::EAll) == BSDF::EDiffuseTransmission ||
+								depth + 1 > m_maxDepth) {
 								gatherPoint.weight = weight;
 								gatherPoint.depth = depth;
-								if (gatherPoint.its.isLuminaire())
-									gatherPoint.emission = gatherPoint.its.Le(-ray.d);
-								else
-									gatherPoint.emission = Spectrum(0.0f);
 								break;
 							} else {
 								/* Recurse for dielectric materials and (specific to SPPM):
 								   recursive "final gathering" for glossy materials */
-								BSDFQueryRecord bRec(gatherPoint.its);
-								weight *= bsdf->sampleCos(bRec, sampler->next2D());
+								BSDFQueryRecord bRec(gatherPoint.its, sampler);
+								weight *= bsdf->sample(bRec, sampler->next2D());
 								if (weight.isZero()) {
 									gatherPoint.depth = -1;
 									break;
@@ -278,7 +280,7 @@ public:
 		sched->wait(proc);
 
 		ref<PhotonMap> photonMap = proc->getPhotonMap();
-		photonMap->balance();
+		photonMap->build();
 		Log(EDebug, "Photon map full. Shot " SIZE_T_FMT " particles, excess photons due to parallelism: " 
 			SIZE_T_FMT, proc->getShotParticles(), proc->getExcessPhotons());
 
@@ -303,13 +305,18 @@ public:
 					flux = Spectrum(0.0f);
 				}
 
+				if (N == 0 && !gp.emission.isZero()) 
+					gp.N = N = 1;
+
 				if (N+M == 0) {
 					gp.flux = contrib = Spectrum(0.0f);
 				} else {
 					Float ratio = (N + m_alpha * M) / (N + M);
-					gp.flux = (gp.flux + gp.weight * (flux + 
-						gp.emission * (Float) proc->getShotParticles() * M_PI * gp.radius*gp.radius)) * ratio;
 					gp.radius = gp.radius * std::sqrt(ratio);
+
+					gp.flux = (gp.flux + 
+							gp.weight * flux + 
+							gp.emission * (Float) proc->getShotParticles() * M_PI * gp.radius*gp.radius) * ratio;
 					gp.N = N + m_alpha * M;
 					contrib = gp.flux / ((Float) m_totalEmitted * gp.radius*gp.radius * M_PI);
 				}
@@ -324,7 +331,6 @@ public:
 		film->fromBitmap(m_bitmap);
 		queue->signalRefresh(job, NULL);
 	}
-
 
 	std::string toString() const {
 		return "StochasticProgressivePhotonMapIntegrator[]";

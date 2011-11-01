@@ -22,8 +22,22 @@
 
 MTS_NAMESPACE_BEGIN
 
-/**
- * Vertex colors passthrough texture
+/*!\plugin{vertexcolors}{Vertex color passthrough texture}
+ * When rendering with a mesh that contains vertex colors,
+ * this plugin exposes the underlying color data as a texture.
+ * Currently, this is only supported by the \code{PLY}
+ * file format loader.
+ * 
+ * Here is an example:
+ * \begin{xml}[caption=Rendering a PLY file with vertex colors]
+ * <shape type="ply">
+ *     <string name="filename" value="mesh.ply"/>
+ *     
+ *     <bsdf type="diffuse">
+ *         <texture type="vertexcolors" name="reflectance"/>
+ *     </bsdf>
+ * </shape>
+ * \end{xml}
  */
 class VertexColors : public Texture {
 public:
@@ -52,6 +66,10 @@ public:
 	
 	Spectrum getMaximum() const {
 		return Spectrum(1.0f);
+	}
+
+	bool isConstant() const {
+		return false;
 	}
 
 	std::string toString() const {
@@ -93,5 +111,5 @@ Shader *VertexColors::createShader(Renderer *renderer) const {
 	
 MTS_IMPLEMENT_CLASS(VertexColorShader, false, Shader)
 MTS_IMPLEMENT_CLASS_S(VertexColors, false, Texture)
-MTS_EXPORT_PLUGIN(VertexColors, "VertexColors texture");
+MTS_EXPORT_PLUGIN(VertexColors, "Vertex color texture");
 MTS_NAMESPACE_END

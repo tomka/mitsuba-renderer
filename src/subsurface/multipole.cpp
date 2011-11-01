@@ -730,7 +730,8 @@ public:
 	MTS_DECLARE_CLASS()
 private:
 	Float m_minMFP, m_sampleMultiplier;
-	Float m_Fdr, m_Fdt, m_A, m_minDelta, m_g;
+	Float m_Fdr, m_Fdt, m_A, m_minDelta, m_g, m_eta;
+	Spectrum m_sigmaS, m_sigmaA;
 	Spectrum m_mfp, m_sigmaTr, m_alphaPrime;
 	Spectrum m_sigmaSPrime, m_sigmaTPrime, m_D, m_ssFactor;
     /* True if alternate diffusion constant calculation should be used */

@@ -146,6 +146,10 @@ public:
 		return true;
 	}
 
+    bool isConstant() const {
+        return false;
+    }
+
 	std::string toString() const {
 		std::ostringstream oss;
 		oss << "DiffusionTexture[filename=\"" << m_filename.file_string() << "\"]";

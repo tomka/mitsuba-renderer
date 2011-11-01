@@ -23,10 +23,8 @@
 MTS_NAMESPACE_BEGIN
 
 /**
-* Parallel photon gathering, SSE-accelerated lookups, RGBE encoding
-* Numbers for caustic/volume are ignored when no specular objects or participating
-* media are present.
-*/
+ * Basic two-pass integrator, which visualizes a computed photon map 
+ */
 class PhotonMapIntegrator : public SampleIntegrator {
 public:
 	PhotonMapIntegrator(const Properties &props) : SampleIntegrator(props) {
@@ -36,21 +34,28 @@ public:
 		m_glossySamples = props.getInteger("glossySamples", 32);
 		/* Depth to start using russian roulette when tracing photons */
 		m_rrDepth = props.getInteger("rrDepth", 10);
-		/* Depth cutoff when tracing photons */
-		m_maxDepth = props.getInteger("maxDepth", 40);
-		/* Depth cutoff when recursively tracing specular materials */
-		m_maxSpecularDepth = props.getInteger("maxSpecularDepth", 6);
+		/* Longest visualized path length (\c -1 = infinite). 
+		   A value of \c 1 will visualize only directly visible light sources.
+		   \c 2 will lead to single-bounce (direct-only) illumination, and so on. */
+		m_maxDepth = props.getInteger("maxDepth", 5);
+		/**
+		 * When encountering an ideally specular material within the first few
+		 * boundes, the photon mapper places a sample on each lobe
+		 * (e.g. reflection *and* transmission). This greatly reduces
+		 * variance and is therefore usually worth it
+		 */
+		m_maxSpecularDepth = props.getInteger("maxSpecularDepth", 4);
 		/* Granularity of photon tracing work units (in shot particles, 0 => decide automatically) */
 		m_granularity = props.getInteger("granularity", 0);
 		/* Number of photons to collect for the global photon map */
 		m_globalPhotons = props.getSize("globalPhotons", 200000);
 		/* Number of photons to collect for the caustic photon map */
-		m_causticPhotons = props.getSize("causticPhotons", 200000);
+		m_causticPhotons = props.getSize("causticPhotons", 0);
 		/* Number of photons to collect for the volumetric photon map */
-		m_volumePhotons = props.getSize("volumePhotons", 200000);
-		/* Radius of lookups in the global photon map (relative to the scene size) */
+		m_volumePhotons = props.getSize("volumePhotons", 0);
+		/* Max. radius of lookups in the global photon map (relative to the scene size) */
 		m_globalLookupRadiusRel = props.getFloat("globalLookupRadius", 0.05f);
-		/* Radius of lookups in the caustic photon map (relative to the scene size) */
+		/* Max. radius of lookups in the caustic photon map (relative to the scene size) */
 		m_causticLookupRadiusRel = props.getFloat("causticLookupRadius", 0.0125f);
 		/* Minimum amount of photons to consider a volumetric photon map lookup valid */
 		m_globalLookupSize = props.getInteger("globalLookupSize", 120);
@@ -62,6 +67,19 @@ public:
 		m_gatherLocally = props.getBoolean("gatherLocally", true);
 		/* Indicates if the gathering steps should be canceled if not enough photons are generated. */
 		m_autoCancelGathering = props.getBoolean("autoCancelGathering", true);
+
+		if (m_maxDepth == 0) {
+			Log(EError, "maxDepth must be greater than zero!");
+		} else if (m_maxDepth == -1) {
+			/**
+			 * An infinite depth is currently not supported, since 
+			 * the photon tracing step uses a Halton sequence
+			 * that is based on a finite-sized prime number table
+			 */
+			m_maxDepth = 128;
+		}
+
+		m_causticPhotonMapID = m_globalPhotonMapID = 0;
 	}
 
 	/// Unserialize from a binary data stream
@@ -69,7 +87,9 @@ public:
 	 : SampleIntegrator(stream, manager) {
 		m_directSamples = stream->readInt();
 		m_glossySamples = stream->readInt();
+		m_maxDepth = stream->readInt();
 		m_maxSpecularDepth = stream->readInt();
+		m_rrDepth = stream->readInt();
 		m_globalPhotons = stream->readSize();
 		m_causticPhotons = stream->readSize();
 		m_volumePhotons = stream->readSize();
@@ -80,13 +100,24 @@ public:
 		m_volumeLookupSize = stream->readInt();
 		m_gatherLocally = stream->readBool();
 		m_autoCancelGathering = stream->readBool();
+		configure();
+	}
+
+	virtual ~PhotonMapIntegrator() {
+		ref<Scheduler> sched = Scheduler::getInstance();
+		if (m_globalPhotonMapID)
+			sched->unregisterResource(m_globalPhotonMapID);
+		if (m_causticPhotonMapID)
+			sched->unregisterResource(m_causticPhotonMapID);
 	}
 
 	void serialize(Stream *stream, InstanceManager *manager) const {
 		SampleIntegrator::serialize(stream, manager);
 		stream->writeInt(m_directSamples);
 		stream->writeInt(m_glossySamples);
+		stream->writeInt(m_maxDepth);
 		stream->writeInt(m_maxSpecularDepth);
+		stream->writeInt(m_rrDepth);
 		stream->writeSize(m_globalPhotons);
 		stream->writeSize(m_causticPhotons);
 		stream->writeSize(m_volumePhotons);
@@ -103,7 +134,14 @@ public:
 	void configureSampler(Sampler *sampler) {
 		if (m_directSamples > 1)
 			sampler->request2DArray(m_directSamples);
-		sampler->request2DArray(m_glossySamples);
+		int glossySamples = std::max(m_directSamples, m_glossySamples);
+		if (glossySamples > 1)
+			sampler->request2DArray(glossySamples);
+	}
+
+	void configure() {
+		m_invLuminaireSamples = 1.0f / m_directSamples;
+		m_invGlossySamples = 1.0f / m_glossySamples;
 	}
 
 	bool preprocess(const Scene *scene, RenderQueue *queue, const RenderJob *job, 
@@ -115,38 +153,17 @@ public:
 			createObject(MTS_CLASS(Sampler), Properties("halton")));
 		int qmcSamplerID = sched->registerResource(sampler);
 
-		/* Don't create a caustic photon map if the scene does not contain specular materials */
-		const std::vector<Shape *> &shapes = scene->getShapes();
-		bool foundSpecular = false;
-		for (size_t i=0; i<shapes.size(); ++i) {
-			const BSDF *bsdf = shapes[i]->getBSDF();
-			if (bsdf && bsdf->getType() & BSDF::EDelta) {
-				foundSpecular = true;
-				break;
-			}
-		}
-		if (!foundSpecular)
-			m_causticPhotons = 0;
-
-		/* Don't create a volumetric photon map if there are no participating media */
 		const std::set<Medium *> &media = scene->getMedia();
-		if (media.size() == 0)
-			m_volumePhotons = 0;
-
 		for (std::set<Medium *>::const_iterator it = media.begin(); it != media.end(); ++it) {
 			if (!(*it)->isHomogeneous())
 				Log(EError, "Inhomogeneous media are currently not supported by the photon mapper!");
 		}
 
-
 		if (m_globalPhotonMap.get() == NULL && m_globalPhotons > 0) {
-			/* Adapt to scene extents */
-			m_globalLookupRadius = m_globalLookupRadiusRel * scene->getBSphere().radius;
-
 			/* Generate the global photon map */
 			ref<GatherPhotonProcess> proc = new GatherPhotonProcess(
 				GatherPhotonProcess::ESurfacePhotons, m_globalPhotons,
-				m_granularity, m_maxDepth, m_rrDepth, m_gatherLocally,
+				m_granularity, m_maxDepth-1, m_rrDepth, m_gatherLocally,
 				m_autoCancelGathering, job);
 
 			proc->bindResource("scene", sceneResID);
@@ -166,18 +183,15 @@ public:
 
 			m_globalPhotonMap = proc->getPhotonMap();
 			m_globalPhotonMap->setScaleFactor(1 / (Float) proc->getShotParticles());
-			m_globalPhotonMap->balance();
+			m_globalPhotonMap->build();
 			m_globalPhotonMapID = sched->registerResource(m_globalPhotonMap);
 		}
 
 		if (m_causticPhotonMap.get() == NULL && m_causticPhotons > 0) {
-			/* Adapt to scene extents */
-			m_causticLookupRadius = m_causticLookupRadiusRel * scene->getBSphere().radius;
-
 			/* Generate the caustic photon map */
 			ref<GatherPhotonProcess> proc = new GatherPhotonProcess(
 				GatherPhotonProcess::ECausticPhotons, m_causticPhotons,
-				m_granularity, 2, m_rrDepth, m_gatherLocally,
+				m_granularity, 3, m_rrDepth, m_gatherLocally,
 				m_autoCancelGathering, job);
 
 			proc->bindResource("scene", sceneResID);
@@ -191,13 +205,13 @@ public:
 	
 			if (proc->getReturnStatus() != ParallelProcess::ESuccess)
 				return false;
-			
+
 			Log(EDebug, "Caustic photon map full. Shot " SIZE_T_FMT " particles, excess photons due to parallelism: " 
 				SIZE_T_FMT, proc->getShotParticles(), proc->getExcessPhotons());
 
 			m_causticPhotonMap = proc->getPhotonMap();
 			m_causticPhotonMap->setScaleFactor(1 / (Float) proc->getShotParticles());
-			m_causticPhotonMap->balance();
+			m_causticPhotonMap->build();
 			m_causticPhotonMapID = sched->registerResource(m_causticPhotonMap);
 		}
 
@@ -205,7 +219,7 @@ public:
 			/* Generate the volume photon map */
 			ref<GatherPhotonProcess> proc = new GatherPhotonProcess(
 				GatherPhotonProcess::EVolumePhotons, m_volumePhotons,
-				m_granularity, m_maxDepth, m_rrDepth, m_gatherLocally,
+				m_granularity, m_maxDepth-1, m_rrDepth, m_gatherLocally,
 				m_autoCancelGathering, job);
 
 			proc->bindResource("scene", sceneResID);
@@ -225,14 +239,23 @@ public:
 
 			ref<PhotonMap> volumePhotonMap = proc->getPhotonMap();
 			volumePhotonMap->setScaleFactor(1 / (Float) proc->getShotParticles());
-			volumePhotonMap->balance();
+			volumePhotonMap->build();
 	
 			m_bre = new BeamRadianceEstimator(volumePhotonMap, m_volumeLookupSize);
 			m_breID = sched->registerResource(m_bre);
 		}
 
+		/* Adapt to scene extents */
+		m_globalLookupRadius = m_globalLookupRadiusRel * scene->getBSphere().radius;
+		m_causticLookupRadius = m_causticLookupRadiusRel * scene->getBSphere().radius;
+
 		sched->unregisterResource(qmcSamplerID);
-		m_parentIntegrator = static_cast<SampleIntegrator *>(getParent());
+
+		if (getParent() != NULL && getParent()->getClass()->derivesFrom(MTS_CLASS(SampleIntegrator)))
+			m_parentIntegrator = static_cast<SampleIntegrator *>(getParent());
+		else
+			m_parentIntegrator = this;
+
 		return true;
 	}
 
@@ -259,7 +282,6 @@ public:
 			m_parentIntegrator = static_cast<SampleIntegrator *>(getParent());
 		else
 			m_parentIntegrator = this;
-
 	}
 
 	void cancel() {
@@ -272,16 +294,20 @@ public:
 		Spectrum LiSurf(0.0f), LiMedium(0.0f), transmittance(1.0f);
 		Intersection &its = rRec.its;
 		LuminaireSamplingRecord lRec;
-	
+		const Scene *scene = rRec.scene;
+
+		bool cacheQuery = (rRec.extra == 1);
+
 		/* Perform the first ray intersection (or ignore if the 
 		   intersection has already been provided). */
 		rRec.rayIntersect(ray);
-
+		
 		if (rRec.medium) {
 			Ray mediumRaySegment(ray, 0, its.t);
 			transmittance = rRec.medium->getTransmittance(mediumRaySegment);
 			mediumRaySegment.mint = ray.mint;
-			if (rRec.type & RadianceQueryRecord::EVolumeRadiance)
+			if (rRec.type & RadianceQueryRecord::EVolumeRadiance &&
+					(rRec.depth < m_maxDepth || m_maxDepth < 0))
 				LiMedium = m_bre->query(mediumRaySegment, rRec.medium);
 		}
 
@@ -289,7 +315,7 @@ public:
 			/* If no intersection could be found, possibly return 
 			   attenuated radiance from a background luminaire */
 			if (rRec.type & RadianceQueryRecord::EEmittedRadiance)
-				LiSurf += rRec.scene->LeBackground(ray);
+				LiSurf = scene->LeBackground(ray);
 			return LiSurf * transmittance + LiMedium;
 		}
 
@@ -299,120 +325,245 @@ public:
 
 		/* Include radiance from a subsurface integrator if requested */
 		if (its.hasSubsurface() && (rRec.type & RadianceQueryRecord::ESubsurfaceRadiance))
-			LiSurf += its.LoSub(rRec.scene, rRec.sampler, -ray.d, rRec.depth);
+			LiSurf += its.LoSub(scene, rRec.sampler, -ray.d, rRec.depth);
 
 		const BSDF *bsdf = its.getBSDF(ray);
-				
-		if (bsdf == NULL) {
-			if (rRec.depth+1 < m_maxSpecularDepth) {
-				RadianceQueryRecord rRec2;
-				rRec2.recursiveQuery(rRec);
-	
-				if (its.isMediumTransition())
-					rRec2.medium = its.getTargetMedium(ray.d);
 
-				LiSurf += m_parentIntegrator->Li(RayDifferential(its.p, ray.d, ray.time), rRec2);
-			}
+		if (rRec.depth >= m_maxDepth && m_maxDepth > 0)
+			return LiSurf * transmittance + LiMedium;
+		
+		if (bsdf == NULL) {
+			RadianceQueryRecord rRec2;
+			rRec2.recursiveQuery(rRec);
+
+			if (its.isMediumTransition())
+				rRec2.medium = its.getTargetMedium(ray.d);
+
+			LiSurf += m_parentIntegrator->Li(RayDifferential(its.p, ray.d, ray.time), rRec2);
 			return LiSurf * transmittance + LiMedium;
 		}
 
-		int bsdfType = bsdf->getType();
+		unsigned int bsdfType = bsdf->getType() & BSDF::EAll;
+		bool isDiffuse = (bsdfType == BSDF::EDiffuseReflection);
 
-		Point2 *sampleArray, sample;
-		int numDirectSamples = (rRec.depth == 1) ? m_directSamples : 1;
-		/* When this integrator is used recursively by another integrator,
-			Be less accurate as this sample will not be directly observed. */
-		if (numDirectSamples > 1) {
-			sampleArray = rRec.sampler->next2DArray(numDirectSamples);
-		} else {
-			sample = rRec.nextSample2D();
-			sampleArray = &sample;
-		}
-
-		/* Estimate the direct illumination if this is requested */
-		if (rRec.type & RadianceQueryRecord::EDirectSurfaceRadiance) {
-			Float weight = 1 / (Float) numDirectSamples;
-
-			for (int i=0; i<numDirectSamples; ++i) {
-				if (rRec.scene->sampleAttenuatedLuminaire(its, rRec.medium, lRec, sampleArray[i])) {
-					/* Allocate a record for querying the BSDF */
-					const BSDFQueryRecord bRec(its, its.toLocal(-lRec.d));
-
-					/* Evaluate BSDF * cos(theta) */
-					const Spectrum bsdfVal = bsdf->fCos(bRec);
-
-					LiSurf += lRec.value * bsdfVal * weight;
-				}
-			}
-		}
-
-		if (bsdfType == BSDF::EDiffuseReflection) {
-			/* Hit a diffuse material - do a direct photon map visualization. */
+		if (isDiffuse || cacheQuery) {
+			int maxDepth = m_maxDepth == -1 ? INT_MAX : (m_maxDepth-rRec.depth);
 			if (rRec.type & RadianceQueryRecord::EIndirectSurfaceRadiance)
-				LiSurf += m_globalPhotonMap->estimateIrradianceFiltered(its.p, 
-					its.shFrame.n, m_globalLookupRadius, m_globalLookupSize)
-						* bsdf->getDiffuseReflectance(its) * INV_PI;
+				LiSurf += m_globalPhotonMap->estimateIrradiance(its.p,
+					its.shFrame.n, m_globalLookupRadius, maxDepth,
+					m_globalLookupSize) * bsdf->getDiffuseReflectance(its) * INV_PI;
 			if (rRec.type & RadianceQueryRecord::ECausticRadiance && m_causticPhotonMap.get())
-				LiSurf += m_causticPhotonMap->estimateIrradianceFiltered(its.p,
-					its.shFrame.n, m_causticLookupRadius, m_causticLookupSize)
-							* bsdf->getDiffuseReflectance(its) * INV_PI;
-		} else if ((bsdfType & BSDF::EDelta) != 0
-				&& (bsdfType & ~BSDF::EDelta) == 0 && !rRec.extra) {
-			RadianceQueryRecord rRec2;
-			RayDifferential recursiveRay;
-			/* Ideal specular material -> recursive ray tracing.
-			   Deliberately risk exponential ray growth by spawning
-			   several child rays. The impact on the final image is huge
-			   and well worth the extra computation. */
-			if (rRec.depth+1 < m_maxSpecularDepth) {
+				LiSurf += m_causticPhotonMap->estimateIrradiance(its.p,
+					its.shFrame.n, m_causticLookupRadius, maxDepth,
+					m_causticLookupSize) * bsdf->getDiffuseReflectance(its) * INV_PI;
+		}
+
+		if ((bsdfType & BSDF::EDelta) && (bsdfType & ~BSDF::EDelta) == 0 && rRec.depth < m_maxSpecularDepth && !cacheQuery) {
+			if (RadianceQueryRecord::EIndirectSurfaceRadiance) {
 				int compCount = bsdf->getComponentCount();
+				RadianceQueryRecord rRec2;
 				for (int i=0; i<compCount; i++) {
 					/* Sample the BSDF and recurse */
-					BSDFQueryRecord bRec(its);
+					BSDFQueryRecord bRec(its, rRec.sampler, ERadiance);
 					bRec.component = i;
-					Spectrum bsdfVal = bsdf->sampleCos(bRec, Point2(0.0f));
+					Spectrum bsdfVal = bsdf->sample(bRec, Point2(0.0f));
 					if (bsdfVal.isZero())
 						continue;
 
 					rRec2.recursiveQuery(rRec, RadianceQueryRecord::ERadiance);
-					recursiveRay = Ray(its.p, its.toWorld(bRec.wo), ray.time);
-					LiSurf += m_parentIntegrator->Li(recursiveRay, rRec2) * bsdfVal;
+					RayDifferential bsdfRay(its.p, its.toWorld(bRec.wo), ray.time);
+					LiSurf += bsdfVal * m_parentIntegrator->Li(bsdfRay, rRec2);
 				}
 			}
-		} else if (rRec.depth == 1 && (bsdf->getType() & BSDF::EGlossy)) {
-			/* Hit a glossy material - MC integration over the hemisphere
-			   using BSDF importance sampling */
-			sampleArray = rRec.sampler->next2DArray(m_glossySamples);
-			RadianceQueryRecord rRec2;
-			RayDifferential recursiveRay;
-			Float weight = 1 / (Float) m_glossySamples;
+		} else if (rRec.type & RadianceQueryRecord::EDirectSurfaceRadiance) {
+			/* Estimate the direct illumination if this is requested */
+			Point2 *sampleArray;
+			Point2 sample;
+			int numLuminaireSamples = m_directSamples,
+				   numBSDFSamples;
 
-			for (int i=0; i<m_glossySamples; ++i) {
-				BSDFQueryRecord bRec(its);
-				Spectrum bsdfVal = bsdf->sampleCos(bRec, sampleArray[i]);
-
-				rRec2.recursiveQuery(rRec, RadianceQueryRecord::ERadianceNoEmission);
-				recursiveRay = Ray(its.p, its.toWorld(bRec.wo), ray.time);
-				LiSurf += m_parentIntegrator->Li(recursiveRay, rRec2) * bsdfVal * weight;
+			Float weightLum, weightBSDF;
+	
+			if (rRec.depth > 1 || cacheQuery) {
+				/* This integrator is used recursively by another integrator.
+				   Be less accurate as this sample will not directly be observed. */
+				numBSDFSamples = numLuminaireSamples = 1;
+				weightLum = weightBSDF = 1.0f;
+			} else {
+				if (isDiffuse) {
+					numBSDFSamples = m_directSamples;
+					weightBSDF = weightLum = m_invLuminaireSamples;
+				} else {
+					numBSDFSamples = m_glossySamples;
+					weightLum = m_invLuminaireSamples;
+					weightBSDF = m_invGlossySamples;
+				}
 			}
-		} else {
-			LiSurf += m_globalPhotonMap->estimateRadianceFiltered(its,
-				m_globalLookupRadius, m_globalLookupSize);
+	
+			if (numLuminaireSamples > 1) {
+				sampleArray = rRec.sampler->next2DArray(m_directSamples);
+			} else {
+				sample = rRec.nextSample2D(); sampleArray = &sample;
+			}
+	
+			for (int i=0; i<numLuminaireSamples; ++i) {
+				/* Estimate the direct illumination if this is requested */
+				if (scene->sampleAttenuatedLuminaire(its.p, ray.time, rRec.medium, 
+						lRec, sampleArray[i], rRec.sampler)) {
+					/* Allocate a record for querying the BSDF */
+					BSDFQueryRecord bRec(its, its.toLocal(-lRec.d));
+	
+					/* Evaluate BSDF * cos(theta) */
+					const Spectrum bsdfVal = bsdf->eval(bRec);
+	
+					if (!bsdfVal.isZero()) {
+						/* Calculate prob. of having sampled that direction
+							using BSDF sampling */
+						Float bsdfPdf = (lRec.luminaire->isIntersectable() 
+								|| lRec.luminaire->isBackgroundLuminaire()) ? 
+							bsdf->pdf(bRec) : 0;
+	
+						/* Weight using the power heuristic */
+						const Float weight = miWeight(lRec.pdf * numLuminaireSamples, 
+								bsdfPdf * numBSDFSamples) * weightLum;
+						LiSurf += lRec.value * bsdfVal * weight;
+					}
+				}
+			}
+	
+			/* ==================================================================== */
+			/*                            BSDF sampling                             */
+			/* ==================================================================== */
+	
+			if (numBSDFSamples > 1) {
+				sampleArray = rRec.sampler->next2DArray(
+					std::max(m_directSamples, m_glossySamples));
+			} else {
+				sample = rRec.nextSample2D(); sampleArray = &sample;
+			}
+
+			RadianceQueryRecord rRec2;
+			Intersection &bsdfIts = rRec2.its;
+
+			for (int i=0; i<numBSDFSamples; ++i) {
+				/* Sample BSDF * cos(theta) */
+				BSDFQueryRecord bRec(its, rRec.sampler, ERadiance);
+				Float bsdfPdf;
+				Spectrum bsdfVal = bsdf->sample(bRec, bsdfPdf, sampleArray[i]);
+				if (bsdfVal.isZero())
+					continue;
+	
+				/* Trace a ray in this direction */
+				RayDifferential bsdfRay(its.p, its.toWorld(bRec.wo), ray.time);
+
+				rRec2.recursiveQuery(rRec, 
+					RadianceQueryRecord::ERadianceNoEmission);
+
+				bool indexMatchedMediumTransition = false;
+				Spectrum transmittance;
+				scene->attenuatedRayIntersect(bsdfRay, rRec.medium, bsdfIts, 
+						indexMatchedMediumTransition, transmittance, rRec.sampler);
+				rRec2.type ^= RadianceQueryRecord::EIntersection;
+
+				bool hitLightSource = false;
+				if (bsdfIts.isValid()) {
+					/* Intersected something - check if it was a luminaire */
+					if (bsdfIts.isLuminaire()) {
+						lRec = LuminaireSamplingRecord(bsdfIts, -bsdfRay.d);
+						lRec.value = bsdfIts.Le(-bsdfRay.d);
+						hitLightSource = true;
+					}
+				} else {
+					/* No intersection found. Possibly, there is a background
+					   luminaire such as an environment map? */
+					if (scene->hasBackgroundLuminaire()) {
+						lRec.luminaire = scene->getBackgroundLuminaire();
+						lRec.d = -bsdfRay.d;
+						lRec.value = lRec.luminaire->Le(bsdfRay);
+						hitLightSource = true;
+					}
+				}
+
+				if (hitLightSource) {
+					const Float lumPdf = (!(bRec.sampledType & BSDF::EDelta)) ? 
+						scene->pdfLuminaire(its.p, lRec) : 0;
+			
+					const Float weight = miWeight(bsdfPdf * numBSDFSamples, 
+						lumPdf * numLuminaireSamples) * weightBSDF;
+					LiSurf += lRec.value * bsdfVal * weight * transmittance;
+				}
+
+				if (!isDiffuse && (rRec.type & RadianceQueryRecord::EIndirectSurfaceRadiance) && !cacheQuery) {
+					if (indexMatchedMediumTransition) {
+						/* The previous ray intersection code passed through an index-matched
+						   medium transition while looking for a luminaire. For the recursion,
+						   we need to rewind and account for this transition -- therefore,
+						   another ray intersection call is neccessary */
+						scene->rayIntersect(bsdfRay, bsdfIts);
+					}
+	
+
+					LiSurf += bsdfVal * m_parentIntegrator->Li(bsdfRay, rRec2) * weightBSDF;
+				}
+			}
+		} else if (!isDiffuse && rRec.type & RadianceQueryRecord::EIndirectSurfaceRadiance && !cacheQuery) {
+			int numBSDFSamples = rRec.depth > 1 ? 1 : m_glossySamples;
+			Float weightBSDF;
+			Point2 *sampleArray;
+			Point2 sample;
+
+			if (numBSDFSamples > 1) {
+				sampleArray = rRec.sampler->next2DArray(
+					std::max(m_directSamples, m_glossySamples));
+				weightBSDF = m_invGlossySamples;
+			} else {
+				sample = rRec.nextSample2D(); sampleArray = &sample;
+				weightBSDF = 1.0f;
+			}
+
+			RadianceQueryRecord rRec2;
+			for (int i=0; i<numBSDFSamples; ++i) {
+				/* Sample BSDF * cos(theta) */
+				BSDFQueryRecord bRec(its, rRec.sampler, ERadiance);
+				Float bsdfPdf;
+				Spectrum bsdfVal = bsdf->sample(bRec, bsdfPdf, sampleArray[i]);
+				if (bsdfVal.isZero())
+					continue;
+				rRec2.recursiveQuery(rRec, 
+					RadianceQueryRecord::ERadianceNoEmission);
+
+				RayDifferential bsdfRay(its.p, its.toWorld(bRec.wo), ray.time);
+				LiSurf += bsdfVal * m_parentIntegrator->Li(bsdfRay, rRec2) * weightBSDF;
+			}
 		}
 
 		return LiSurf * transmittance + LiMedium;
 	}
-	
+
 	std::string toString() const {
 		std::ostringstream oss;
-		oss << "PhotonMapIntegrator[" << std::endl
-			<< "  directSamples = " << m_directSamples << "," << std::endl
-			<< "  glossySamples = " << m_glossySamples << "," << std::endl
-			<< "  globalPhotons = " << m_globalPhotons << "," << std::endl
-			<< "  causticPhotons = " << m_causticPhotons << "," << std::endl
-			<< "  volumePhotons = " << m_volumePhotons << std::endl
+		oss << "PhotonMapIntegrator[" << endl
+			<< "  maxDepth = " << m_maxDepth << "," << endl
+			<< "  maxSpecularDepth = " << m_maxSpecularDepth << "," << endl
+			<< "  rrDepth = " << m_rrDepth << "," << endl
+			<< "  directSamples = " << m_directSamples << "," << endl
+			<< "  glossySamples = " << m_glossySamples << "," << endl
+			<< "  globalPhotons = " << m_globalPhotons << "," << endl
+			<< "  causticPhotons = " << m_causticPhotons << "," << endl
+			<< "  volumePhotons = " << m_volumePhotons << "," << endl
+			<< "  gatherLocally = " << m_gatherLocally << "," << endl
+			<< "  globalLookupRadius = " << m_globalLookupRadius << "," << endl
+			<< "  causticLookupRadius = " << m_causticLookupRadius << "," << endl
+			<< "  globalLookupSize = " << m_globalLookupSize << "," << endl
+			<< "  causticLookupSize = " << m_causticLookupSize << "," << endl
+			<< "  volumeLookupSize = " << m_volumeLookupSize << endl
 			<< "]";
 		return oss.str();
+	}
+
+	inline Float miWeight(Float pdfA, Float pdfB) const {
+		pdfA *= pdfA; pdfB *= pdfB;
+		return pdfA / (pdfA + pdfB);
 	}
 
 	MTS_DECLARE_CLASS()
@@ -420,20 +571,18 @@ private:
 	ref<PhotonMap> m_globalPhotonMap;
 	ref<PhotonMap> m_causticPhotonMap;
 	ref<PhotonMap> m_volumePhotonMap;
-	ref<ParallelProcess> m_proc;
 	ref<BeamRadianceEstimator> m_bre;
+	ref<ParallelProcess> m_proc;
 	SampleIntegrator *m_parentIntegrator;
 	int m_globalPhotonMapID, m_causticPhotonMapID, m_breID;
 	size_t m_globalPhotons, m_causticPhotons, m_volumePhotons;
 	int m_globalLookupSize, m_causticLookupSize, m_volumeLookupSize;
 	Float m_globalLookupRadiusRel, m_globalLookupRadius;
 	Float m_causticLookupRadiusRel, m_causticLookupRadius;
-	int m_granularity;
-	int m_directSamples, m_glossySamples;
-	int m_rrDepth;
-	int m_maxDepth, m_maxSpecularDepth;
-	bool m_gatherLocally;
-	bool m_autoCancelGathering;
+	Float m_invLuminaireSamples, m_invGlossySamples;
+	int m_granularity, m_directSamples, m_glossySamples;
+	int m_rrDepth, m_maxDepth, m_maxSpecularDepth;
+	bool m_gatherLocally, m_autoCancelGathering;
 };
 
 MTS_IMPLEMENT_CLASS_S(PhotonMapIntegrator, false, SampleIntegrator)

@@ -15,3 +15,6 @@ src/qtgui/moc_*.cc
 *.out
 *.pdf
 *.toc
+build/*
+dist/*
+dependencies/*
