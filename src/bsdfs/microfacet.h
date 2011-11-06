@@ -19,9 +19,7 @@
 #if !defined(__MICROFACET_H)
 #define __MICROFACET_H
 
-#include <mitsuba/core/quad.h>
 #include <mitsuba/core/timer.h>
-#include <mitsuba/core/spline.h>
 #include <boost/algorithm/string.hpp>
 #include <boost/bind.hpp>
 
@@ -82,15 +80,16 @@ public:
 	 * \brief Convert the roughness values so that they behave similarly to the
 	 * Beckmann distribution.
 	 *
-	 * Also clamps to the minimal roughness 1e-4 to avoid numerical issues 
+	 * Also clamps to the minimal exponent to to avoid numerical issues 
 	 * (For lower roughness values, please switch to the smooth BSDF variants)
 	 */
 	Float transformRoughness(Float value) const {
-		if (m_type == EPhong || m_type == EAshikhminShirley)
-			value = 2 / (value * value) - 2;
-		return std::max(value, (Float) 1e-4f);
+		value = std::max(value, (Float) 1e-5f);
+		if (m_type == EPhong || m_type == EAshikhminShirley) 
+			value = std::max(2 / (value * value) - 2, (Float) 0.1f);
+		return value;
 	}
-	
+
 	/**
 	 * \brief Implements the microfacet distribution function D
 	 *
@@ -111,13 +110,13 @@ public:
 	Float eval(const Vector &m, Float alphaU, Float alphaV) const {
 		if (Frame::cosTheta(m) <= 0)
 			return 0.0f;
-	
+
 		Float result;
 		switch (m_type) {
 			case EBeckmann: {
 					/* Beckmann distribution function for Gaussian random surfaces */
 					const Float ex = Frame::tanTheta(m) / alphaU;
-					result = std::exp(-(ex*ex)) / (M_PI * alphaU*alphaU * 
+					result = std::fastexp(-(ex*ex)) / (M_PI * alphaU*alphaU * 
 							std::pow(Frame::cosTheta(m), (Float) 4.0f));
 				}
 				break;
@@ -244,7 +243,7 @@ public:
 
 		switch (m_type) {
 			case EBeckmann: {
-					Float tanThetaMSqr = -alphaU*alphaU * std::log(1.0f - sample.x);
+					Float tanThetaMSqr = -alphaU*alphaU * std::fastlog(1.0f - sample.x);
 					cosThetaM = 1.0f / std::sqrt(1 + tanThetaMSqr);
 				}
 				break;
@@ -310,7 +309,7 @@ public:
 
 		switch (m_type) {
 			case EBeckmann: {
-					Float tanThetaMSqr = -alphaU*alphaU * std::log(1.0f - sample.x);
+					Float tanThetaMSqr = -alphaU*alphaU * std::fastlog(1.0f - sample.x);
 					cosThetaM = 1.0f / std::sqrt(1 + tanThetaMSqr);
 					Float cosThetaM2 = cosThetaM * cosThetaM,
 						  cosThetaM3 = cosThetaM2 * cosThetaM;
@@ -498,53 +497,6 @@ public:
 		}
 	}
 
-	/**
-	 * \brief Compute a spline representation for the overall Fresnel
-	 * transmittance through a rough interface
-	 *
-	 * This function essentially computes the integral of 
-	 *      1 - \int_{S^2} f(w_i, w_o) *  dw_o
-	 * for incident directions 'wi' with a range of different inclinations
-	 * (where f denotes a Cook-Torrance style reflectance model). It returns 
-	 * a cubic spline interpolation parameterized by the cosine of the angle
-	 * between 'wi' and the (macro-) surface normal.
-	 *
-	 * \remark This only works for isotropic microfacet distributions
-	 */
-	CubicSpline *computeRoughTransmittance(Float extIOR, Float intIOR, Float alpha, size_t resolution) const {
-		if (isAnisotropic())
-			SLog(EError, "MicrofacetDistribution::computeRoughTransmission(): only "
-				"supports isotropic distributions!");
-
-		NDIntegrator integrator(1, 2, 5000, 0, 1e-5f);
-		CubicSpline *spline = new CubicSpline(resolution);
-		size_t nEvals, nEvalsTotal = 0;
-		ref<Timer> timer = new Timer();
-
-		Float stepSize = (1.0f-2*Epsilon)/(resolution-1);
-		for (size_t i=0; i<resolution; ++i) {
-			Float z = stepSize * i + Epsilon;
-			Vector wi(std::sqrt(std::max((Float) 0, 1-z*z)), 0, z);
-			Float min[2] = {0, 0}, max[2] = {1, 1},
-				  integral = 0, error = 0;
-
-			integrator.integrateVectorized(
-				boost::bind(&MicrofacetDistribution::integrand1, this,
-					wi, extIOR, intIOR, alpha, _1, _2, _3),
-				min, max, &integral, &error, &nEvals
-			);
-
-			spline->append(z, 1-integral);
-
-			nEvalsTotal += nEvals;
-		}
-		SLog(EInfo, "Created a " SIZE_T_FMT "-node cubic spline approximation to the rough Fresnel "
-				"transmittance (integration took %i ms and " SIZE_T_FMT " function evaluations)",
-				resolution, timer->getMilliseconds(), nEvalsTotal);
-		spline->build();
-		return spline;
-	}
-
 	std::string toString() const {
 		switch (m_type) {
 			case EBeckmann: return "beckmann"; break;
@@ -554,24 +506,6 @@ public:
 			default:
 				SLog(EError, "Invalid distribution function");
 				return "";
-		}
-	}
-protected:
-	/// Integrand helper function called by \ref computeRoughTransmission
-	void integrand1(const Vector &wi, Float extIOR, Float intIOR, Float alpha,
-			size_t nPts, const Float *in, Float *out) const {
-		for (int i=0; i<(int) nPts; ++i) {
-			Normal m = sample(Point2(in[2*i], in[2*i+1]), alpha);
-			Vector wo = 2 * dot(wi, m) * Vector(m) - wi;
-			if (Frame::cosTheta(wo) <= 0) {
-				out[i] = 0;
-				continue;
-			}
-
-			/* Calculate the specular reflection component */
-			out[i] = std::abs(fresnel(dot(wi, m), extIOR, intIOR)
-				* G(wi, wo, m, alpha) * dot(wi, m) /
-				  (Frame::cosTheta(wi) * Frame::cosTheta(m)));
 		}
 	}
 protected:

@@ -24,6 +24,7 @@
 #include <mitsuba/core/shvector.h>
 #include <mitsuba/core/statistics.h>
 #include <mitsuba/core/fresolver.h>
+#include <mitsuba/core/version.h>
 #include <mitsuba/core/appender.h>
 #include <mitsuba/render/util.h>
 #include <mitsuba/render/renderjob.h>
@@ -41,7 +42,8 @@
 using namespace mitsuba;
 
 void help() {
-	cout <<  "Mitsuba version " MTS_VERSION ", Copyright (c) " MTS_YEAR " Wenzel Jakob" << endl;
+	cout <<  "Mitsuba version " << Version(MTS_VERSION).toStringComplete()
+		<< ", Copyright (c) " MTS_YEAR " Wenzel Jakob" << endl;
 	cout <<  "Usage: mtsutil [mtsutil options] <utility name> [arguments]" << endl;
 	cout <<  "Options/Arguments:" << endl;
 	cout <<  "   -h          Display this help text" << endl << endl;
@@ -209,7 +211,8 @@ int mtsutil(int argc, char **argv) {
 		if (!quietMode)
 			log->addAppender(new StreamAppender(&std::cout));
 
-		SLog(EInfo, "Mitsuba version " MTS_VERSION ", Copyright (c) " MTS_YEAR " Wenzel Jakob");
+		SLog(EInfo, "Mitsuba version %s, Copyright (c) " MTS_YEAR " Wenzel Jakob",
+				Version(MTS_VERSION).toStringComplete().c_str());
 
 		/* Configure the scheduling subsystem */
 		Scheduler *scheduler = Scheduler::getInstance();

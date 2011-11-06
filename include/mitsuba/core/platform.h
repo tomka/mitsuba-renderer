@@ -70,6 +70,9 @@
 	#define __OSX__
 #elif defined(__linux)
 	#define __LINUX__
+	#if !defined(_GNU_SOURCE)
+		#define _GNU_SOURCE
+	#endif
 #else
 	#error Unknown OS
 #endif
@@ -123,6 +126,12 @@
 	#include <stdint.h>
 
 	#define SIZE_T_FMT "%zd"
+#endif
+
+#if defined(__x86_64__) || defined(_M_X64) || defined(__LP64__) || defined(_LP64) || defined(WIN64)
+#define __64BIT__
+#else
+#define __32BIT__
 #endif
 
 #if !defined(__LITTLE_ENDIAN__) && !defined(__BIG_ENDIAN__)

@@ -121,8 +121,6 @@ public:
 		// m_mipmap = MIPMap::fromBitmap(bitmap);
 		m_mipmap = MIPMap::fromBitmap(bitmap, m_filterType,
 				m_wrapMode, m_maxAnisotropy);
-		m_average = m_mipmap->triangle(m_mipmap->getLevels()-1, 0, 0);
-		m_maximum = m_mipmap->getMaximum();
     }
 
 	Spectrum getValue(const Point2 &uv) const {
@@ -134,12 +132,16 @@ public:
 		return m_mipmap->getValue(uv.x, uv.y, dudx, dudy, dvdx, dvdy);
 	}
 
-	Spectrum getMaximum() const {
-		return m_maximum;
+	Spectrum getAverage() const {
+		return m_mipmap->getAverage();
 	}
 
-	Spectrum getAverage() const {
-		return m_average;
+	Spectrum getMaximum() const {
+		return m_mipmap->getMaximum();
+	}
+
+	Spectrum getMinimum() const {
+		return m_mipmap->getMinimum();
 	}
 
 	bool usesRayDifferentials() const {
@@ -160,7 +162,6 @@ public:
 protected:
 	ref<MIPMap> m_mipmap;
 	fs::path m_filename;
-	Spectrum m_average, m_maximum;
 	MIPMap::EFilterType m_filterType;
 	MIPMap::EWrapMode m_wrapMode;
 	Float m_maxAnisotropy;

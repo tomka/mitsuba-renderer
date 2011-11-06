@@ -91,7 +91,73 @@ namespace std {
 };
 using std::select2nd;
 using std::compose1;
-#endif	
+#endif
+
+namespace std {
+#if defined(__LINUX__) && defined(__x86_64__)
+	/*
+	   The Linux/x86_64 single precision implementations of 'exp'
+	   and 'log' suffer from a serious performance regression.
+	   It is about 5x faster to use the double-precision versions
+	   with the extra overhead of the involved FP conversion.
+
+	   Until this is fixed, the following aliases make sure that
+	   the fastest implementation is used in every case.
+	 */
+	inline float fastexp(float value) {
+		return (float) ::exp((double) value);
+	}
+
+	inline double fastexp(double value) {
+		return ::exp(value);
+	}
+
+	inline float fastlog(float value) {
+		return (float) ::log((double) value);
+	}
+
+	inline double fastlog(double value) {
+		return ::log(value);
+	}
+#else
+	inline float fastexp(float value) {
+		return ::expf(value);
+	}
+
+	inline double fastexp(double value) {
+		return ::exp(value);
+	}
+
+	inline float fastlog(float value) {
+		return ::logf(value);
+	}
+
+	inline double fastlog(double value) {
+		return ::log(value);
+	}
+#endif
+
+#if defined(_GNU_SOURCE)
+	inline void sincos(float theta, float *sin, float *cos) {
+		::sincosf(theta, sin, cos);
+	}
+
+	inline void sincos(double theta, double *sin, double *cos) {
+		::sincos(theta, sin, cos);
+	}
+
+#else
+	inline void sincos(float theta, float *_sin, float *_cos) {
+		*_sin = sinf(theta);
+		*_cos = cosf(theta);
+	}
+
+	inline void sincos(double theta, double *_sin, double *_cos) {
+		*_sin = sin(theta);
+		*_cos = cos(theta);
+	}
+#endif
+};
 
 #if defined(WIN32)
 inline bool mts_isnan(float f) {
@@ -107,6 +173,7 @@ inline bool mts_isnan(double f) {
 }
 extern "C" {
 	extern MTS_EXPORT_CORE float nextafterf(float x, float y);
+	extern MTS_EXPORT_CORE double nextafter(double x, double y);
 };
 #elif defined(__clang__)
 inline bool mts_isnan(float f) {

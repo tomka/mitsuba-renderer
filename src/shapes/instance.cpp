@@ -21,7 +21,7 @@
 MTS_NAMESPACE_BEGIN
  
 /*!\plugin{instance}{Geometry instance}
- * \order{6}
+ * \order{9}
  * \parameters{
  *     \parameter{\Unnamed}{\ShapeGroup}{A reference to a 
  *     shape group that should be instantiated}
@@ -52,8 +52,8 @@ Instance::Instance(Stream *stream, InstanceManager *manager)
 
 void Instance::serialize(Stream *stream, InstanceManager *manager) const {
 	Shape::serialize(stream, manager);
-	m_objectToWorld.serialize(stream);
 	manager->serialize(stream, m_shapeGroup.get());
+	m_objectToWorld.serialize(stream);
 }
 
 void Instance::configure() {
@@ -101,9 +101,11 @@ bool Instance::rayIntersect(const Ray &_ray, Float mint, Float maxt) const {
 	return kdtree->rayIntersect(ray, mint, maxt);
 }
 
-void Instance::fillIntersectionRecord(const Ray &ray, 
+void Instance::fillIntersectionRecord(const Ray &_ray, 
 	const void *temp, Intersection &its) const {
 	const ShapeKDTree *kdtree = m_shapeGroup->getKDTree();
+	Ray ray;
+	m_worldToObject(_ray, ray);
 	kdtree->fillIntersectionRecord<false>(ray, temp, its);
 	its.shFrame.n = normalize(m_objectToWorld(its.shFrame.n));
 	its.shFrame.s = normalize(m_objectToWorld(its.shFrame.s));
@@ -112,6 +114,7 @@ void Instance::fillIntersectionRecord(const Ray &ray,
 	its.wi = its.shFrame.toLocal(-ray.d);
 	its.dpdu = m_objectToWorld(its.dpdu);
 	its.dpdv = m_objectToWorld(its.dpdv);
+	its.p = m_objectToWorld(its.p);
 }
 
 MTS_IMPLEMENT_CLASS_S(Instance, false, Shape)

@@ -30,12 +30,26 @@ PhotonMap::PhotonMap(size_t photonCount)
 }
 
 PhotonMap::PhotonMap(Stream *stream, InstanceManager *manager) 
-    : m_kdtree(0, PhotonTree::ESlidingMidpoint) {
+    : SerializableObject(stream, manager), 
+	  m_kdtree(0, PhotonTree::ESlidingMidpoint) {
+	Assert(Photon::m_precompTableReady);
 	m_scale = (Float) stream->readFloat();
-	m_kdtree.setAABB(AABB(stream));
 	m_kdtree.resize(stream->readSize());
+	m_kdtree.setDepth(stream->readSize());
+	m_kdtree.setAABB(AABB(stream));
 	for (size_t i=0; i<m_kdtree.size(); ++i) 
 		m_kdtree[i] = Photon(stream);
+}
+
+void PhotonMap::serialize(Stream *stream, InstanceManager *manager) const {
+	Log(EDebug, "Serializing a photon map (%s)", 
+		memString(m_kdtree.size() * sizeof(Photon)).c_str());
+	stream->writeFloat(m_scale);
+	stream->writeSize(m_kdtree.size());
+	stream->writeSize(m_kdtree.getDepth());
+	m_kdtree.getAABB().serialize(stream);
+	for (size_t i=0; i<m_kdtree.size(); ++i)
+		m_kdtree[i].serialize(stream);
 }
 
 PhotonMap::~PhotonMap() {
@@ -44,24 +58,14 @@ PhotonMap::~PhotonMap() {
 std::string PhotonMap::toString() const {
 	std::ostringstream oss;
 	oss << "PhotonMap[" << endl
-		<< "  aabb = " << m_kdtree.getAABB().toString() << "," << endl
 		<< "  size = " << m_kdtree.size() << "," << endl
 		<< "  capacity = " << m_kdtree.capacity() << "," << endl
+		<< "  aabb = " << m_kdtree.getAABB().toString() << "," << endl
+		<< "  depth = " << m_kdtree.getDepth() << "," << endl
 		<< "  scale = " << m_scale << endl
 		<< "]";
 	return oss.str();
 }
-
-void PhotonMap::serialize(Stream *stream, InstanceManager *manager) const {
-	Log(EDebug, "Serializing a photon map (%.2f KB)", 
-		m_kdtree.size() * sizeof(Photon) / 1024.0f);
-	stream->writeFloat(m_scale);
-	m_kdtree.getAABB().serialize(stream);
-	stream->writeSize(m_kdtree.size());
-	for (size_t i=0; i<m_kdtree.size(); ++i)
-		m_kdtree[i].serialize(stream);
-}
-
 void PhotonMap::dumpOBJ(const std::string &filename) {
 	std::ofstream os(filename.c_str());
 	os << "o Photons" << endl;
@@ -180,5 +184,5 @@ size_t PhotonMap::estimateRadianceRaw(const Intersection &its,
 	return count;
 }
 
-MTS_IMPLEMENT_CLASS_S(PhotonMap, false, Object)
+MTS_IMPLEMENT_CLASS_S(PhotonMap, false, SerializableObject)
 MTS_NAMESPACE_END

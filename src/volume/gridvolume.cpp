@@ -26,9 +26,6 @@
 // Uncomment to enable nearest-neighbor direction interpolation
 //#define VINTERP_NEAREST_NEIGHBOR
 
-// Uncomment to enable structure tensor-based direction interpolation (better, but slow)
-#define VINTERP_STRUCTURE_TENSOR
-
 // Number of power iteration steps used to find the dominant direction
 #define POWER_ITERATION_STEPS 5
 
@@ -263,7 +260,7 @@ public:
 							m_channels);
 				break;
 			default:
-				Log(EError, "Encountered a volume data file of unknown type!");
+				Log(EError, "Encountered a volume data file of unknown type (type=%i, channels=%i)!", type, m_channels);
 		}
 
 		m_volumeType = (EVolumeType) type;
@@ -576,6 +573,16 @@ public:
 
 	Float getMaximumFloatValue() const {
 		return 1.0f;
+	}
+
+	std::string toString() const {
+		std::ostringstream oss;
+		oss << "GridVolume[" << endl
+			<< "  res = " << m_res.toString() << "," << endl
+			<< "  channels = " << m_channels << "," << endl
+			<< "  aabb = " << m_dataAABB.toString() << endl
+			<< "]";
+		return oss.str();
 	}
 
 	MTS_DECLARE_CLASS()

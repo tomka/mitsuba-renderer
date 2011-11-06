@@ -17,6 +17,8 @@
 */
 
 #include <mitsuba/core/random.h>
+#include <mitsuba/core/quad.h>
+#include <boost/bind.hpp>
 #include <stdarg.h>
 #include <iomanip>
 #include <errno.h>
@@ -363,8 +365,8 @@ std::string getFQDN() {
 }
 
 Float log2(Float value) {
-	const Float invLn2 = (Float) 1.0f / std::log((Float) 2.0f);
-	return std::log(value) * invLn2;
+	const Float invLn2 = (Float) 1.0f / std::fastlog((Float) 2.0f);
+	return std::fastlog(value) * invLn2;
 }
 
 std::string formatString(const char *fmt, ...) {
@@ -546,6 +548,187 @@ bool solveLinearSystem2x2(const Float a[2][2], const Float b[2], Float x[2]) {
 	return true;
 }
 
+Float interpCubic1D(Float p, const Float *data, Float min, Float max, size_t size) {
+	if (p < min || p > max)
+		return 0.0f;
+
+	/* Transform 'p' so that knots lie at integer positions */
+	Float t = ((p - min) * (size - 1)) / (max - min);
+
+	/* Index of the left knot in the queried subinterval,
+	   be robust to cases where t=b. */
+	size_t k = std::min((size_t) t, size - 2);
+
+	Float f0  = data[k], 
+		  f1  = data[k+1],
+		  d0, d1;
+
+	/* Approximate the derivatives */
+	if (k > 0)
+		d0 = 0.5f * (data[k+1] - data[k-1]);
+	else
+		d0 = data[k+1] - data[k];
+
+	if (k + 2 < size)
+		d1 = 0.5f * (data[k+2] - data[k]);
+	else
+		d1 = data[k+1] - data[k];
+
+	/* Compute the relative position within the interval */
+	t = t - (Float) k;
+
+	Float t2 = t*t, t3 = t2*t;
+
+	return 
+		( 2*t3 - 3*t2 + 1) * f0 +
+		(-2*t3 + 3*t2)     * f1 +
+		(   t3 - 2*t2 + t) * d0 +
+		(   t3 - t2)       * d1;
+}
+
+
+Float interpCubic2D(const Point2 &p, const Float *data, 
+		const Point2 &min, const Point2 &max, const Size2 &size) {
+	Float knotWeights[2][4];
+	Point2 knot;
+
+	/* Compute interpolation weights separately for each dimension */
+	for (int dim=0; dim<2; ++dim) {
+		Float *weights = knotWeights[dim];
+		if (p[dim] < min[dim] || p[dim] > max[dim])
+			return 0.0f;
+
+		/* Transform 'p' so that knots lie at integer positions */
+		Float t = ((p[dim] - min[dim]) * (size[dim] - 1))
+			/ (max[dim]-min[dim]);
+
+		/* Find the index of the left knot in the queried 
+		   subinterval, be robust to cases where t=b. */
+		knot[dim] = std::min((size_t) t, size[dim] - 2);
+
+		/* Compute the relative position within the interval */
+		t = t - (Float) knot[dim];
+
+		/* Compute node weights */
+		Float t2 = t*t, t3 = t2*t;
+		weights[0] = 0.0f;
+		weights[1] = 2*t3 - 3*t2 + 1;
+		weights[2] = -2*t3 + 3*t2;
+		weights[3] = 0.0f;
+
+		/* Derivative weights */
+		Float d0 = t3 - 2*t2 + t,
+			  d1 = t3 - t2;
+
+		/* Turn derivative weights into node weights using
+		   an appropriate chosen finite differences stencil */
+		if (knot[dim] > 0) {
+			weights[2] +=  0.5f * d0;
+			weights[0] -=  0.5f * d0;
+		} else {
+			weights[2] += d0;
+			weights[1] -= d0;
+		}
+
+		if (knot[dim] + 2 < size[dim]) {
+			weights[3] += 0.5f * d1;
+			weights[1] -= 0.5f * d1;
+		} else {
+			weights[2] += d1;
+			weights[1] -= d1;
+		}
+	}
+
+	Float result = 0.0f;
+	for (int y=-1; y<=2; ++y) {
+		Float wy = knotWeights[1][y+1];
+		for (int x=-1; x<=2; ++x) {
+			Float wxy = knotWeights[0][x+1] * wy;
+
+			if (wxy == 0)
+				continue;
+
+			size_t pos = (knot[1] + y) * size[0] + knot[0] + x;
+
+			result += data[pos] * wxy;
+		}
+	}
+	return result;
+}
+
+Float interpCubic3D(const Point3 &p, const Float *data, 
+		const Point3 &min, const Point3 &max, const Size3 &size) {
+	Float knotWeights[3][4];
+	Point3 knot;
+
+	/* Compute interpolation weights separately for each dimension */
+	for (int dim=0; dim<3; ++dim) {
+		Float *weights = knotWeights[dim];
+		if (p[dim] < min[dim] || p[dim] > max[dim])
+			return 0.0f;
+
+		/* Transform 'p' so that knots lie at integer positions */
+		Float t = ((p[dim] - min[dim]) * (size[dim] - 1))
+			/ (max[dim]-min[dim]);
+
+		/* Find the index of the left knot in the queried 
+		   subinterval, be robust to cases where t=b. */
+		knot[dim] = std::min((size_t) t, size[dim] - 2);
+
+		/* Compute the relative position within the interval */
+		t = t - (Float) knot[dim];
+
+		/* Compute node weights */
+		Float t2 = t*t, t3 = t2*t;
+		weights[0] = 0.0f;
+		weights[1] = 2*t3 - 3*t2 + 1;
+		weights[2] = -2*t3 + 3*t2;
+		weights[3] = 0.0f;
+
+		/* Derivative weights */
+		Float d0 = t3 - 2*t2 + t,
+			  d1 = t3 - t2;
+
+		/* Turn derivative weights into node weights using
+		   an appropriate chosen finite differences stencil */
+		if (knot[dim] > 0) {
+			weights[2] +=  0.5f * d0;
+			weights[0] -=  0.5f * d0;
+		} else {
+			weights[2] += d0;
+			weights[1] -= d0;
+		}
+
+		if (knot[dim] + 2 < size[dim]) {
+			weights[3] += 0.5f * d1;
+			weights[1] -= 0.5f * d1;
+		} else {
+			weights[2] += d1;
+			weights[1] -= d1;
+		}
+	}
+
+	Float result = 0.0f;
+	for (int z=-1; z<=2; ++z) {
+		Float wz = knotWeights[2][z+1];
+		for (int y=-1; y<=2; ++y) {
+			Float wyz = knotWeights[1][y+1] * wz;
+			for (int x=-1; x<=2; ++x) {
+				Float wxyz = knotWeights[0][x+1] * wyz;
+
+				if (wxyz == 0)
+					continue;
+
+				size_t pos = ((knot[2] + z) * size[1] + (knot[1] + y))
+					* size[0] + knot[0] + x;
+
+				result += data[pos] * wxyz;
+			}
+		}
+	}
+	return result;
+}
+
 void stratifiedSample1D(Random *random, Float *dest, int count, bool jitter) {
 	Float invCount = 1.0f / count;
 
@@ -584,62 +767,57 @@ void latinHypercube(Random *random, Float *dest, size_t nSamples, size_t nDim) {
 	}
 }
 
-
 Vector sphericalDirection(Float theta, Float phi) {
-	Float sinTheta = std::sin(theta);
+	Float sinTheta, cosTheta, sinPhi, cosPhi;
+
+	std::sincos(theta, &sinTheta, &cosTheta);
+	std::sincos(phi, &sinPhi, &cosPhi);
+
 	return Vector(
-		sinTheta * std::cos(phi),
-		sinTheta * std::sin(phi),
-		std::cos(theta)
+		sinTheta * cosPhi,
+		sinTheta * sinPhi,
+		cosTheta
 	);
 }
 
 Vector squareToSphere(const Point2 &sample) {
 	Float z = 1.0f - 2.0f * sample.y;
-	Float r = 1.0f - z * z;
-	r = std::sqrt(std::max((Float) 0, r));
-	Float phi = 2.0f * M_PI * sample.x;
-	return Vector(r * std::cos(phi), r * std::sin(phi), z);
+	Float r = std::sqrt(std::max((Float) 0.0f, 1.0f - z*z));
+	Float sinPhi, cosPhi;
+	std::sincos(2.0f * M_PI * sample.x, &sinPhi, &cosPhi);
+	return Vector(r * cosPhi, r * sinPhi, z);
 }
 
 Vector squareToHemisphere(const Point2 &sample) {
-	Float phi = 2.0f * M_PI * sample.x;
-	Float r2 = sample.y;
-	Float tmp = std::sqrt(1-std::min((Float) 1, r2*r2));
+	Float z = sample.y;
+	Float tmp = std::sqrt(std::min((Float) 0, 1-z*z));
 
-	return Vector(
-		std::cos(phi) * tmp,
-		std::sin(phi) * tmp,
-		r2
-	);
+	Float sinPhi, cosPhi;
+	std::sincos(2.0f * M_PI * sample.x, &sinPhi, &cosPhi);
+
+	return Vector(cosPhi * tmp, sinPhi * tmp, z);
 }
 
 Vector squareToHemispherePSA(const Point2 &sample) {
-	Float r = std::sqrt(sample.x);
-	Float phi = 2.0f * M_PI * sample.y;
-	Float dirX = r * std::cos(phi);
-	Float dirY = r * std::sin(phi);
-	Float z = std::sqrt(1 - std::min((Float) 1, dirX*dirX + dirY*dirY));
+	Point2 p = squareToDiskConcentric(sample);
+	Float z = std::sqrt(std::max((Float) 0, 
+		1.0f - p.x*p.x - p.y*p.y));
 
-	if (EXPECT_NOT_TAKEN(z == 0)) {
-		/* Guard against numerical imprecisions */
-		return normalize(Vector(
-			dirX, dirY, Epsilon));
-	}
+	/* Guard against numerical imprecisions */
+	if (EXPECT_NOT_TAKEN(z == 0))
+		z = 1e-10f;
 
-	return Vector(
-		dirX, dirY, z
-	);
+	return Vector(p.x, p.y, z);
 }
 
 Point2 squareToDisk(const Point2 &sample) {
 	Float r = std::sqrt(sample.x);
-	Float phi = 2.0f * M_PI * sample.y;
-	Float dirX = r * std::cos(phi);
-	Float dirY = r * std::sin(phi);
+	Float sinPhi, cosPhi;
+	std::sincos(2.0f * M_PI * sample.y, &sinPhi, &cosPhi);
 
 	return Point2(
-		dirX, dirY
+		cosPhi * r,
+		sinPhi * r
 	);
 }
 
@@ -687,10 +865,37 @@ Point2 squareToDiskConcentric(const Point2 &sample) {
 		else 
 			coords = Point2(-r2, (M_PI/4.0f) * (6.0f - r1/r2));
 	}
-	return Point2(
-		coords.x*std::cos(coords.y),
-		coords.x*std::sin(coords.y)
-	);
+
+	Point2 result;
+	std::sincos(coords.y, &result.y, &result.x);
+	return result*coords.x;
+}
+
+Point2 diskToSquareConcentric(const Point2 &p) {
+	Float r   = std::sqrt(p.x * p.x + p.y * p.y),
+		  phi = std::atan2(p.y, p.x),
+		  a, b;
+
+	if (phi < -M_PI/4) {
+  		/* in range [-pi/4,7pi/4] */
+		phi += 2*M_PI;
+	}
+
+	if (phi < M_PI/4) { /* region 1 */
+		a = r;
+		b = phi * a / (M_PI/4);
+	} else if (phi < 3*M_PI/4) { /* region 2 */
+		b = r;
+		a = -(phi - M_PI/2) * b / (M_PI/4);
+	} else if (phi < 5*M_PI/4) { /* region 3 */
+		a = -r;
+		b = (phi - M_PI) * a / (M_PI/4);
+	} else { /* region 4 */
+		b = -r;
+		a = -(phi - 3*M_PI/2) * b / (M_PI/4);
+	}
+
+	return Point2(0.5f * (a+1), 0.5f * (b+1));
 }
 
 Float squareToConePdf(Float cosCutoff) {
@@ -706,12 +911,11 @@ Vector squareToCone(Float cosCutoff, const Point2 &sample) {
 }
 
 Point2 squareToStdNormal(const Point2 &sample) {
-	Float tmp1 = std::sqrt(-2 * std::log(1-sample.x)),
-		  tmp2 = 2 * M_PI * sample.y;
-	return Point2(
-		tmp1 * std::cos(tmp2),
-		tmp1 * std::sin(tmp2)
-	);
+	Float r   = std::sqrt(-2 * std::fastlog(1-sample.x)),
+		  phi = 2 * M_PI * sample.y;
+	Point2 result;
+	std::sincos(phi, &result.y, &result.x);
+	return result * r;
 }
 
 Float lanczosSinc(Float t, Float tau) {
@@ -732,6 +936,9 @@ Float lanczosSinc(Float t, Float tau) {
 	by Paul S. Heckbert. */
 Float fresnelDielectric(Float cosThetaI, Float cosThetaT, 
 						Float etaI, Float etaT) {
+	if (etaI == etaT)
+		return 0.0f;
+
 	Float Rs = (etaI * cosThetaI - etaT * cosThetaT)
 			/ (etaI * cosThetaI + etaT * cosThetaT);
 	Float Rp = (etaT * cosThetaI - etaI * cosThetaT)
@@ -762,15 +969,15 @@ Float fresnel(Float cosThetaI, Float extIOR, Float intIOR) {
 	if (cosThetaI < 0.0f)
 		std::swap(etaI, etaT);
 
-	/* Using Snell's law, calculate the sine of the angle
-	   between the transmitted ray and the surface normal */
-	Float sinThetaT = etaI / etaT * 
-		std::sqrt(std::max((Float) 0.0f, 1.0f - cosThetaI*cosThetaI));
+	/* Using Snell's law, calculate the squared sine of the
+	   angle between the normal and the transmitted ray */
+	Float eta = etaI / etaT,
+		  sinThetaTSqr = eta*eta * (1-cosThetaI*cosThetaI);
 
-	if (sinThetaT > 1.0f)
+	if (sinThetaTSqr > 1.0f)
 		return 1.0f;  /* Total internal reflection! */
 
-	Float cosThetaT = std::sqrt(1.0f - sinThetaT*sinThetaT);
+	Float cosThetaT = std::sqrt(1.0f - sinThetaTSqr);
 
 	/* Finally compute the reflection coefficient */
 	return fresnelDielectric(std::abs(cosThetaI),
@@ -788,6 +995,63 @@ Vector refract(const Vector& wi, const Normal& n, Float eta) {
         return Vector(0.0f, 0.0f, 0.0f);
     else
         return eta * wi - (eta * c + sqrtf(k)) * n;
+}
+
+static Float fresnelDiffuseIntegrand(Float eta, Float xi) {
+	if (eta > 1)
+		return fresnel(std::sqrt(xi), 1, eta);
+	else
+		return fresnel(std::sqrt(xi), 1/eta, 1);
+}
+
+Float fresnelDiffuseReflectance(Float eta, bool fast) {
+	if (fast) {
+		/* Fast mode: the following code approximates the
+		 * diffuse Frensel reflectance for the eta<1 and 
+		 * eta>1 cases. An evalution of the accuracy led
+		 * to the following scheme, which cherry-picks
+		 * fits from two papers where they are best.
+		 */
+		if (eta < 1) {
+			/* Fit by Egan and Hilgeman (1973). Works
+			   reasonably well for "normal" IOR values (<2).
+	
+			   Max rel. error in 1.0 - 1.5 : 0.1%
+			   Max rel. error in 1.5 - 2   : 0.6%
+			   Max rel. error in 2.0 - 5   : 9.5%
+			*/
+			return -1.4399f * (eta * eta) 
+				  + 0.7099f * eta 
+				  + 0.6681f 
+				  + 0.0636f / eta;
+		} else {
+			/* Fit by d'Eon and Irving (2011)
+			 *
+			 * Maintains a good accuracy even for 
+			 * unrealistic IOR values.
+			 *
+			 * Max rel. error in 1.0 - 2.0   : 0.1%
+			 * Max rel. error in 2.0 - 10.0  : 0.2%
+			 */
+			Float invEta = 1.0f / eta,
+				  invEta2 = invEta*invEta,
+				  invEta3 = invEta2*invEta,
+				  invEta4 = invEta3*invEta,
+				  invEta5 = invEta4*invEta;
+
+			return 0.919317f - 3.4793f * invEta 
+				 + 6.75335f * invEta2
+				 - 7.80989f * invEta3 
+				 + 4.98554f * invEta4 
+				 - 1.36881f * invEta5;
+		}
+	} else {
+		GaussLobattoIntegrator quad(1024, 0, 1e-5f);
+		return quad.integrate(
+			boost::bind(&fresnelDiffuseIntegrand, eta, _1), 0, 1);
+	}
+
+	return 0.0f;
 }
 
 Float radicalInverse(int b, size_t i) {
@@ -940,5 +1204,4 @@ Float hypot2(Float a, Float b) {
 	}
 	return r;
 }
-
 MTS_NAMESPACE_END

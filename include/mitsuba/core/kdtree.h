@@ -318,6 +318,8 @@ public:
 	inline const AABBType &getAABB() const { return m_aabb; }
 	/// Return the depth of the constructed KD-tree
 	inline size_t getDepth() const { return m_depth; }
+	/// Set the depth of the constructed KD-tree (be careful with this)
+	inline void setDepth(size_t depth) { m_depth = depth; }
 
 	/// Construct the KD-tree hierarchy
 	void build(bool recomputeAABB = false) {
@@ -328,8 +330,8 @@ public:
 			return;
 		}
 
-		SLog(EInfo, "Building a %i-dimensional kd-tree over " SIZE_T_FMT " data points",
-			PointType::dim, m_nodes.size());
+		SLog(EInfo, "Building a %i-dimensional kd-tree over " SIZE_T_FMT " data points (%s)",
+			PointType::dim, m_nodes.size(), memString(m_nodes.size() * sizeof(NodeType)).c_str());
 
 		if (recomputeAABB) {
 			m_aabb.reset();
@@ -405,7 +407,7 @@ public:
 
 		while (stackPos > 0) {
 			const NodeType &node = m_nodes[index];
-			int nextIndex;
+			IndexType nextIndex;
 	
 			/* Recurse on inner nodes */
 			if (!node.isLeaf()) {
@@ -427,7 +429,7 @@ public:
 					}
 				} else {
 					/* The search query is located on the left side of the split. 
-					Search this side first. */
+					   Search this side first. */
 					if (searchBoth && hasRightChild(index))
 						stack[stackPos++] = node.getRightIndex(index);
 
@@ -505,7 +507,7 @@ public:
 		while (stackPos > 0) {
 			const NodeType &node = m_nodes[index];
 			++traversalSteps;
-			int nextIndex;
+			IndexType nextIndex;
 	
 			/* Recurse on inner nodes */
 			if (!node.isLeaf()) {
@@ -527,7 +529,7 @@ public:
 					}
 				} else {
 					/* The search query is located on the left side of the split. 
-					Search this side first. */
+					   Search this side first. */
 					if (searchBoth && hasRightChild(index))
 						stack[stackPos++] = node.getRightIndex(index);
 
@@ -612,7 +614,7 @@ public:
 
 		while (stackPos > 0) {
 			NodeType &node = m_nodes[index];
-			int nextIndex;
+			IndexType nextIndex;
 	
 			/* Recurse on inner nodes */
 			if (!node.isLeaf()) {
@@ -635,7 +637,7 @@ public:
 					}
 				} else {
 					/* The search query is located on the left side of the split. 
-					Search this side first. */
+					   Search this side first. */
 					if (searchBoth && hasRightChild(index))
 						stack[stackPos++] = node.getRightIndex(index);
 
@@ -681,7 +683,7 @@ public:
 
 		while (stackPos > 0) {
 			const NodeType &node = m_nodes[index];
-			int nextIndex;
+			IndexType nextIndex;
 	
 			/* Recurse on inner nodes */
 			if (!node.isLeaf()) {
@@ -704,7 +706,7 @@ public:
 					}
 				} else {
 					/* The search query is located on the left side of the split. 
-					Search this side first. */
+					   Search this side first. */
 					if (searchBoth && hasRightChild(index))
 						stack[stackPos++] = node.getRightIndex(index);
 
@@ -747,7 +749,7 @@ public:
 
 		while (stackPos > 0) {
 			const NodeType &node = m_nodes[index];
-			int nextIndex;
+			IndexType nextIndex;
 	
 			/* Recurse on inner nodes */
 			if (!node.isLeaf()) {
@@ -770,7 +772,7 @@ public:
 					}
 				} else {
 					/* The search query is located on the left side of the split. 
-					Search this side first. */
+					   Search this side first. */
 					if (searchBoth && hasRightChild(index))
 						stack[stackPos++] = node.getRightIndex(index);
 
@@ -793,6 +795,20 @@ public:
 		return found;
 	}
 
+	/**
+	 * \brief Return whether or not the inner node of the 
+	 * specified index has a right child node.
+	 *
+	 * This function is available for convenience and abstracts away some 
+	 * details about the underlying node representation.
+	 */
+	inline bool hasRightChild(IndexType index) const {
+		if (NodeType::leftBalancedLayout) {
+			return 2*index+2 < m_nodes.size();
+		} else {
+			return m_nodes[index].getRightIndex(index) != 0;
+		}
+	}
 protected:
 	struct CoordinateOrdering : public std::binary_function<IndexType, IndexType, bool> {
 	public:
@@ -818,15 +834,6 @@ protected:
 		int m_axis;
 		Scalar m_value;
 	};
-
-	/// Test if an inner node has a right child node
-	inline bool hasRightChild(IndexType index) const {
-		if (NodeType::leftBalancedLayout) {
-			return 2*index+2 < m_nodes.size();
-		} else {
-			return m_nodes[index].getRightIndex(index) != 0;
-		}
-	}
 
 	/**
 	 * Given a number of entries, this method calculates the number of nodes

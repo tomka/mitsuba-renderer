@@ -295,6 +295,78 @@ extern MTS_EXPORT_CORE bool solveQuadraticDouble(double a, double b,
 	double c, double &x0, double &x1);
 
 /**
+ * \brief Evaluate a cubic spline interpolant of a regularly sampled 1D function
+ * 
+ * This implementation uses Catmull-Rom splines, i.e. it uses finite
+ * differences to approximate the derivatives at the endpoints of each spline
+ * segment.
+ *
+ * \param p
+ *      Evaluation point of the interpolant
+ * \param data
+ *      Floating point array containing \c nKnots regularly spaced evaluations
+ *      in the range \a [a,b] of the function to be approximated.
+ * \param min 
+ *      Position of the first knot
+ * \param max
+ *      Position of the last knot
+ * \param size 
+ *      Total number of knots
+ * \return
+ *      The interpolated value or zero when \a t lies outside of \a [a,b]
+ */
+extern MTS_EXPORT_CORE Float interpCubic1D(Float p, const Float *data, 
+		Float min, Float max, size_t size);
+
+/**
+ * \brief Evaluate a cubic spline interpolant of a regularly sampled 2D function
+ * 
+ * This implementation uses a tensor product of Catmull-Rom splines, i.e. it uses 
+ * finite differences to approximate the derivatives at the endpoints of each spline
+ * segment.
+ *
+ * \param p
+ *      Evaluation point of the interpolant
+ * \param data
+ *      Floating point array containing \c nKnots regularly spaced evaluations
+ *      in the range \a [a,b] of the function to be approximated.
+ * \param min
+ *      Position of the first knot on each dimension
+ * \param max
+ *      Position of the last knot on each dimension
+ * \param size
+ *      Total number of knots for each dimension
+ * \return
+ *      The interpolated value or zero when \a t lies outside of the knot range
+ */
+extern MTS_EXPORT_CORE Float interpCubic2D(const Point2 &p, const Float *data, 
+		const Point2 &min, const Point2 &max, const Size2 &size);
+
+/**
+ * \brief Evaluate a cubic spline interpolant of a regularly sampled 3D function
+ * 
+ * This implementation uses a tensor product of Catmull-Rom splines, i.e. it uses 
+ * finite differences to approximate the derivatives at the endpoints of each spline
+ * segment.
+ *
+ * \param p
+ *      Evaluation point of the interpolant
+ * \param data
+ *      Floating point array containing \c nKnots regularly spaced evaluations
+ *      in the range \a [a,b] of the function to be approximated.
+ * \param min
+ *      Position of the first knot on each dimension
+ * \param max
+ *      Position of the last knot on each dimension
+ * \param size
+ *      Total number of knots for each dimension
+ * \return
+ *      The interpolated value or zero when \a t lies outside of the knot range
+ */
+extern MTS_EXPORT_CORE Float interpCubic3D(const Point3 &p, const Float *data, 
+		const Point3 &min, const Point3 &max, const Size3 &size);
+
+/**
  * \brief Calculate the radical inverse function
  *
  * (Implementation based on "Instant Radiosity" by Alexander Keller 
@@ -438,6 +510,9 @@ extern MTS_EXPORT_CORE Point2 squareToDisk(const Point2 &sample);
 /// Low-distortion concentric square to disk mapping by Peter Shirley (PDF: 1/(2 * PI))
 extern MTS_EXPORT_CORE Point2 squareToDiskConcentric(const Point2 &sample);
 
+/// Low-distortion concentric disk to square mapping 
+extern MTS_EXPORT_CORE Point2 diskToSquareConcentric(const Point2 &sample);
+
 /// Convert an uniformly distributed square sample into barycentric coordinates
 extern MTS_EXPORT_CORE Point2 squareToTriangle(const Point2 &sample);
 
@@ -464,6 +539,20 @@ extern MTS_EXPORT_CORE Float fresnelDielectric(Float cosThetaI,
 		Float cosThetaT, Float etaI, Float etaT);
 
 /**
+ * \brief Calculates the unpolarized fresnel reflection coefficient on
+ * an interface to a conductor.
+ *
+ * \param cosThetaI
+ * 		Cosine of the angle between the normal and the incident ray
+ * \param eta
+ * 		Real refractive index (wavelength-dependent)
+ * \param k
+ * 		Imaginary refractive index (wavelength-dependent)
+ */
+extern MTS_EXPORT_CORE Spectrum fresnelConductor(Float cosThetaI, 
+		const Spectrum &eta, const Spectrum &k);
+
+/**
  * \brief Calculates the unpolarized fresnel reflection coefficient for a 
  * dielectric material. Handles incidence from either sides.
  *
@@ -478,18 +567,25 @@ extern MTS_EXPORT_CORE Float fresnel(Float cosThetaI, Float extIOR,
 		Float intIOR);
 
 /**
- * \brief Calculates the unpolarized fresnel reflection coefficient on
- * an interface to a conductor.
+ * \brief Calculates the diffuse unpolarized fresnel reflectance of
+ * a dielectric material (sometimes referred to as "Fdr"). 
  *
- * \param cosThetaI
- * 		Cosine of the angle between the normal and the incident ray
+ * This value quantifies what fraction of completely diffuse incident 
+ * illumination will be reflected by a dielectric material on average.
+ *
  * \param eta
- * 		Real refractive index (wavelength-dependent)
- * \param k
- * 		Imaginary refractive index (wavelength-dependent)
+ *      Relative refraction coefficient, i.e. etaT/etaI
+ * \param fast
+ *      Compute an approximate value? If set to \c true, the 
+ *      implementation will use a polynomial approximation with
+ *      a max relative error of ~0.5% on the interval 0.5 < \c eta < 2.
+ *      When \c fast=false, the code will use Gauss-Lobatto quadrature 
+ *      to compute the diffuse reflectance more accurately, and for
+ *      a wider range of refraction coefficients, but at a cost
+ *      in terms of performance.
  */
-extern MTS_EXPORT_CORE Spectrum fresnelConductor(Float cosThetaI, 
-		const Spectrum &eta, const Spectrum &k);
+extern MTS_EXPORT_CORE Float fresnelDiffuseReflectance(
+	Float eta, bool fast = false);
 
 /**
  * Calculate the normalized direction of a ray reflected at a mirroring surface.

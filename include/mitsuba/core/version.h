@@ -25,7 +25,7 @@ MTS_NAMESPACE_BEGIN
  * \brief Current release of Mitsuba
  * \ingroup libcore
  */
-#define MTS_VERSION "0.3.0"
+#define MTS_VERSION "0.3.1"
 
 /**
  * \brief Year of the current release
@@ -83,18 +83,21 @@ public:
 	}
 
 	/// Is this a valid version number?
-	bool isValid() {
+	inline bool isValid() {
 		return m_major != 0 || m_minor != 0 || m_release != 0;
 	}
 
 	/// Are the following two versions compatible?
-	bool isCompatible(const Version &other) const {
+	inline bool isCompatible(const Version &other) const {
 		return m_major == other.m_major &&
 			m_minor == other.m_minor;
 	}
 
 	/// Turn into a string of the form "major.minor.release"
 	std::string toString() const;
+
+	/// Turn into a string of the form "major.minor.release (Architecture)"
+	std::string toStringComplete() const;
 
 	/// Return the major version
 	inline int getMajorVersion() const { return m_major; }

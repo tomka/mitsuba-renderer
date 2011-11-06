@@ -52,11 +52,13 @@ static StatsCounter earlyExits("Heterogeneous volume",
  *         \begin{enumerate}[(i)]
  *             \item \code{simpson}: Sampling is done by inverting a 
  *             deterministic quadrature rule based on composite
- *             Simpson integration over small ray segments.
+ *             Simpson integration over small ray segments. Benefits
+ *             from the use of good sample generators (e.g. \pluginref{ldsampler}).
  *             \item \code{woodcock}: Generate samples using 
- *             Woodcock tracking. This is usually faster and guaranteed
- *             to be unbiased, but has the disadvantage of not providing
- *             certain information that is required by bidirectional
+ *             Woodcock tracking. This is usually faster and 
+ *             always unbiased, but has the disadvantages of not benefiting
+ *             from good sample generators and not providing
+ *             information that is required by bidirectional
  *             rendering techniques.
  *         \end{enumerate}
  *         Default: \texttt{woodcock}
@@ -86,14 +88,23 @@ static StatsCounter earlyExits("Heterogeneous volume",
  *     }
  * }
  * 
+ * \renderings{
+ *     \medrendering{40}{medium_heterogeneous_density_40}
+ *     \medrendering{200}{medium_heterogeneous_density_200}
+ *     \medrendering{1000}{medium_heterogeneous_density_1000}
+ *     \vspace{-2mm}
+ *     \caption{Renderings of an index-matched medium using different density multipliers (\lstref{hetvolume})}
+ * }
+ * 
  * This plugin provides a flexible heterogeneous medium implementation, which 
  * acquires its data from nested \code{volume} instances. These can be 
  * constant, use a procedural function, or fetch data from disk, e.g. using a 
- * memory-mapped density grid. See \secref{volumes} for details.
+ * memory-mapped density grid. See \secref{volumes} for details on volume data
+ * sources.
  *
  * Instead of allowing separate volumes to be provided for the scattering
- * absorption parameters \code{sigmaS} and \code{sigmaA} (as is done in
- * \pluginref{homogeneous}, this class instead takes the approach of 
+ * and absorption parameters \code{sigmaS} and \code{sigmaA} (as is done in
+ * \pluginref{homogeneous}), this class instead takes the approach of 
  * enforcing a spectrally uniform value of \code{sigmaT}, which must be
  * provided using a nested scalar-valued volume named \code{density}.
  *
@@ -106,6 +117,48 @@ static StatsCounter earlyExits("Heterogeneous volume",
  * which contains local particle orientation that will be passed to
  * scattering models that support this, such as a the Micro-flake or 
  * Kajiya-Kay phase functions.
+ *
+ * \vspace{4mm}
+ *
+ * \begin{xml}[label=lst:hetvolume,caption=A simple heterogeneous medium backed by a grid volume]
+ * <!-- Declare a heterogeneous participating medium named 'smoke' -->
+ * <medium type="heterogeneous" id="smoke">
+ *     <string name="method" value="simpson"/>
+ *
+ *     <!-- Acquire density values from an external data file -->
+ *     <volume name="density" type="gridvolume">
+ *         <string name="filename" value="frame_0150.vol"/>
+ *     </volume>
+ *
+ *     <!-- The albedo is constant and set to 0.9 -->
+ *     <volume name="albedo" type="constvolume">
+ *         <spectrum name="value" value="0.9"/>
+ *     </volume>
+ *
+ *     <!-- Use an isotropic phase function -->
+ *     <phase type="isotropic"/>
+ *
+ *     <!-- Scale the density values as desired -->
+ *     <float name="densityMultiplier" value="200"/>
+ *  </medium>
+ *
+ * <!-- Attach the index-matched medium to a shape in the scene -->
+ * <shape type="obj">
+ *     <!-- Load an OBJ file, which contains a mesh version
+ *          of the axis-aligned box of the volume data file -->
+ *     <string name="filename" value="bounds.obj"/>
+ * 
+ *     <!-- Reference the medium by ID -->
+ *     <ref name="interior" id="smoke"/>
+ *
+ *     <!-- If desired, this shape could also declare
+ *          a BSDF to create an index-mismatched 
+ *          transition, e.g.
+ *
+ *     <bsdf type="dielectric"/>
+ *     -->
+ * </shape>
+ * \end{xml}
  */
 class HeterogeneousMedium : public Medium {
 public:
@@ -277,7 +330,7 @@ public:
 			+ lookupDensity(pLast, ray.d);
 
 		#if defined(HETVOL_EARLY_EXIT)
-			const Float stopAfterDensity = -std::log(Epsilon);
+			const Float stopAfterDensity = -std::fastlog(Epsilon);
 			const Float stopValue = stopAfterDensity*3.0f/(stepSize
 					* m_densityMultiplier);
 		#endif
@@ -488,7 +541,7 @@ public:
 
 	Spectrum getTransmittance(const Ray &ray, Sampler *sampler) const {
 		if (m_method == ESimpsonQuadrature || sampler == NULL) {
-			return Spectrum(std::exp(-integrateDensity(ray)));
+			return Spectrum(std::fastexp(-integrateDensity(ray)));
 		} else {
 			/* When Woodcock tracking is selected as the sampling method,
 			   we can use this method to get a noisy estimate of 
@@ -508,7 +561,7 @@ public:
 			for (int i=0; i<nSamples; ++i) {
 				Float t = mint;
 				while (true) {
-					t -= std::log(1-sampler->next1D()) * m_invMaxDensity;
+					t -= std::fastlog(1-sampler->next1D()) * m_invMaxDensity;
 					if (t >= maxt) {
 						result += 1;
 						break;
@@ -535,7 +588,7 @@ public:
 		bool success = false;
 
 		if (m_method == ESimpsonQuadrature) {
-			Float desiredDensity = -std::log(1-sampler->next1D());
+			Float desiredDensity = -std::fastlog(1-sampler->next1D());
 			if (invertDensityIntegral(ray, desiredDensity, integratedDensity, 
 					mRec.t, densityAtMinT, densityAtT)) {
 				mRec.p = ray(mRec.t);
@@ -548,7 +601,7 @@ public:
 					? m_orientation->lookupVector(mRec.p) : Vector(0.0f);
 			}
 
-			Float expVal = std::exp(-integratedDensity);
+			Float expVal = std::fastexp(-integratedDensity);
 			mRec.pdfFailure = expVal;
 			mRec.pdfSuccess = expVal * densityAtT;
 			mRec.pdfSuccessRev = expVal * densityAtMinT;
@@ -573,7 +626,7 @@ public:
 
 			Float t = mint, densityAtT = 0;
 			while (true) {
-				t -= std::log(1-sampler->next1D()) * m_invMaxDensity;
+				t -= std::fastlog(1-sampler->next1D()) * m_invMaxDensity;
 				if (t >= maxt)
 					break;
 
@@ -603,7 +656,7 @@ public:
 
 	void pdfDistance(const Ray &ray, MediumSamplingRecord &mRec) const {
 		if (m_method == ESimpsonQuadrature) {
-			Float expVal = std::exp(-integrateDensity(ray));
+			Float expVal = std::fastexp(-integrateDensity(ray));
 
 			mRec.transmittance = Spectrum(expVal);
 			mRec.pdfFailure = expVal;

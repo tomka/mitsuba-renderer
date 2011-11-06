@@ -123,12 +123,11 @@ AABB Triangle::getClippedAABB(const Point *positions, const AABB &aabb) const {
 
 	AABB result;
 	for (int i=0; i<nVertices; ++i) {
-#if defined(SINGLE_PRECISION)
 		for (int j=0; j<3; ++j) {
 			/* Now this is really paranoid! */
 			double pos_d = vertices1[i][j];
-			float  pos_f = (float) pos_d;
-			float  pos_roundedDown, pos_roundedUp;
+			float pos_f = (float) pos_d;
+			Float pos_roundedDown, pos_roundedUp;
 
 			if (pos_f < pos_d) {
 				/* Float value is too small */
@@ -148,9 +147,6 @@ AABB Triangle::getClippedAABB(const Point *positions, const AABB &aabb) const {
 			result.min[j] = std::min(result.min[j], pos_roundedDown);
 			result.max[j] = std::max(result.max[j], pos_roundedUp);
 		}
-#else
-		result.expandBy(vertices1[i]);
-#endif
 	}
 	result.clip(aabb);
 

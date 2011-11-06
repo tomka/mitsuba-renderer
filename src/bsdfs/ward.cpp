@@ -210,7 +210,7 @@ public:
 
 			Float factor2 = H.x / alphaU, factor3 = H.y / alphaV;
 			Float exponent = -(factor2*factor2+factor3*factor3)/(H.z*H.z);
-			Float specRef = factor1 * std::exp(exponent);
+			Float specRef = factor1 * std::fastexp(exponent);
 			/* Important to prevent numeric issues when evaluating the
 			   sampling density of the Ward model in places where it takes
 			   on miniscule values (Veach-MLT does this for instance) */
@@ -245,7 +245,7 @@ public:
 			Float factor2 = H.x / alphaU, factor3 = H.y / alphaV;
 
 			Float exponent = -(factor2*factor2+factor3*factor3)/(H.z*H.z);
-			specProb = factor1 * std::exp(exponent);
+			specProb = factor1 * std::fastexp(exponent);
 		}
 
 		if (hasDiffuse) 
@@ -298,7 +298,7 @@ public:
 				1.0f-cosPhiH*cosPhiH));
 
 			Float thetaH = std::atan(std::sqrt(std::max((Float) 0.0f, 
-				-std::log(sample.x) / (
+				-std::fastlog(sample.x) / (
 					(cosPhiH*cosPhiH) / (alphaU*alphaU) +
 					(sinPhiH*sinPhiH) / (alphaV*alphaV)
 			))));
@@ -449,13 +449,13 @@ public:
 			<< "    float factor2 = H.x / alphaU, factor3 = H.y / alphaV;" << endl
 			<< "    float exponent = -(factor2*factor2 + factor3*factor3)/(H.z*H.z);" << endl
 			<< "    float specRef = factor1 * exp(exponent);" << endl 
-			<< "    return (" << depNames[0] << "(uv) * 0.31831" << endl
+			<< "    return (" << depNames[0] << "(uv) * inv_pi" << endl
 			<< "           + " << depNames[1] << "(uv) * specRef) * cosTheta(wo);" << endl
 			<< "}" << endl
 			<< "vec3 " << evalName << "_diffuse(vec2 uv, vec3 wi, vec3 wo) {" << endl
 			<< "    if (wi.z <= 0.0 || wo.z <= 0.0)" << endl
 			<< "    	return vec3(0.0);" << endl
-			<< "    return " << depNames[0] << "(uv) * (0.31831 * cosTheta(wo));" << endl
+			<< "    return " << depNames[0] << "(uv) * (inv_pi * cosTheta(wo));" << endl
 			<< "}" << endl;
 	}
 

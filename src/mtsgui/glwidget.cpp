@@ -763,10 +763,12 @@ void GLWidget::mouseMoveEvent(QMouseEvent *event) {
 	/* Re-center cursor as needed */
 	QPoint global = mapToGlobal(m_mousePos);
 	QDesktopWidget *desktop = QApplication::desktop();
+	QRect geo = desktop->screenGeometry(global);
+
 	if (global.x() < 50 || global.y() < 50 ||
 		global.x() > desktop->width()-50 || 
 		global.y() > desktop->height()-50) {
-		QPoint target(desktop->width()/2, desktop->height()/2);
+		QPoint target = geo.center();
 		m_ignoreMouseEvent = target - global;
 		QCursor::setPos(target);
 	}
@@ -776,10 +778,11 @@ void GLWidget::mouseMoveEvent(QMouseEvent *event) {
 }
 	
 void GLWidget::wheelEvent(QWheelEvent *event) {
+	if (!m_preview->isRunning() || m_context == NULL || m_context->scene == NULL || m_animation)
+		return;
+
 	QScrollBar *bar = event->orientation() == Qt::Vertical
 		? m_vScroll : m_hScroll;
-	if (!m_preview->isRunning() || m_animation) 
-		return;
 
 	if (bar->isVisible()) {
 		int oldStep = bar->singleStep();
@@ -849,7 +852,7 @@ Float GLWidget::autoFocus() const {
 			radicalInverse(3, sampleIndex) * filmSize.y);
 		scene->getCamera()->generateRay(sample, Point2(0, 0), 0, ray);
 		if (scene->rayIntersect(ray, t, ptr, n)) {
-			Float weight = std::exp(-0.5 / variance * (
+			Float weight = std::fastexp(-0.5 / variance * (
 				std::pow(sample.x - filmSize.x / (Float) 2, (Float) 2) +
 				std::pow(sample.y - filmSize.y / (Float) 2, (Float) 2)));
 			avgDistance += t * weight;
@@ -1100,7 +1103,7 @@ void GLWidget::paintGL() {
 			m_downsamplingProgram->unbind();
 			Float logLuminance, maxLuminance, unused;
 			m_luminanceBuffer[target]->getPixel(0, 0).toLinearRGB(logLuminance, maxLuminance, unused);
-			logLuminance = std::exp(logLuminance / (size.x*size.y));
+			logLuminance = std::fastexp(logLuminance / (size.x*size.y));
 			if (mts_isnan(logLuminance) || std::isinf(logLuminance)) {
 				SLog(EWarn, "Could not determine the average log-luminance, since the image contains NaNs/infs/negative values");
 				logLuminance = 1;

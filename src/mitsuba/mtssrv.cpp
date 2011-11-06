@@ -23,6 +23,7 @@
 #include <mitsuba/core/sshstream.h>
 #include <mitsuba/core/shvector.h>
 #include <mitsuba/core/appender.h>
+#include <mitsuba/core/version.h>
 #include <mitsuba/core/fresolver.h>
 #include <mitsuba/core/plugin.h>
 #include <fstream>
@@ -157,7 +158,8 @@ int mts_main(int argc, char **argv) {
 					break;
 				case 'h':
 				default:
-					cout <<  "Mitsuba version " MTS_VERSION ", Copyright (c) " MTS_YEAR " Wenzel Jakob" << endl;
+					cout <<  "Mitsuba version " << Version(MTS_VERSION).toStringComplete()
+						<< ", Copyright (c) " MTS_YEAR " Wenzel Jakob" << endl;
 					cout <<  "Usage: mtssrv [options]" << endl;
 					cout <<  "Options/Arguments:" << endl;
 					cout <<  "   -h          Display this help text" << endl << endl;
@@ -203,7 +205,8 @@ int mts_main(int argc, char **argv) {
 		if (!quietMode)
 			log->addAppender(new StreamAppender(&std::cout));
 
-		SLog(EInfo, "Mitsuba version " MTS_VERSION ", Copyright (c) " MTS_YEAR " Wenzel Jakob");
+		SLog(EInfo, "Mitsuba version %s, Copyright (c) " MTS_YEAR " Wenzel Jakob",
+			Version(MTS_VERSION).toStringComplete().c_str());
 
 #if defined(WIN32)
 		/* Custom handler for Ctrl-C signals */

@@ -34,7 +34,8 @@ void ServerThread::shutdown() {
 }
 
 void ServerThread::run() {
-	SLog(EInfo, "Mitsuba version " MTS_VERSION ", Copyright (c) " MTS_YEAR " Wenzel Jakob");
+	SLog(EInfo, "Mitsuba version %s, Copyright (c) " MTS_YEAR " Wenzel Jakob",
+			Version(MTS_VERSION).toStringComplete().c_str());
 	/* Allocate a socket of the proper type (IPv4/IPv6) */
 	ref<Scheduler> scheduler = Scheduler::getInstance();
 	struct addrinfo hints, *servinfo, *p = NULL;
@@ -211,9 +212,14 @@ void ServerWidget::show() {
 	if (isVisible()) {
 		raise();
 	} else {
+		/* Center the dialog */
 		QDesktopWidget *desktop = QApplication::desktop();
-		move((desktop->width() - width())/2,
-			(desktop->height() - height())/2);
+		QRect geo = desktop->screenGeometry();
+		QPoint windowPos(
+			geo.left() + (geo.width() - width()) / 2, 
+			geo.top() + (geo.height() - height())/2
+		);
+		move(windowPos);
 		QMainWindow::show();
 	}
 }

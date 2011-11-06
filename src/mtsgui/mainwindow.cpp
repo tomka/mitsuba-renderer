@@ -93,7 +93,8 @@ MainWindow::MainWindow(QWidget *parent) :
 	connect(m_consoleAppender, SIGNAL(criticalError(const QString &)), 
 		m_logWidget, SLOT(onCriticalError(const QString &)), Qt::QueuedConnection);
 
-	SLog(EInfo, "Mitsuba version " MTS_VERSION ", Copyright (c) " MTS_YEAR " Wenzel Jakob");
+	SLog(EInfo, "Mitsuba version %s, Copyright (c) " MTS_YEAR " Wenzel Jakob",
+		Version(MTS_VERSION).toStringComplete().c_str());
 
 	m_currentChild = NULL;
 	ui->setupUi(this);
@@ -181,12 +182,11 @@ MainWindow::MainWindow(QWidget *parent) :
 
 	connect(m_renderListener, SIGNAL(jobFinished(const RenderJob *, bool)), 
 		this, SLOT(onJobFinished(const RenderJob *, bool)), Qt::QueuedConnection);
-	connect(m_renderListener, SIGNAL(refresh(const RenderJob *, const Bitmap *)), 
-		this, SLOT(onRefresh(const RenderJob *, const Bitmap *)), Qt::BlockingQueuedConnection);
 	connect(m_renderListener, SIGNAL(workEnd(const RenderJob *, const ImageBlock *)), 
 		this, SLOT(onWorkEnd(const RenderJob *, const ImageBlock *)), Qt::DirectConnection);
 	connect(m_renderListener, SIGNAL(workBegin(const RenderJob *, const RectangularWorkUnit *, int)),
         this, SLOT(onWorkBegin(const RenderJob *, const RectangularWorkUnit *, int)), Qt::DirectConnection);
+	connect(m_renderListener, SIGNAL(refresh()), this, SLOT(onRefresh()), Qt::QueuedConnection);
 	connect(m_consoleAppender, 
 		SIGNAL(progressMessage(const RenderJob *, const QString &, float, const QString &)), 
 		this, SLOT(onProgressMessage(const RenderJob *, const QString &, float, const QString &)), 
@@ -198,7 +198,11 @@ MainWindow::MainWindow(QWidget *parent) :
 		windowPos = settings.value("pos").toPoint();
 	} else {
 		QDesktopWidget *desktop = QApplication::desktop();
-		windowPos = QPoint((desktop->width() - width()) / 2, (desktop->height() - height())/2);
+		QRect geo = desktop->screenGeometry();
+		windowPos = QPoint(
+			geo.left() + (geo.width() - width()) / 2, 
+			geo.top() + (geo.height() - height())/2
+		);
 	}
 
     /* shape properties */
@@ -354,7 +358,7 @@ MainWindow::MainWindow(QWidget *parent) :
 				data.append(QString("Content-Disposition: form-data; name=\"bugreport\"; filename=\"%1\"\r\n").arg(file.fileName()));
 				data.append("Content-Type: application/octet-stream\r\n\r\n");
 				QString header = QString("Bug report from machine \"%1\", user \"%2\", filename \"%3\""
-					", Mitsuba version " MTS_VERSION).arg(getFQDN().c_str()).arg(username).arg(file.fileName());
+					", Mitsuba version %4").arg(getFQDN().c_str()).arg(username).arg(file.fileName()).arg(Version(MTS_VERSION).toStringComplete().c_str());
 				data.append(header + "\r\n");
 				for (int j=0; j<header.length(); j++)
 					data.append('=');
@@ -1249,8 +1253,16 @@ void MainWindow::on_actionSceneDescription_triggered() {
 	SceneContext *context= m_context[currentIndex];
 	SceneInformationDialog *dialog = new SceneInformationDialog(this,
 		context->scene);
+
+	/* Center the dialog */
 	QDesktopWidget *desktop = QApplication::desktop();
-	dialog->move(QPoint((desktop->width() - dialog->width()) / 2, (desktop->height() - dialog->height())/2));
+	QRect geo = desktop->screenGeometry(geometry().center());
+	QPoint windowPos(
+		geo.left() + (geo.width() - dialog->width()) / 2, 
+		geo.top() + (geo.height() - dialog->height())/2
+	);
+	dialog->move(windowPos);
+
 	connect(dialog, SIGNAL(finished(int)), this, SLOT(onSceneInformationClose(int)));
 	m_currentChild = dialog;
 	// prevent a tab drawing artifact on Qt/OSX
@@ -2591,10 +2603,10 @@ void MainWindow::onExportDialogClose(int reason) {
 						Spectrum spec;
 						spec.fromLinearRGB(source[(y*width+x)*4+0], 
 							source[(y*width+x)*4+1], source[(y*width+x)*4+2]);
-						avgLogLuminance += std::log(0.001f+spec.getLuminance());
+						avgLogLuminance += std::fastlog(0.001f+spec.getLuminance());
 					}
 				}
-				avgLogLuminance = std::exp(avgLogLuminance/(width*height));
+				avgLogLuminance = std::fastexp(avgLogLuminance/(width*height));
 				reinhardKey = ctx->reinhardKey / avgLogLuminance;
 			}
 			
@@ -2753,13 +2765,14 @@ void MainWindow::onSaveAsDialogClose(int reason) {
 		settings.setValue("fileDialogState", dialog->saveState());
 		saveScene(this, context, fileName);
 		fs::path pathName = fileName.toStdString(),
+			     complete = fs::complete(pathName),
 			     baseName = fs::basename(pathName);
 		context->fileName = fileName;
 		context->shortName = QFileInfo(fileName).fileName();
 		context->scene->setSourceFile(pathName);
 		context->scene->setDestinationFile(baseName.file_string());
 		ui->tabBar->setTabText(currentIndex, context->shortName);
-		addRecentFile(fileName);
+		addRecentFile(complete.file_string().c_str());
 	}
 }
 
@@ -2790,7 +2803,7 @@ void MainWindow::onJobFinished(const RenderJob *job, bool cancelled) {
 				ui->glView->resumePreview();
 		}
 	}
-	onRefresh(job, NULL);
+	refresh(job, NULL);
 	context->renderJob = NULL;
 	updateUI();
 	if (ui->tabBar->currentIndex() != -1 &&
@@ -2980,10 +2993,18 @@ void MainWindow::onWorkEnd(const RenderJob *job, const ImageBlock *block) {
 		emit updateView();
 }
 
-void MainWindow::onRefresh(const RenderJob *job, const Bitmap *_bitmap) {
+void MainWindow::onRefresh() {
+	const QRenderListener::RefreshRequest *req = m_renderListener->acquireRefreshRequest();
+	if (req)
+		refresh(req->first, req->second);
+	m_renderListener->releaseRefreshRequest();
+}
+
+void MainWindow::refresh(const RenderJob *job, const Bitmap *_bitmap) {
 	SceneContext *context = getContext(job, false);
 	if (context == NULL)
 		return;
+
 	Film *film = context->scene->getFilm();
 	Point2i co = film->getCropOffset();
 	Bitmap *bitmap = context->framebuffer;
@@ -3162,6 +3183,7 @@ SceneContext::SceneContext(SceneContext *ctx) {
     snow = ctx->snow;
     snowRenderSettings = ctx->snowRenderSettings;
     currentlySelectedShape = NULL;
+	doc = ctx->doc.cloneNode(true).toDocument();
 }
 
 SceneContext::~SceneContext() {

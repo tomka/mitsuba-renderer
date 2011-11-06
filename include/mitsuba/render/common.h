@@ -28,9 +28,16 @@ MTS_NAMESPACE_BEGIN
  * sampling or evaluating a scattering function
  * \ingroup librender
  */
-enum ETransportQuantity {
-	ERadiance = 1,
-	EImportance = 2
+enum ETransportMode {
+	/* Note to self: do not change these enumeration
+	   values, some code depends on them. */
+
+	/// Radiance transport
+	ERadiance = 0,
+	/// Importance transport
+	EImportance = 1,
+	/// Specifies the number of supported transport modes
+	ETransportModes = 2
 };
 /**
  * \brief Specifies the measure associated with 
@@ -45,7 +52,7 @@ enum EMeasure {
 
 
 /// \cond
-extern MTS_EXPORT_RENDER std::ostream &operator<<(std::ostream &os, const ETransportQuantity &quantity);
+extern MTS_EXPORT_RENDER std::ostream &operator<<(std::ostream &os, const ETransportMode &quantity);
 extern MTS_EXPORT_RENDER std::ostream &operator<<(std::ostream &os, const EMeasure &measure);
 /// \endcond
 
