@@ -74,44 +74,6 @@ SubsurfaceMaterialManager::LUTRecord SubsurfaceMaterialManager::getLUT(const std
     return m_lutRecords.find(hash)->second;
 }
 
-std::string SubsurfaceMaterialManager::getMultipoleLUTHashR(Float resolution, Float errorThreshold,
-        const Spectrum &sigmaTr, const Spectrum &alphaPrime, int numExtraDipoles,
-        const std::vector<Spectrum> &zrList, const std::vector<Spectrum> &zvList) const {
-    std::ostringstream oss;
-    // set precision to get around floating point rounding issues
-    oss.precision(5);
-    oss << "multipole" << resolution << "," << errorThreshold << "," << sigmaTr.toString() << ","
-        << alphaPrime.toString() << "," << numExtraDipoles;
-
-    for (std::vector<Spectrum>::const_iterator it=zrList.begin(); it!=zrList.end(); ++it)
-        oss << it->toString();
-    for (std::vector<Spectrum>::const_iterator it=zvList.begin(); it!=zvList.end(); ++it)
-        oss << it->toString();
-
-    return oss.str();
-}
-
-std::string SubsurfaceMaterialManager::getMultipoleLUTHashT(Float resolution, Float errorThreshold,
-        const Spectrum &sigmaTr, const Spectrum &alphaPrime, int numExtraDipoles,
-        const std::vector<Spectrum> &zrList, const std::vector<Spectrum> &zvList, Float d) const {
-    std::ostringstream oss;
-    oss << getMultipoleLUTHashR(resolution, errorThreshold, sigmaTr, alphaPrime, numExtraDipoles,
-            zrList, zvList);
-    oss << ",d=" << d;
-    return oss.str();
-}
-
-std::string SubsurfaceMaterialManager::getDipoleLUTHash(Float resolution, Float errorThreshold,
-    const Spectrum &sigmaTr, const Spectrum &alphaPrime, 
-    const Spectrum &zr, const Spectrum &zv) const {
-    std::ostringstream oss;
-    // set precision to get around floating point rounding issues
-    oss.precision(5);
-    oss << "multipole" << resolution << "," << errorThreshold << "," << sigmaTr.toString() << ","
-        << alphaPrime.toString() << "," << zr.toString() << "," << zv.toString();
-    return oss.str();
-}
-
 SubsurfaceMaterialManager::~SubsurfaceMaterialManager() { }
 
 MTS_IMPLEMENT_CLASS(SubsurfaceMaterialManager, false, Object)
