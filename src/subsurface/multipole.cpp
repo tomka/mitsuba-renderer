@@ -29,10 +29,10 @@ MTS_NAMESPACE_BEGIN
 
 /**
  * Computes the combined diffuse radiant exitance 
- * caused by a number of dipole sources
+ * caused by a number of dipole sources. A SSE2
+ * implementation doesn't make things faster here.
  */
 struct IsotropicMultipoleQuery {
-#if !defined(MTS_SSE) || (SPECTRUM_SAMPLES != 3) || defined(NO_SSE_QUERY)
 	inline IsotropicMultipoleQuery(const std::vector<Spectrum> &zr, const std::vector<Spectrum> &zv, 
 		const Spectrum &sigmaTr, Float Fdt, const Point &p, const Normal &_ns,
 		const Float _d, const Float numExtraDipoles)
@@ -92,100 +92,6 @@ struct IsotropicMultipoleQuery {
 	Spectrum sigmaTr, result;
 	const Spectrum one;
 	Spectrum d;
-#else
-
-	struct m128container {
-		__m128 val;
-
-		m128container(__m128 value) {
-			val = value;
-		}
-	};
-
-	inline IsotropicMultipoleQuery(const std::vector<Spectrum> &_zr, const std::vector<Spectrum> &_zv, 
-		const Spectrum &_sigmaTr, Float Fdt, const Point &p, const Normal &_ns,
-		const Float _d, const Float numExtraDipoles)
-		: Fdt(Fdt), p(p), ns(_ns), numExtraDipoles(numExtraDipoles) {
-		for (int i=-numExtraDipoles; i<=numExtraDipoles; ++i) {
-			int idx = i + numExtraDipoles;
-			const Spectrum &zr = _zr[idx];
-			const Spectrum &zv = _zv[idx];
-			zrList.push_back(m128container(_mm_set_ps(zr[0], zr[1], zr[2], 0)));
-			zvList.push_back(m128container(_mm_set_ps(zv[0], zv[1], zv[2], 0)));
-			zrSqr.push_back(m128container(_mm_mul_ps(zrList[idx].val, zrList[idx].val)));
-			zvSqr.push_back(m128container(_mm_mul_ps(zvList[idx].val, zvList[idx].val)));
-		}
-		sigmaTr = _mm_set_ps(_sigmaTr[0], _sigmaTr[1], _sigmaTr[2], 0);
-		result.ps = _mm_setzero_ps();
-		count = 0;
-		d = _mm_set1_ps(_d);
-		one = _mm_set1_ps(1.0f);
-		onehalf = _mm_set1_ps(0.5f);
-		// the smallest distance is at the zero order dipole
-		Float zrMin = zr[numExtraDipoles + 1].min();
-		zrMinSq = zrMin * zrMin;
-	}
-
-	inline void operator()(const IrradianceSample &sample) {
-		/* Distance to the positive point source of the dipole */
-		const Float dist = std::max((p - sample.p).lengthSquared(), zrMinSq);
-		const __m128 lengthSquared = _mm_set1_ps(dist);
-
-		__m128 dMoR(_mm_set1_ps(0.0f));
-		__m128 dMoT(_mm_set1_ps(0.0f));
-		for (int i=-numExtraDipoles; i<=numExtraDipoles; ++i) {
-			int idx = i + numExtraDipoles;
-
-			const __m128 &zr = zrList.at(idx).val,
-				&zv = zvList.at(idx).val,
-				&zrSq = zrSqr.at(idx).val,
-				&zvSq = zvSqr.at(idx).val,
-				drSqr = _mm_add_ps(zrSq, lengthSquared), 
-				dvSqr = _mm_add_ps(zvSq, lengthSquared),
-				dr = _mm_sqrt_ps(drSqr), dv = _mm_sqrt_ps(dvSqr),
-				C1 = _mm_add_ps(sigmaTr, _mm_div_ps(one, dr)),
-				C2 = _mm_add_ps(sigmaTr, _mm_div_ps(one, dv)),
-				C1fac = _mm_div_ps(C1, drSqr),
-				C2fac = _mm_div_ps(C2, dvSqr);
-			SSEVector temp1(_mm_mul_ps(dr, sigmaTr)), temp2(_mm_mul_ps(dv, sigmaTr));
-			const __m128
-				exp1 = _mm_set_ps(expf(-temp1.f[3]), expf(-temp1.f[2]), expf(-temp1.f[1]), 0),
-				exp2 = _mm_set_ps(expf(-temp2.f[3]), expf(-temp2.f[2]), expf(-temp2.f[1]), 0);
-			dMoR = _mm_add_ps(dMoR, _mm_sub_ps(
-					_mm_mul_ps(zr, _mm_mul_ps(C1fac, exp1)),
-					_mm_mul_ps(zv, _mm_mul_ps(C2fac, exp2))));
-			dMoT = _mm_add_ps(dMoT, _mm_sub_ps(
-					_mm_mul_ps(_mm_sub_ps(d, zr), _mm_mul_ps(C1fac, exp1)),
-					_mm_mul_ps(_mm_add_ps(d, zv), _mm_mul_ps(C2fac, exp2))));
-		}
-
-		/* combine Mo based on R and Mo based on T to a new
-		 * Mo based on a combined profile P. */
-		const __m128 cosN = _mm_set1_ps(dot(ns, sample.n)),
-				partR = _mm_mul_ps(_mm_mul_ps(onehalf,
-					_mm_add_ps(cosN, one)), dMoR),
-				partT = _mm_mul_ps(_mm_mul_ps(onehalf,
-					_mm_sub_ps(one, cosN)), dMoT),
-				dMoP = _mm_add_ps(partR, partT);
-		const __m128 factor = _mm_mul_ps(_mm_set1_ps(0.25f*INV_PI*sample.area * Fdt),
-				_mm_set_ps(sample.E[0], sample.E[1], sample.E[2], 0));
-		result.ps = _mm_add_ps(result.ps, _mm_mul_ps(factor, dMoP));
-	 
-		count++;
-	}
-
-	Spectrum getResult() {
-		Spectrum value;
-		for (int i=0; i<3; ++i)
-			value[i] = result.f[3-i];
-		return value;
-	}
-
-	std::vector<m128container> zrList, zvList, zvSqr, zrSqr;
-	__m128 sigmaTr, one, onehalf, d;;
-	SSEVector result;
-#endif
-
 	Float Fdt, zrMinSq;
 	Point p;
 	Normal ns;
@@ -200,7 +106,6 @@ struct IsotropicMultipoleQuery {
  * distance to save one sqrt().
  */
 struct IsotropicLUTMultipoleQuery {
-//#if !defined(MTS_SSE) || (SPECTRUM_SAMPLES != 3)
 	inline IsotropicLUTMultipoleQuery(const ref<LUTType> &lutR, const ref<LUTType> &lutT,
 			Float _res, Float _Fdt, const Point &_p, const Normal &_ns, Float _minDist)
 		: dMoR_LUT(lutR), dMoT_LUT(lutT), entries(lutR->size()), invResolution(1.0f / _res),
@@ -233,11 +138,6 @@ struct IsotropicLUTMultipoleQuery {
 	inline const Spectrum &getResult() const {
 		return result;
 	}
-
-//#else
-
-
-//#endif
 
 	/* a reference to a dMoR look-up-table */
 	const ref<LUTType> &dMoR_LUT, &dMoT_LUT;
